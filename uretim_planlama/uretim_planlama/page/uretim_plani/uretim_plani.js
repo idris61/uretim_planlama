@@ -1,0 +1,285 @@
+frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
+	var page = frappe.ui.make_app_page({
+		parent: wrapper,
+		title: 'Operasyon - İş İstasyonu Planı',
+		single_column: true
+	});
+
+	let content = $('<div></div>');
+	$(page.body).append(content);
+
+	let currentDate = getMonday(new Date());
+
+	const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+	const weekdays = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+	const headerRow = $(`
+		<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+			<div style="display: flex; gap: 8px; align-items: center;">
+				<button id="prev_btn" class="btn btn-default btn-sm" style="padding: 2px 8px;">&lt;</button>
+				<span id="current_label" style="font-weight: bold; margin: 0 10px;"></span>
+				<button id="next_btn" class="btn btn-default btn-sm" style="padding: 2px 8px;">&gt;</button>
+				<button id="today_btn" class="btn btn-primary btn-sm" style="margin-left: 12px; padding: 2px 12px; font-size: 13px;">Bu Hafta</button>
+			</div>
+			<div id="filter_bar" style="display: flex; gap: 10px; align-items: center;">
+				<select id="workstation_filter" class="form-control" style="width: 140px; font-size: 13px;">
+					<option value="">Tüm İstasyonlar</option>
+				</select>
+				<select id="operation_filter" class="form-control" style="width: 140px; font-size: 13px;">
+					<option value="">Tüm Operasyonlar</option>
+				</select>
+			</div>
+		</div>
+	`);
+	$(page.body).prepend(headerRow);
+
+	const tableContainer = $('<div id="schedule_tables"></div>');
+	content.append(tableContainer);
+
+	function getMonday(d) {
+		d = new Date(d);
+		let day = d.getDay();
+		let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+		return new Date(d.setDate(diff));
+	}
+
+	function updateLabel(days) {
+		if (!days || days.length === 0) return;
+		const label = $('#current_label');
+		const start = new Date(days[0].date);
+		const end = new Date(days[days.length - 1].date);
+		const format = d => `${String(d.getDate()).padStart(2,'0')} ${months[d.getMonth()]}`;
+		label.text(`${format(start)} - ${format(end)}`);
+	}
+
+	function load_schedule_dynamic() {
+		let start = getMonday(currentDate);
+		let end = new Date(start);
+		end.setDate(start.getDate() + 6);
+
+		let week_start = start.toISOString().slice(0, 10);
+		let week_end = end.toISOString().slice(0, 10);
+
+		$('#schedule_tables').html('<div style="text-align:center; color:#888; padding:40px;">Yükleniyor...</div>');
+
+		frappe.call({
+			method: 'uretim_planlama.uretim_planlama.api.get_weekly_production_schedule',
+			args: {
+				week_start: week_start,
+				week_end: week_end,
+				workstation: $('#workstation_filter').val(),
+				operation: $('#operation_filter').val(),
+			},
+			callback: function(r) {
+				if (r.message) {
+					render_tables(r.message);
+					updateLabel(r.message.days);
+				} else {
+					$('#schedule_tables').html('<div style="text-align:center; color:#888; padding:40px;">Kayıt bulunamadı.</div>');
+				}
+			}
+		});
+	}
+
+	function render_tables(data) {
+		const container = $('#schedule_tables');
+		container.empty();
+
+		const days = data.days || [];
+		const active = data.workstations;
+
+		active.forEach(ws => {
+			const wrapper = $('<div style="margin-bottom: 30px;"></div>');
+			// Operasyon ve iş istasyonu kutusu (tablo başlıklarının üstünde)
+			const infoBox = $(`
+				<div style="margin-bottom: 8px; display: flex; justify-content: flex-start;">
+					<div style="background: linear-gradient(90deg, #fffde4 0%, #ffe680 100%); border-radius: 10px; padding: 10px 28px; display: flex; flex-direction: row; align-items: center; box-shadow: 0 2px 8px #ffe68044; border: 1px solid #ffe680;">
+						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>Operasyon:</span>
+						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold; margin-right:18px;'>${ws.operations.join(', ') || '-'}</span>
+						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>İş İstasyonu:</span>
+						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold;'>${ws.name}</span>
+					</div>
+				</div>
+			`);
+			wrapper.append(infoBox);
+			const header = $('<div style="display: flex; background-color: #003366; color: white; text-align: center;"></div>');
+			days.forEach(d => {
+				let bgColor = d.isHoliday ? 'linear-gradient(90deg, #fbc2eb 0%, #f9d1d1 100%)' : (d.isWeekend ? '#f5f5f5' : 'linear-gradient(90deg, #e3f2fd 0%, #90caf9 100%)');
+				let textColor = d.isHoliday ? '#c62828' : (d.isWeekend ? '#616161' : '#1565c0');
+				let label = `${d.weekday} ${String(new Date(d.date).getDate()).padStart(2, '0')}.${String(new Date(d.date).getMonth() + 1).padStart(2, '0')}`;
+				header.append(`
+					<div style="width: 14.2857%; padding: 10px; font-weight: bold; background: ${bgColor}; color: ${textColor}; border-right: 1px solid #fff;">
+						${label}
+					</div>`);
+			});
+			wrapper.append(header);
+
+			const body = $('<div style="display: flex;"></div>');
+			days.forEach(d => {
+				const jobs = ws.schedule[d.weekday] || [];
+				const column = $('<div style="width: 14.2857%; padding: 6px 2px; min-height: 80px; border-right: 1px solid #eee; display: flex; flex-direction: column; align-items: stretch;"></div>');
+				if (d.isHoliday && d.holidayReason && !(d.isWeekend && d.holidayReason === d.weekday)) {
+					column.append(`<div style="font-size: 11px; color: #721c24; margin-bottom: 6px; text-align: center;">${d.holidayReason}</div>`);
+				}
+				jobs.forEach(job => {
+					const bgColor = 'linear-gradient(90deg, #a18cd1 0%, #fbc2eb 100%)';
+					const statusBadges = {
+						'Beklemede': { bg: '#bdbdbd', color: '#fff' },
+						'Devam Ediyor': { bg: '#ffd600', color: '#333' },
+						'Tamamlandı': { bg: '#43e97b', color: '#fff' },
+						'Başladı': { bg: '#90caf9', color: '#1565c0' }
+					};
+					const badge = statusBadges[job.status] || { bg: '#90caf9', color: '#1565c0' };
+					column.append(`
+						<div class="job-card"
+						data-id="${job.name || ''}"
+						data-work_order="${job.work_order || ''}"
+						data-sales_order="${job.sales_order || ''}"
+						data-status="${job.status || ''}"
+						data-item_name="${job.item_name || ''}"
+						data-for_quantity="${job.qty_to_manufacture || ''}"
+						data-start_time="${job.start_time || ''}"
+						data-end_time="${job.end_time || ''}"
+						style="background: ${bgColor}; color: #4a148c; margin-bottom: 3px; padding: 2px 4px; border-radius: 4px; font-size: 11px; min-height: 18px; display: flex; flex-direction: column; align-items: flex-start; box-shadow: 0 1px 4px 0 rgba(161,140,209,0.08);">
+							<div style="font-weight: 600; font-size: 12px;">${job.name}</div>
+							<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+								<span style="font-size: 10px; opacity: 0.85;">${job.time}</span>
+								<span style="display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 600; background: ${badge.bg}; color: ${badge.color}; margin-left: 2px;">
+									${job.status}
+								</span>
+							</div>
+						</div>
+					`);
+				});
+				body.append(column);
+			});
+			wrapper.append(body);
+
+			const footer = $('<div style="display: flex; border-top: 2px solid #bbb; background: #f8f9fa; font-size: 13px; font-weight: 500;"></div>');
+			days.forEach((d, i) => {
+				const info = ws.daily_info ? ws.daily_info[d.weekday] : null;
+				let workMinutes = info ? info.work_minutes : 0;
+				let plannedMinutes = info ? info.planned_minutes : 0;
+				let plannedHours = Math.floor(plannedMinutes / 60);
+				let plannedMins = plannedMinutes % 60;
+				let doluluk = info ? info.doluluk : 0;
+				let barColor = doluluk < 60 ? 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)' : (doluluk < 90 ? 'linear-gradient(90deg, #f9d423 0%, #ff4e50 100%)' : 'linear-gradient(90deg, #ff5858 0%, #f09819 100%)');
+				let textColor = doluluk < 60 ? '#219150' : (doluluk < 90 ? '#b8860b' : '#c62828');
+				let workHourStr = workMinutes > 0 ? `<span style='color:#2196f3;'>${Math.floor(workMinutes/60)}sa ${workMinutes%60}dk</span>` : '-';
+				let plannedStr = `<span style='color:#1976d2;'>${plannedHours}sa ${plannedMins}dk</span>`;
+				let dolulukStr = `<span style='color:${textColor}; font-weight:700;'>${doluluk}%</span>`;
+				footer.append(`
+					<div style="width: 14.2857%; padding: 6px 2px; text-align: center;">
+						<div style="margin-bottom:2px; color:#888; font-size:12px;">Çalışma: <b>${workHourStr}</b></div>
+						<div style="margin-bottom:2px; color:#888; font-size:12px;">Planlanan: <b>${plannedStr}</b></div>
+						<div style="margin-bottom:2px; color:#888; font-size:12px;">Doluluk: <b>${dolulukStr}</b></div>
+						<div style="height: 8px; width: 80%; margin: 0 auto; background: #eee; border-radius: 4px; overflow: hidden;">
+							<div style="width: ${Math.min(doluluk,100)}%; height: 100%; background: ${barColor}; transition: width 0.5s;"></div>
+						</div>
+					</div>
+				`);
+			});
+			wrapper.append(footer);
+
+			container.append(wrapper);
+		});
+
+		$('.job-card').on('click', function () {
+			const $el = $(this);
+			const dialog = new frappe.ui.Dialog({
+				title: 'İş Kartı Detayı',
+				fields: [
+					{
+						fieldtype: 'HTML',
+						fieldname: 'job_card_id_html',
+						options: `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">İş Kartı</label>
+							<div><a href="/app/job-card/${$el.data('id')}" target="_blank">${$el.data('id')}</a></div>
+						</div>`
+					},
+					{
+						fieldtype: 'HTML',
+						fieldname: 'work_order_html',
+						options: `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">İş Emri</label>
+							<div><a href="/app/work-order/${$el.data('work_order')}" target="_blank">${$el.data('work_order')}</a></div>
+						</div>`
+					},
+					{
+						fieldtype: 'HTML',
+						fieldname: 'sales_order_html',
+						options: `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Sipariş No</label>
+							<div><a href="/app/sales-order/${$el.data('sales_order')}" target="_blank">${$el.data('sales_order')}</a></div>
+						</div>`
+					},
+					{
+						fieldtype: 'HTML',
+						fieldname: 'item_name_html',
+						options: `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Ürün Adı</label>
+							<div><a href="/app/item/${$el.data('item_name')}" target="_blank">${$el.data('item_name')}</a></div>
+						</div>`
+					},
+					{ label: 'Durumu', fieldname: 'status', fieldtype: 'Data', default: $el.data('status') || '–', read_only: 1 },
+					{ label: 'Üretilecek Miktar', fieldname: 'qty_to_manufacture', fieldtype: 'Float', default: $el.data('for_quantity') || '–', read_only: 1 },
+					{ label: 'Planlanan Başlangıç', fieldname: 'start_time', fieldtype: 'Data', default: $el.data('start_time') || '–', read_only: 1 },
+					{ label: 'Planlanan Bitiş', fieldname: 'end_time', fieldtype: 'Data', default: $el.data('end_time') || '–', read_only: 1 }
+				],
+				primary_action_label: 'Kapat',
+				primary_action() {
+					dialog.hide();
+				}
+			});
+			dialog.show();
+		});
+	}
+
+	$('#today_btn').on('click', () => {
+		currentDate = getMonday(new Date());
+		load_schedule_dynamic();
+	});
+
+	$('#prev_btn').on('click', () => {
+		currentDate.setDate(currentDate.getDate() - 7);
+		load_schedule_dynamic();
+	});
+
+	$('#next_btn').on('click', () => {
+		currentDate.setDate(currentDate.getDate() + 7);
+		load_schedule_dynamic();
+	});
+
+	frappe.call({
+		method: 'frappe.client.get_list',
+		args: { doctype: 'Workstation', fields: ['name'] },
+		callback: function(r) {
+			if (r.message) {
+				const wsFilter = $('#workstation_filter');
+				wsFilter.empty().append('<option value="">Tüm İstasyonlar</option>');
+				r.message.forEach(ws => {
+					wsFilter.append(`<option value="${ws.name}">${ws.name}</option>`);
+				});
+			}
+		}
+	});
+	frappe.call({
+		method: 'frappe.client.get_list',
+		args: { doctype: 'Operation', fields: ['name'] },
+		callback: function(r) {
+			if (r.message) {
+				const opFilter = $('#operation_filter');
+				opFilter.empty().append('<option value="">Tüm Operasyonlar</option>');
+				r.message.forEach(op => {
+					opFilter.append(`<option value="${op.name}">${op.name}</option>`);
+				});
+			}
+		}
+	});
+
+	$('#workstation_filter, #operation_filter').on('change', function() {
+		load_schedule_dynamic();
+	});
+
+	load_schedule_dynamic();
+};

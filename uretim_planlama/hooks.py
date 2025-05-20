@@ -5,6 +5,12 @@ app_description = "Uretim Planlama Sayfası"
 app_email = "idris.gemici61@gmail.com"
 app_license = "mit"
 
+# Fixtures (isteğe bağlı özelleştirilebilir)
+fixtures = [
+    {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
+    {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]}
+]
+
 # Apps
 # ------------------
 
