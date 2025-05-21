@@ -11,6 +11,7 @@ fixtures = [
     {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]}
 ]
 
+
 # Apps
 # ------------------
 

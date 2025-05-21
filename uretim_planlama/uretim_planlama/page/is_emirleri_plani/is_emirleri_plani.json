@@ -10,7 +10,7 @@
  "name": "is_emirleri_plani",
  "owner": "Administrator",
  "page_name": "is_emirleri_plani",
- "roles": [],
+ "roles": ["System Manager", "Manufacturing Manager", "Manufacturing User"],
  "script": null,
  "standard": "Yes",
  "style": null,

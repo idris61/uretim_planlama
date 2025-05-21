@@ -230,6 +230,7 @@ def get_holidays(start_date, end_date):
 def get_week_dates(start_date):
     # Pazartesi'den başlat
     monday = start_date - timedelta(days=start_date.weekday())
+    # Haftanın günlerini oluştur
     return [monday + timedelta(days=i) for i in range(7)]
 
 @frappe.whitelist()
@@ -435,3 +436,42 @@ def get_work_order_detail(work_order_id):
         'total_time_in_mins': getattr(wo, 'total_time_in_mins', getattr(wo, 'time_in_mins', '')),
         'operations': operations
     }
+
+@frappe.whitelist()
+def get_work_orders_for_calendar(start, end):
+    """
+    Frappe Calendar için iş emirlerini döndürür.
+    start ve end parametreleri takvimde gösterilecek aralığı belirtir.
+    """
+    work_orders = frappe.get_all(
+        "Work Order",
+        fields=["name", "planned_start_date", "planned_end_date", "status", "sales_order"],
+        filters={
+            "planned_start_date": ["<=", end],
+            "planned_end_date": [">=", start],
+            "docstatus": 1
+        }
+    )
+
+    events = []
+    for wo in work_orders:
+        events.append({
+            "id": wo.name,
+            "title": wo.name,
+            "start": wo.planned_start_date,
+            "end": wo.planned_end_date,
+            "status": wo.status,
+            "sales_order": wo.sales_order
+        })
+    return events
+
+@frappe.whitelist()
+def get_holidays_for_calendar(start, end):
+    holidays = {}
+    for hl in frappe.get_all('Holiday List', fields=['name']):
+        for h in frappe.get_all('Holiday',
+            filters={'parent': hl.name, 'holiday_date': ['between', [start, end]]},
+            fields=['holiday_date', 'description']
+        ):
+            holidays[str(h.holiday_date)] = h.description or 'Tatil'
+    return holidays
