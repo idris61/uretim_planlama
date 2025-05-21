@@ -10,10 +10,13 @@ day_name_tr = {
 }
 
 status_map = {
-    "Pending": "Beklemede",
-    "In Process": "Devam Ediyor",
+    "In Process": "Devam ediyor",
     "Completed": "Tamamlandı",
-    "Not Started": "Başlamadı"
+    "Not Started": "Açık",
+    "Açık": "Açık",
+    "Devam ediyor": "Devam ediyor",
+    "Tamamlandı": "Tamamlandı",
+    "İptal Edildi": "İptal Edildi"
 }
 
 @frappe.whitelist()
@@ -99,6 +102,7 @@ def get_weekly_production_schedule(year=None, month=None, week_start=None, week_
                 daily_work_minutes[i] = 0
 
         for op in operations:
+            ops_in_this_week.add(op.operation)
             work_order = frappe.get_doc('Work Order', op.work_order)
             job_card = frappe.get_all('Job Card',
                 filters={'work_order': op.work_order, 'operation': op.operation},
@@ -106,7 +110,7 @@ def get_weekly_production_schedule(year=None, month=None, week_start=None, week_
                 limit=1
             )
 
-            op_status = 'Beklemede'
+            op_status = ''
             if job_card and job_card[0].status:
                 op_status = job_card[0].status
             elif op.completed_qty > 0:
@@ -128,22 +132,29 @@ def get_weekly_production_schedule(year=None, month=None, week_start=None, week_
 
             day_schedule.setdefault(day_name_tr[start_dt.strftime('%A')], []).append({
                 'name': job_card[0].name if job_card else "",
-                'status': status_map.get(op.status or "", "Tanımsız"),
+                'status': job_card[0].status if job_card and job_card[0].status else status_map.get(op.status or "", "Tanımsız"),
                 'qty_to_manufacture': job_card[0].for_quantity if job_card else 0,
+                'total_completed_qty': work_order.produced_qty,
                 'item_name': work_order.item_name or '',
+                'production_item': work_order.production_item or '',
+                'bom_no': work_order.bom_no or '',
                 'sales_order': work_order.sales_order or '',
                 'work_order': op.work_order,
                 'operation': op.operation or 'Operasyon Yok',
                 'color': get_color_for_sales_order(work_order.sales_order),
                 'start_time': start_dt.strftime('%Y-%m-%d %H:%M'),
                 'end_time': end_dt.strftime('%Y-%m-%d %H:%M'),
+                'expected_start_date': op.planned_start_time,
+                'expected_end_date': op.planned_end_time,
+                'actual_start_date': op.actual_start_time,
+                'actual_end_date': op.actual_end_time,
+                'total_time_in_mins': int((end_dt - start_dt).total_seconds() // 60),
                 'time': f"{start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}",
                 'employee': "",
                 'duration': time_in_mins,
-                'actual_start': op.actual_start_time.strftime('%Y-%m-%d %H:%M') if op.actual_start_time else '',
-                'actual_end': op.actual_end_time.strftime('%Y-%m-%d %H:%M') if op.actual_end_time else '',
                 'op_status': op_status
             })
+
 
         # Günlük özetleri ekle
         daily_info = {}
@@ -354,4 +365,73 @@ def get_weekly_work_orders(week_start=None, week_end=None, workstation=None, sal
         'days': days,
         'start_date': start_date.strftime('%Y-%m-%d'),
         'end_date': end_date.strftime('%Y-%m-%d')
+    }
+
+@frappe.whitelist()
+def get_job_card_detail(job_card_id):
+    job_card = frappe.get_doc('Job Card', job_card_id)
+    return {
+        'name': getattr(job_card, 'name', ''),
+        'status': getattr(job_card, 'status', ''),
+        'work_order': getattr(job_card, 'work_order', ''),
+        'sales_order': getattr(job_card, 'sales_order', ''),
+        'item_name': getattr(job_card, 'item_name', ''),
+        'production_item': getattr(job_card, 'production_item', ''),
+        'bom_no': getattr(job_card, 'bom_no', ''),
+        'for_quantity': getattr(job_card, 'for_quantity', getattr(job_card, 'qty', '')),
+        'total_completed_qty': getattr(job_card, 'total_completed_qty', getattr(job_card, 'completed_qty', '')),
+        'operation': getattr(job_card, 'operation', ''),
+        'expected_start_date': getattr(job_card, 'expected_start_date', getattr(job_card, 'from_time', getattr(job_card, 'planned_start_time', ''))),
+        'expected_end_date': getattr(job_card, 'expected_end_date', getattr(job_card, 'to_time', getattr(job_card, 'planned_end_time', ''))),
+        'actual_start_date': getattr(job_card, 'actual_start_date', getattr(job_card, 'actual_start_time', '')),
+        'actual_end_date': getattr(job_card, 'actual_end_date', getattr(job_card, 'actual_end_time', '')),
+        'total_time_in_mins': getattr(job_card, 'total_time_in_mins', getattr(job_card, 'time_in_mins', '')),
+        'time_required': getattr(job_card, 'time_required', getattr(job_card, 'planned_operating_time', ''))
+    }
+
+@frappe.whitelist()
+def get_work_order_detail(work_order_id):
+    wo = frappe.get_doc('Work Order', work_order_id)
+    operations = []
+    # Operasyonlar child tablosu
+    op_children = frappe.get_all('Work Order Operation', filters={'parent': work_order_id}, fields=[
+        'operation', 'workstation', 'status', 'completed_qty', 'planned_start_time', 'planned_end_time', 'actual_start_time', 'actual_end_time', 'time_in_mins'
+    ])
+    for op in op_children:
+        # Zaman aralığı
+        planned_start = op.get('planned_start_time')
+        planned_end = op.get('planned_end_time')
+        time_str = ''
+        if planned_start and planned_end:
+            try:
+                from frappe.utils import get_datetime
+                s = get_datetime(planned_start)
+                e = get_datetime(planned_end)
+                time_str = f"{s.strftime('%H:%M')}-{e.strftime('%H:%M')}"
+            except:
+                time_str = ''
+        operations.append({
+            'operation': op.get('operation', ''),
+            'workstation': op.get('workstation', ''),
+            'status': op.get('status', ''),
+            'completed_qty': op.get('completed_qty', ''),
+            'planned_start_time': op.get('planned_start_time', ''),
+            'planned_end_time': op.get('planned_end_time', ''),
+            'time': time_str,
+            'actual_start_time': op.get('actual_start_time', ''),
+            'actual_end_time': op.get('actual_end_time', ''),
+            'duration': op.get('time_in_mins', '')
+        })
+    return {
+        'name': getattr(wo, 'name', ''),
+        'status': getattr(wo, 'status', ''),
+        'sales_order': getattr(wo, 'sales_order', ''),
+        'bom_no': getattr(wo, 'bom_no', ''),
+        'production_plan': getattr(wo, 'production_plan', ''),
+        'qty': getattr(wo, 'qty', ''),
+        'produced_qty': getattr(wo, 'produced_qty', ''),
+        'planned_start_date': getattr(wo, 'planned_start_date', getattr(wo, 'from_time', '')),
+        'planned_end_date': getattr(wo, 'planned_end_date', getattr(wo, 'to_time', '')),
+        'total_time_in_mins': getattr(wo, 'total_time_in_mins', getattr(wo, 'time_in_mins', '')),
+        'operations': operations
     }

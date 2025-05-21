@@ -1,3 +1,19 @@
+// Statü etiketleri global scope (ERPNext v15 iş emri statüleri, Türkçe ve renkli, dublicate yok)
+const statusBadges = {
+	'Not Started': { bg: '#ffd600', color: '#333', label: 'Açık' },
+	'Completed':   { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' },
+	'Draft':       { bg: '#bdbdbd', color: '#fff', label: 'Taslak' }
+};
+
+// Operasyonlar için özel badge haritası (sadece 3 statü ve 3 renk)
+const operationStatusBadges = {
+	'Pending':      { bg: '#ffd600', color: '#333', label: 'Açık' },
+	'Not Started':  { bg: '#ffd600', color: '#333', label: 'Açık' },
+	'In Progress':  { bg: '#ff9800', color: '#fff', label: 'Devam Ediyor' },
+	'In Process':   { bg: '#ff9800', color: '#fff', label: 'Devam Ediyor' },
+	'Completed':    { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' }
+};
+
 frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 	var page = frappe.ui.make_app_page({
 		parent: wrapper,
@@ -25,6 +41,10 @@ frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 
 	const tableContainer = $('<div id="work_orders_table"></div>');
 	content.append(tableContainer);
+
+	function formatDate(dt) {
+		return dt ? String(dt).split(' ')[0] : '';
+	}
 
 	function getMonday(d) {
 		d = new Date(d);
@@ -89,6 +109,7 @@ frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 	function render_work_orders_table(data) {
 		const days = data.days || [];
 		const salesOrders = data.sales_orders || {};
+		
 		// 1. Başlık satırı (günler)
 		const header = $('<div style="display: flex; background: #f5f7fa; border-radius: 10px 10px 0 0; overflow: hidden; border-bottom: 2px solid #e0e0e0;"></div>');
 		days.forEach(d => {
@@ -121,14 +142,6 @@ frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 				column.append(`<div style="font-size: 11px; color: #721c24; margin-bottom: 6px; text-align: center;">${d.holidayReason}</div>`);
 			}
 			dayJobs.forEach(job => {
-				const statusBadges = {
-					'Planned': { bg: '#bdbdbd', color: '#fff', label: 'Planned' },
-					'In Progress': { bg: '#ffd600', color: '#333', label: 'In Progress' },
-					'Completed': { bg: '#43e97b', color: '#fff', label: 'Completed' },
-					'Cancelled': { bg: '#ef5350', color: '#fff', label: 'Cancelled' },
-					'Overdue': { bg: '#ef5350', color: '#fff', label: 'Overdue' },
-					'Closed': { bg: '#7e57c2', color: '#fff', label: 'Closed' }
-				};
 				const badge = statusBadges[job.status] || { bg: '#90caf9', color: '#fff', label: job.status };
 				const isWeekend = days.find(dd => dd.date === d.date)?.isWeekend;
 				const blockOpacity = isWeekend ? 0.7 : 1;
@@ -143,17 +156,14 @@ frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 				};
 				const blockBg = job.color;
 				const blockTextColor = getContrastYIQ(job.color);
-				const formatDate = (dt) => (dt ? String(dt).split(' ')[0] : '');
 				column.append(`
 					<div class="work-order-block"
 						data-wo='${encodeURIComponent(JSON.stringify(job))}'
 						style="background:${blockBg}; color:${blockTextColor}; margin-bottom: 8px; padding: 8px 7px 8px 7px; border-radius: 10px; font-size: 11px; font-weight: 500; text-align:left; box-shadow:0 1px 6px #0002; opacity:${blockOpacity}; position:relative; min-height:54px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:2px; cursor:pointer;">
 						<span class='wo-name-link' style='font-size:12px; font-weight:600; letter-spacing:0.5px; text-decoration:none; color:${blockTextColor}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; display:block;'>${job.name}</span>
 						<span style='font-size:10px; color:${blockTextColor}b0; margin-top:2px; margin-bottom:2px;'>P.Baş: ${formatDate(job.planned_start_date)}</span>
-						<span style='display:flex; align-items:center; gap:6px; width:100%;'>
-							<span class='wo-status-badge' style='background:${badge.bg}; color:${badge.color}; border-radius:7px; font-size:10px; font-weight:700; padding:2px 10px; box-shadow:0 1px 4px #0001;'>${badge.label}</span>
-							<span style='font-size:10px; color:${blockTextColor}b0; flex:1; text-align:right;'>P.Bit: ${formatDate(job.planned_end_date)}</span>
-						</span>
+						<span style='font-size:10px; color:${blockTextColor}b0; flex:1; text-align:right;'>P.Bit: ${formatDate(job.planned_end_date)}</span>
+						<span class='wo-status-badge' style='background:${badge.bg}; color:${badge.color}; border-radius:7px; font-size:10px; font-weight:700; padding:2px 10px; box-shadow:0 1px 4px #0001; position:absolute; right:7px; bottom:7px;'>${badge.label}</span>
 					</div>
 				`);
 			});
@@ -163,7 +173,7 @@ frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 		// 3. Footer (özet)
 		const footer = $('<div style="display: flex; border-top: 2px solid #bbb; background: #f8f9fa; font-size: 13px; font-weight: 500;"></div>');
 		days.forEach((d, i) => {
-			footer.append(`<div style="width: 14.2857%; padding: 6px 2px; text-align: center; color:#bbb;"> </div>`);
+			footer.append(`<div style="width: 14.2857%; padding: 6px 2px; text-align: center; color:#bbb;"> </div>`);
 		});
 
 		const table = $('<div style="overflow-x:auto; border-radius:12px; box-shadow:0 2px 12px #0001; margin-bottom:30px; background:#fff;"></div>');
@@ -172,49 +182,124 @@ frappe.pages['is_emirleri_plani'].on_page_load = function(wrapper) {
 		table.append(footer);
 		$('#work_orders_table').empty().append(table);
 
-		// Detay modalı açma eventini hem iş emri numarasına hem de durum etiketine ekle
-		$('.work-order-block').off('click').on('click', function(e) {
+		// Detay modalı açma eventini delegasyon ile bağla
+		$('#work_orders_table').off('click', '.work-order-block').on('click', '.work-order-block', function(e) {
 			const wo = JSON.parse(decodeURIComponent($(this).attr('data-wo')));
-			const bomNo = wo.bom_no ? `<a href='/app/bom/${wo.bom_no}' target='_blank'>${wo.bom_no}</a>` : '–';
-			const salesOrder = wo.sales_order ? `<a href='/app/sales-order/${wo.sales_order}' target='_blank'>${wo.sales_order}</a>` : '–';
-			const prodPlan = wo.production_plan ? `<a href='/app/production-plan/${wo.production_plan}' target='_blank'>${wo.production_plan}</a>` : '–';
-			const qty = wo.produced_qty !== undefined ? wo.produced_qty : '–';
-			const opInfo = wo.operation_info || '–';
-			const statusBadges = {
-				'Planned': { bg: '#bdbdbd', color: '#fff', label: 'Planned' },
-				'In Progress': { bg: '#ffd600', color: '#333', label: 'In Progress' },
-				'Completed': { bg: '#43e97b', color: '#fff', label: 'Completed' },
-				'Cancelled': { bg: '#ef5350', color: '#fff', label: 'Cancelled' },
-				'Overdue': { bg: '#ef5350', color: '#fff', label: 'Overdue' },
-				'Closed': { bg: '#7e57c2', color: '#fff', label: 'Closed' }
-			};
-			const badge = statusBadges[wo.status] || { bg: '#90caf9', color: '#fff', label: wo.status };
-			const dialogHtml = `
-				<div style='margin-bottom:10px;'>
-					<div style='display:flex; align-items:center; gap:10px;'>
-						<span style='font-size:20px; font-weight:800; color:#1976d2;'>${wo.name}</span>
-						<span style='background:${badge.bg}; color:${badge.color}; border-radius:7px; font-size:13px; font-weight:700; padding:2px 12px;'>${badge.label}</span>
+			frappe.call({
+				method: 'uretim_planlama.uretim_planlama.api.get_work_order_detail',
+				args: { work_order_id: wo.name },
+				callback: function(r) {
+					if (!r.message) return;
+					const job = r.message;
+					const badge = statusBadges[job.status] || { bg: '#90caf9', color: '#fff', label: job.status };
+					function formatDate(val) {
+						if (!val || val === '-') return '-';
+						const d = new Date(val);
+						if (isNaN(d.getTime())) return val;
+						return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth()+1).toString().padStart(2, '0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+					}
+					let html = `<div style="margin-bottom:12px;">
+						<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">İş Emri</label><br>
+							<a href="/app/work-order/${job.name}" target="_blank" style="font-weight:bold; color:#1976d2; text-decoration:underline;">${job.name}</a>
+						</div>`;
+					if (job.sales_order) {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Satış Siparişi</label><br>
+							<a href="/app/sales-order/${job.sales_order}" target="_blank" style="font-weight:bold; color:#f57c00; text-decoration:underline;">${job.sales_order}</a>
+						</div>`;
+					}
+					if (job.bom_no) {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">BOM Numarası</label><br>
+							<a href="/app/bom/${job.bom_no}" target="_blank" style="font-weight:bold; color:#6d4c41; text-decoration:underline;">${job.bom_no}</a>
+						</div>`;
+					}
+					if (job.production_plan) {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Üretim Planı</label><br>
+							<a href="/app/production-plan/${job.production_plan}" target="_blank" style="font-weight:bold; color:#009688; text-decoration:underline;">${job.production_plan}</a>
+						</div>`;
+					}
+					html += `<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Durumu</label><br>
+						<span style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background:${badge.bg}; color:${badge.color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${badge.label}</span>
 					</div>
-					<div style='margin:6px 0 10px 0; display:flex; flex-wrap:wrap; gap:10px;'>
-						<span>${bomNo}</span>
-						<span>${salesOrder}</span>
-						<span>${prodPlan}</span>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Üretilecek Miktar</label><br>
+						<span>${job.qty}</span>
 					</div>
-				</div>
-				<div style='margin-bottom:8px;'><label style='font-size:12px;color:#888;'>Üretilen Miktar</label><div>${qty}</div></div>
-				<div style='margin-bottom:8px;'><label style='font-size:12px;color:#888;'>İşlem Bilgisi</label><div>${opInfo}</div></div>
-				<div style='margin-bottom:8px;'><label style='font-size:12px;color:#888;'>Planlanan Başlangıç</label><div>${formatDate(wo.planned_start_date)}</div></div>
-				<div style='margin-bottom:8px;'><label style='font-size:12px;color:#888;'>Planlanan Bitiş</label><div>${formatDate(wo.planned_end_date)}</div></div>
-			`;
-			const dialog = new frappe.ui.Dialog({
-				title: 'İş Emri Detayı',
-				fields: [
-					{ fieldtype: 'HTML', fieldname: 'wo_detail_html', options: dialogHtml }
-				],
-				primary_action_label: 'Kapat',
-				primary_action() { dialog.hide(); }
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Üretilen Miktar</label><br>
+						<span>${job.produced_qty}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Planlanan Başlangıç</label><br>
+						<span>${formatDate(job.planned_start_date)}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Planlanan Bitiş</label><br>
+						<span>${formatDate(job.planned_end_date)}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Toplam Fiili Süre (dk)</label><br>
+						<span>${job.total_time_in_mins !== undefined ? job.total_time_in_mins : '-'}</span>
+					</div>`;
+					// OPERASYONLAR TABLOSU
+					if (Array.isArray(job.operations) && job.operations.length > 0) {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Operasyonlar</label><br>
+							<table style='width:100%; border-collapse:collapse; font-size:12px; margin-top:4px;'>
+								<tr style='background:#f5f5f5; font-weight:bold;'>
+									<td style='padding:4px 6px;'>Operasyon</td>
+									<td style='padding:4px 6px;'>İş İstasyonu</td>
+									<td style='padding:4px 6px;'>Durum</td>
+									<td style='padding:4px 6px;'>Üretilen</td>
+									<td style='padding:4px 6px;'>Plan. Başlangıç</td>
+									<td style='padding:4px 6px;'>Plan. Bitiş</td>
+									<td style='padding:4px 6px;'>Fiili Başlangıç</td>
+									<td style='padding:4px 6px;'>Fiili Bitiş</td>
+								</tr>`;
+							job.operations.forEach(op => {
+								let status = op.status;
+								// Pending veya Not Started ise ve actual_start_time var, actual_end_time yoksa Devam Ediyor say
+								if (
+									(status === 'Pending' || status === 'Not Started') &&
+									op.actual_start_time && !op.actual_end_time
+								) {
+									status = 'In Progress';
+								}
+								const opBadge = operationStatusBadges[status] || { bg: '#ffd600', color: '#333', label: status };
+								html += `<tr>
+									<td style='padding:4px 6px;'>${op.operation}</td>
+									<td style='padding:4px 6px;'>${op.workstation}</td>
+									<td style='padding:4px 6px;'><span style='background:${opBadge.bg}; color:${opBadge.color}; border-radius:7px; font-size:11px; font-weight:600; padding:2px 8px;'>${opBadge.label}</span></td>
+									<td style='padding:4px 6px;'>${op.completed_qty !== undefined ? op.completed_qty : '-'}</td>
+									<td style='padding:4px 6px;'>${formatDate(op.planned_start_time)}</td>
+									<td style='padding:4px 6px;'>${formatDate(op.planned_end_time)}</td>
+									<td style='padding:4px 6px;'>${formatDate(op.actual_start_time)}</td>
+									<td style='padding:4px 6px;'>${formatDate(op.actual_end_time)}</td>
+								</tr>`;
+							});
+							html += `</table>
+						</div>`;
+					}
+					const dialog = new frappe.ui.Dialog({
+						title: 'İş Emri Detayı',
+						size: 'large',
+						fields: [
+							{
+								fieldtype: 'HTML',
+								fieldname: 'work_order_html',
+								options: html
+							}
+						],
+						primary_action_label: 'Kapat',
+						primary_action() { dialog.hide(); }
+					});
+					dialog.show();
+				}
 			});
-			dialog.show();
 		});
 	}
 

@@ -1,7 +1,7 @@
 frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 	var page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: 'Operasyon - İş İstasyonu Planı',
+		title: 'İş İstasyonu - Operasyon Planı',
 		single_column: true
 	});
 
@@ -90,14 +90,22 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 
 		active.forEach(ws => {
 			const wrapper = $('<div style="margin-bottom: 30px;"></div>');
-			// Operasyon ve iş istasyonu kutusu (tablo başlıklarının üstünde)
+			// İş istasyonu ve operasyon adını doğru göster
+			const workstationName = ws.name || '-';
+			let operationName = '-';
+			if (ws.operations && ws.operations.length === 1) {
+				operationName = ws.operations[0];
+			} else if (ws.operations && ws.operations.length > 1) {
+				operationName = ws.operations.join(', ');
+			}
+			// Sarı kutu (infoBox)
 			const infoBox = $(`
 				<div style="margin-bottom: 8px; display: flex; justify-content: flex-start;">
 					<div style="background: linear-gradient(90deg, #fffde4 0%, #ffe680 100%); border-radius: 10px; padding: 10px 28px; display: flex; flex-direction: row; align-items: center; box-shadow: 0 2px 8px #ffe68044; border: 1px solid #ffe680;">
-						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>Operasyon:</span>
-						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold; margin-right:18px;'>${ws.operations.join(', ') || '-'}</span>
 						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>İş İstasyonu:</span>
-						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold;'>${ws.name}</span>
+						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold; margin-right:18px;'>${workstationName}</span>
+						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>Operasyon:</span>
+						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold;'>${operationName}</span>
 					</div>
 				</div>
 			`);
@@ -123,13 +131,14 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 				}
 				jobs.forEach(job => {
 					const bgColor = 'linear-gradient(90deg, #a18cd1 0%, #fbc2eb 100%)';
-					const statusBadges = {
-						'Beklemede': { bg: '#bdbdbd', color: '#fff' },
-						'Devam Ediyor': { bg: '#ffd600', color: '#333' },
-						'Tamamlandı': { bg: '#43e97b', color: '#fff' },
-						'Başladı': { bg: '#90caf9', color: '#1565c0' }
+					// Statü mapping
+					const statusMap = {
+						'Open': { bg: '#ff7043', color: '#fff', label: 'Açık' },
+						'Work In Progress': { bg: '#ffd600', color: '#333', label: 'Devam ediyor' },
+						'Completed': { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' },
+						'Cancelled': { bg: '#ef5350', color: '#fff', label: 'İptal Edildi' }
 					};
-					const badge = statusBadges[job.status] || { bg: '#90caf9', color: '#1565c0' };
+					const badge = statusMap[job.status] || { bg: '#90caf9', color: '#1565c0', label: job.status };
 					column.append(`
 						<div class="job-card"
 						data-id="${job.name || ''}"
@@ -137,15 +146,22 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 						data-sales_order="${job.sales_order || ''}"
 						data-status="${job.status || ''}"
 						data-item_name="${job.item_name || ''}"
-						data-for_quantity="${job.qty_to_manufacture || ''}"
+						data-item_code="${job.production_item || job.item_code || ''}"
+						data-bom_no="${job.bom_no || ''}"
+						data-for_quantity="${job.qty_to_manufacture !== undefined ? job.qty_to_manufacture : '-'}"
+						data-total_completed_qty="${job.total_completed_qty !== undefined ? job.total_completed_qty : '-'}"
 						data-start_time="${job.start_time || ''}"
 						data-end_time="${job.end_time || ''}"
+						data-actual_start_date="${job.actual_start || ''}"
+						data-actual_end_date="${job.actual_end || ''}"
+						data-total_time_in_mins="${job.duration !== undefined ? job.duration : '-'}"
+						data-operation="${job.operation || '-'}"
 						style="background: ${bgColor}; color: #4a148c; margin-bottom: 3px; padding: 2px 4px; border-radius: 4px; font-size: 11px; min-height: 18px; display: flex; flex-direction: column; align-items: flex-start; box-shadow: 0 1px 4px 0 rgba(161,140,209,0.08);">
 							<div style="font-weight: 600; font-size: 12px;">${job.name}</div>
 							<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-								<span style="font-size: 10px; opacity: 0.85;">${job.time}</span>
-								<span style="display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 600; background: ${badge.bg}; color: ${badge.color}; margin-left: 2px;">
-									${job.status}
+								<span style="font-size: 10px; opacity: 0.85;">${job.time || ''}</span>
+								<span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; background: ${badge.bg}; color: ${badge.color}; margin-left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+									${badge.label}
 								</span>
 							</div>
 						</div>
@@ -165,9 +181,16 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 				let doluluk = info ? info.doluluk : 0;
 				let barColor = doluluk < 60 ? 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)' : (doluluk < 90 ? 'linear-gradient(90deg, #f9d423 0%, #ff4e50 100%)' : 'linear-gradient(90deg, #ff5858 0%, #f09819 100%)');
 				let textColor = doluluk < 60 ? '#219150' : (doluluk < 90 ? '#b8860b' : '#c62828');
-				let workHourStr = workMinutes > 0 ? `<span style='color:#2196f3;'>${Math.floor(workMinutes/60)}sa ${workMinutes%60}dk</span>` : '-';
-				let plannedStr = `<span style='color:#1976d2;'>${plannedHours}sa ${plannedMins}dk</span>`;
-				let dolulukStr = `<span style='color:${textColor}; font-weight:700;'>${doluluk}%</span>`;
+				const isHoliday = d.isHoliday;
+				let workHourStr = (!isHoliday && workMinutes > 0)
+					? `<span style='color:#2196f3;'>${Math.floor(workMinutes/60)}sa ${workMinutes%60}dk</span>`
+					: '-';
+				let plannedStr = (!isHoliday)
+					? `<span style='color:#1976d2;'>${plannedHours}sa ${plannedMins}dk</span>`
+					: '-';
+				let dolulukStr = (!isHoliday)
+					? `<span style='color:${textColor}; font-weight:700;'>${doluluk}%</span>`
+					: '-';
 				footer.append(`
 					<div style="width: 14.2857%; padding: 6px 2px; text-align: center;">
 						<div style="margin-bottom:2px; color:#888; font-size:12px;">Çalışma: <b>${workHourStr}</b></div>
@@ -185,53 +208,136 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 		});
 
 		$('.job-card').on('click', function () {
-			const $el = $(this);
-			const dialog = new frappe.ui.Dialog({
-				title: 'İş Kartı Detayı',
-				fields: [
-					{
-						fieldtype: 'HTML',
-						fieldname: 'job_card_id_html',
-						options: `<div style="margin-bottom:8px;">
-							<label style="font-size:12px;color:#888;">İş Kartı</label>
-							<div><a href="/app/job-card/${$el.data('id')}" target="_blank">${$el.data('id')}</a></div>
-						</div>`
-					},
-					{
-						fieldtype: 'HTML',
-						fieldname: 'work_order_html',
-						options: `<div style="margin-bottom:8px;">
-							<label style="font-size:12px;color:#888;">İş Emri</label>
-							<div><a href="/app/work-order/${$el.data('work_order')}" target="_blank">${$el.data('work_order')}</a></div>
-						</div>`
-					},
-					{
-						fieldtype: 'HTML',
-						fieldname: 'sales_order_html',
-						options: `<div style="margin-bottom:8px;">
-							<label style="font-size:12px;color:#888;">Sipariş No</label>
-							<div><a href="/app/sales-order/${$el.data('sales_order')}" target="_blank">${$el.data('sales_order')}</a></div>
-						</div>`
-					},
-					{
-						fieldtype: 'HTML',
-						fieldname: 'item_name_html',
-						options: `<div style="margin-bottom:8px;">
-							<label style="font-size:12px;color:#888;">Ürün Adı</label>
-							<div><a href="/app/item/${$el.data('item_name')}" target="_blank">${$el.data('item_name')}</a></div>
-						</div>`
-					},
-					{ label: 'Durumu', fieldname: 'status', fieldtype: 'Data', default: $el.data('status') || '–', read_only: 1 },
-					{ label: 'Üretilecek Miktar', fieldname: 'qty_to_manufacture', fieldtype: 'Float', default: $el.data('for_quantity') || '–', read_only: 1 },
-					{ label: 'Planlanan Başlangıç', fieldname: 'start_time', fieldtype: 'Data', default: $el.data('start_time') || '–', read_only: 1 },
-					{ label: 'Planlanan Bitiş', fieldname: 'end_time', fieldtype: 'Data', default: $el.data('end_time') || '–', read_only: 1 }
-				],
-				primary_action_label: 'Kapat',
-				primary_action() {
-					dialog.hide();
+			const jobId = $(this).data('id') || '-';
+			frappe.call({
+				method: 'uretim_planlama.uretim_planlama.api.get_job_card_detail',
+				args: { job_card_id: jobId },
+				callback: function(r) {
+					if (!r.message) return;
+					const job = r.message;
+					const statusMap = {
+						'Open': { bg: '#ff7043', color: '#fff', label: 'Açık' },
+						'Work In Progress': { bg: '#ffd600', color: '#333', label: 'Devam ediyor' },
+						'Completed': { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' },
+						'Cancelled': { bg: '#ef5350', color: '#fff', label: 'İptal Edildi' }
+					};
+					const badge = statusMap[job.status] || { bg: '#90caf9', color: '#1565c0', label: job.status };
+
+					function formatDate(val) {
+						if (!val || val === '-') return '-';
+						const d = new Date(val);
+						if (isNaN(d.getTime())) return val;
+						return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth()+1).toString().padStart(2, '0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+					}
+
+					let html = `<div style="margin-bottom:12px;">
+						<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">İş Kartı</label><br>
+							<a href="/app/job-card/${job.name}" target="_blank" style="font-weight:bold; color:#1976d2; text-decoration:underline;">${job.name}</a>
+						</div>`;
+					if (job.work_order && job.work_order !== '-') {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">İş Emri</label><br>
+							<a href="/app/work-order/${job.work_order}" target="_blank" style="font-weight:bold; color:#388e3c; text-decoration:underline;">${job.work_order}</a>
+						</div>`;
+					}
+					if (job.sales_order && job.sales_order !== '-') {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Satış Siparişi</label><br>
+							<a href="/app/sales-order/${job.sales_order}" target="_blank" style="font-weight:bold; color:#f57c00; text-decoration:underline;">${job.sales_order}</a>
+						</div>`;
+					}
+					if (job.production_item) {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Ürün Adı</label><br>
+							<a href="/app/item/${job.production_item}" target="_blank" style="font-weight:bold; color:#009688; text-decoration:underline;">${job.item_name}</a>
+						</div>`;
+					} else {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">Ürün Adı</label><br>
+							<span>${job.item_name}</span>
+						</div>`;
+					}
+					if (job.bom_no) {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">BOM Numarası</label><br>
+							<a href="/app/bom/${job.bom_no}" target="_blank" style="font-weight:bold; color:#6d4c41; text-decoration:underline;">${job.bom_no}</a>
+						</div>`;
+					} else {
+						html += `<div style="margin-bottom:8px;">
+							<label style="font-size:12px;color:#888;">BOM Numarası</label><br>
+							<span>-</span>
+						</div>`;
+					}
+					html += `<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Operasyon</label><br>
+						<span style="font-weight:bold;">${job.operation}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Durumu</label><br>
+						<span style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background:${badge.bg}; color:${badge.color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${badge.label}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Üretilecek Miktar</label><br>
+						<span>${job.for_quantity}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Üretilen Miktar</label><br>
+						<span>${job.total_completed_qty}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Planlanan Başlangıç</label><br>
+						<span>${formatDate(job.expected_start_date)}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Planlanan Bitiş</label><br>
+						<span>${formatDate(job.expected_end_date)}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Gerekli Beklenen Süre (dk)</label><br>
+						<span>${job.time_required !== undefined ? job.time_required : '-'}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Fiili Başlangıç Tarihi</label><br>
+						<span>${formatDate(job.actual_start_date)}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Fiili Bitiş Tarihi</label><br>
+						<span>${formatDate(job.actual_end_date)}</span>
+					</div>
+					<div style="margin-bottom:8px;">
+						<label style="font-size:12px;color:#888;">Toplam Fiili Süre (dk)</label><br>
+						<span>${job.total_time_in_mins !== undefined ? job.total_time_in_mins : '-'}</span>
+					</div>
+					</div>`;
+
+					try {
+						const dialog = new frappe.ui.Dialog({
+							title: 'İş Kartı Detayı',
+							size: 'large',
+							fields: [
+								{
+									fieldtype: 'HTML',
+									fieldname: 'job_card_detail_html',
+									options: html
+								}
+							],
+							primary_action_label: 'Kapat',
+							primary_action() {
+								dialog.hide();
+							}
+						});
+						dialog.show();
+					} catch (error) {
+						console.error('Modal açılırken hata oluştu:', error);
+						frappe.msgprint({
+							title: 'Hata',
+							message: 'Detay görüntülenirken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.',
+							indicator: 'red'
+						});
+					}
 				}
 			});
-			dialog.show();
 		});
 	}
 
