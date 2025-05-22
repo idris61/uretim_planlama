@@ -5,6 +5,9 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
+	// Önbellek (cache) tanımlanıyor. (Örnek: cache[week_start] = { ... veri ... } olacak.)
+	var cache = {};
+
 	let content = $('<div></div>');
 	$(page.body).append(content);
 
@@ -60,6 +63,13 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 		let week_start = start.toISOString().slice(0, 10);
 		let week_end = end.toISOString().slice(0, 10);
 
+		// Eğer cache'de (örneğin, cache[week_start]) veri varsa, "Yükleniyor..." yazmadan (veya hemen) render_tables(cache[week_start]) çağrılıyor.
+		if (cache[week_start]) {
+			render_tables(cache[week_start]);
+			updateLabel(cache[week_start].days);
+			return;
+		}
+
 		$('#schedule_tables').html('<div style="text-align:center; color:#888; padding:40px;">Yükleniyor...</div>');
 
 		frappe.call({
@@ -72,6 +82,8 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 			},
 			callback: function(r) {
 				if (r.message) {
+					// Veri cache'e kaydediliyor (örneğin, cache[week_start] = r.message).
+					cache[week_start] = r.message;
 					render_tables(r.message);
 					updateLabel(r.message.days);
 				} else {
@@ -205,10 +217,14 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 			wrapper.append(footer);
 
 			container.append(wrapper);
-		});
+		}, /* active.forEach sonuna virgül eklendi */);
 
-		$('.job-card').on('click', function () {
+		// Performans iyileştirmesi: job-card tıklama olayını delegate (on) ile bağlayıp, her render'da tekrarlı event eklemeyi önleyeceğim.
+		// (Önceki kodda her render'da tüm job-card'lara ayrı ayrı click eventi ekleniyordu.)
+		container.off('click', '.job-card').on('click', '.job-card', function () {
 			const jobId = $(this).data('id') || '-';
+			// Eğer jobId "-" ise (yani boş ise) detay modalı açma işlemini atla.
+			if (jobId === '-') return;
 			frappe.call({
 				method: 'uretim_planlama.uretim_planlama.api.get_job_card_detail',
 				args: { job_card_id: jobId },
@@ -384,6 +400,8 @@ frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
 	});
 
 	$('#workstation_filter, #operation_filter').on('change', function() {
+		// Filtre değiştiğinde, cache'i temizleyip (örneğin, cache = {}), load_schedule_dynamic() çağrılıyor.
+		cache = {};
 		load_schedule_dynamic();
 	});
 

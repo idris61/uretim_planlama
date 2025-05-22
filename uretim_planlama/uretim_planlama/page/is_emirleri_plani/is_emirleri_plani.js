@@ -7,7 +7,7 @@ let holidaysMap = {};
 // Statü etiketleri
 const statusBadges = {
 	'Not Started': { bg: '#ffd600', color: '#333', label: 'Açık' },
-	'Completed':   { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' },
+	'Completed':   { bg: '#43e97b', color: '#222', label: 'Tamamlandı' },
 	'Draft':       { bg: '#bdbdbd', color: '#fff', label: 'Taslak' }
 };
 
@@ -33,8 +33,18 @@ function getMonday(d) {
 }
 
 function getColorForSalesOrder(salesOrder) {
-	if (!salesOrder) return '#cdeffe';
-	const palette = ['#FFA726', '#66BB6A', '#29B6F6', '#AB47BC', '#EF5350', '#FF7043', '#26C6DA', '#D4E157'];
+	if (!salesOrder) return '#e3f2fd'; // Varsayılan pastel mavi
+	// Pastel ve yumuşak renk paleti (gri ve pembe yok)
+	const palette = [
+		'#e3f2fd', // Açık mavi
+		'#b2ebf2', // Açık turkuaz
+		'#c8e6c9', // Açık yeşil
+		'#d1c4e9', // Açık mor
+		'#fff9c4', // Açık sarı
+		'#b3e5fc', // Açık mavi
+		'#b39ddb', // Açık mor
+		'#dcedc8'  // Açık yeşil
+	];
 	let hash = 0;
 	for (let i = 0; i < salesOrder.length; i++) hash += salesOrder.charCodeAt(i);
 	return palette[hash % palette.length];
@@ -121,7 +131,35 @@ function fetchHolidays(start, end, callback) {
 		args: { start, end },
 		callback: function(r) {
 			holidaysMap = r.message || {};
+			updateDayCellBackgrounds();
 			if (callback) callback();
+		}
+	});
+}
+
+function updateDayCellBackgrounds() {
+	$('.fc-daygrid-day').each(function() {
+		const date = $(this).data('date');
+		if (!date) return;
+		const day = new Date(date).getDay();
+		// Önce eski açıklamayı sil
+		$(this).find('.holiday-desc').remove();
+		if (holidaysMap[date]) {
+			$(this).addClass('holiday-override');
+			$(this).attr('title', holidaysMap[date]);
+			// Cumartesi/Pazar hariç açıklama ekle
+			if (day !== 0 && day !== 6) {
+				$(this).append(`<div class="holiday-desc">${holidaysMap[date]}</div>`);
+			}
+		} else if (day === 0) {
+			$(this).addClass('holiday-override');
+			$(this).attr('title', 'Pazar');
+		} else if (day === 6) {
+			$(this).addClass('holiday-override');
+			$(this).attr('title', 'Cumartesi');
+		} else {
+			$(this).removeClass('holiday-override');
+			$(this).attr('title', '');
 		}
 	});
 }
@@ -150,18 +188,13 @@ function initializeCalendar() {
 		locale: 'tr',
 		dayMaxEventRows: true,
 		firstDay: 1,
+		datesSet: function(info) {
+			updateCalendarHolidays();
+			updateDayCellBackgrounds();
+		},
 		dayCellDidMount: function(arg) {
 			const iso = getLocalISODate(arg.date);
-			if (holidaysMap && holidaysMap[iso]) {
-				arg.el.style.background = '#ffeaea';
-				arg.el.title = holidaysMap[iso];
-			} else if (arg.date.getDay() === 0 || arg.date.getDay() === 6) {
-				arg.el.style.background = '#f5f5f5';
-				arg.el.title = '';
-			} else {
-				arg.el.style.background = '';
-				arg.el.title = '';
-			}
+			arg.el.setAttribute('data-date', iso);
 		},
 		events: function(fetchInfo, successCallback, failureCallback) {
 			frappe.call({
@@ -181,7 +214,8 @@ function initializeCalendar() {
 							sales_order: wo.sales_order,
 							planned_start_date: formatDate(wo.start),
 							planned_end_date: formatDate(wo.end),
-							name: wo.id
+							name: wo.id,
+							editable: true
 						}));
 						successCallback(events);
 					} else {
@@ -195,11 +229,13 @@ function initializeCalendar() {
 		},
 		eventContent: function(arg) {
 			const data = arg.event.extendedProps || {};
-			const so = data.sales_order ? `<span style='color:#333; font-size:9px; font-weight:500; margin-left:6px;'>${data.sales_order}</span>` : '';
+			const badge = statusBadges[data.status] || { bg: '#90caf9', color: '#fff', label: data.status };
+			const so = data.sales_order ? `<span style='color:#222; font-size:12px; font-weight:bold; margin-left:6px;'>${data.sales_order}</span>` : '';
 			return {
 				html: `
-					<div style="display:flex; align-items:center; width:100%; background:${data.bg || '#e3f2fd'}; border-radius:4px; padding:1px 2px; min-height:18px; font-size:10px; font-weight:600; color:#222;">
-						<span>${arg.event.title}${so}</span>
+					<div style="display:flex; align-items:center; justify-content:space-between; width:100%; background:${data.bg || '#64b5f6'}; border-radius:4px; padding:3px 7px; min-height:22px; font-size:13px; font-weight:500; color:#222; position:relative; border:1px solid rgba(0,0,0,0.07); box-shadow:0 1px 2px rgba(0,0,0,0.06);">
+						<span style='font-weight:bold; font-size:13px;'>${arg.event.title}${so}</span>
+						<span style="position:absolute; top:2px; right:2px; padding:1px 7px; border-radius:7px; font-size:11px; font-weight:600; background:${badge.bg}; color:${badge.color}; box-shadow:0 1px 2px rgba(0,0,0,0.1);">${badge.label}</span>
 					</div>
 				`
 			};
@@ -219,10 +255,38 @@ function initializeCalendar() {
 					showWorkOrderDetails(r.message);
 				}
 			});
+		},
+		eventDrop: function(info) {
+			const data = info.event.extendedProps || {};
+			const newStart = info.event.start;
+			const oldStart = info.oldEvent.start;
+			const duration = info.event.end && info.event.start ? (info.event.end.getTime() - info.event.start.getTime()) : 0;
+			const newEnd = duration ? new Date(newStart.getTime() + duration) : null;
+			frappe.call({
+				method: 'uretim_planlama.uretim_planlama.api.update_work_order_date',
+				args: {
+					work_order_id: data.name,
+					new_start: newStart.toISOString().slice(0,10),
+				},
+				callback: function(r) {
+					if (r.message && r.message.success) {
+						frappe.show_alert({message: 'Tarih güncellendi', indicator: 'green'});
+						calendar.refetchEvents();
+					} else {
+						frappe.show_alert({message: 'Tarih güncellenemedi: ' + (r.message && r.message.error), indicator: 'red'});
+						info.revert();
+					}
+				},
+				error: function() {
+					frappe.show_alert({message: 'Sunucu hatası!', indicator: 'red'});
+					info.revert();
+				}
+			});
 		}
 	});
 
 	calendar.render();
+	updateDayCellBackgrounds();
 }
 
 function showWorkOrderDetails(job) {
@@ -344,7 +408,18 @@ function updateCalendarHolidays() {
 	const view = calendar.view;
 	const start = view.currentStart.toISOString().slice(0,10);
 	const end = view.currentEnd.toISOString().slice(0,10);
-	fetchHolidays(start, end, function() {
-		calendar.rerenderDates();
-	});
+	fetchHolidays(start, end);
 }
+
+$('<style>\
+.fc .fc-col-header-cell { font-weight: bold !important; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%) !important; color: #1565c0 !important; font-size: 16px !important; letter-spacing: 0.5px; }\
+.fc .fc-col-header-cell.fc-day-sat, .fc .fc-col-header-cell.fc-day-sun { background: #fce4ec !important; color: #c2185b !important; }\
+.fc .fc-daygrid-day-number { font-weight: bold; font-size: 15px; color: #1976d2; }\
+.fc .fc-daygrid-day.holiday-override { position: relative; }\
+.fc .fc-daygrid-day .holiday-desc { position: absolute; top: 2px; left: 2px; right: 2px; background: #fce4ec; color: #c2185b; font-size: 11px; font-weight: 600; border-radius: 4px; padding: 1px 2px; z-index: 2; text-align: center; pointer-events: none; }\
+.fc .fc-daygrid-day { background: #ffffff !important; }\
+.fc .fc-daygrid-day.fc-day-today { background: #f5f9ff !important; }\
+.fc .fc-daygrid-day.fc-day-past { background: #fafafa !important; }\
+.fc .fc-event { border: none !important; background: transparent !important; }\
+.fc .fc-event:hover { filter: brightness(0.98); }\
+</style>').appendTo('head');
