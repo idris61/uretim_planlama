@@ -451,15 +451,29 @@ def get_work_orders_for_calendar(start, end):
         }
     )
 
+    # Sales Order bilgilerini topluca çek
+    sales_order_names = list(set([wo.sales_order for wo in work_orders if wo.sales_order]))
+    sales_orders = {}
+    if sales_order_names:
+        for so in frappe.get_all("Sales Order", filters={"name": ["in", sales_order_names]}, fields=["name", "customer", "custom_end_customer"]):
+            sales_orders[so.name] = so
+
     events = []
     for wo in work_orders:
+        customer = None
+        custom_end_customer = None
+        if wo.sales_order and wo.sales_order in sales_orders:
+            customer = sales_orders[wo.sales_order].customer
+            custom_end_customer = sales_orders[wo.sales_order].custom_end_customer
         events.append({
             "id": wo.name,
             "title": wo.name,
             "start": wo.planned_start_date,
             "end": wo.planned_end_date,
             "status": wo.status,
-            "sales_order": wo.sales_order
+            "sales_order": wo.sales_order,
+            "customer": customer,
+            "custom_end_customer": custom_end_customer
         })
     return events
 

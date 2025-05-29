@@ -6,18 +6,37 @@ let holidaysMap = {};
 
 // Statü etiketleri
 const statusBadges = {
-	'Not Started': { bg: '#ffd600', color: '#333', label: 'Açık' },
-	'Completed':   { bg: '#43e97b', color: '#222', label: 'Tamamlandı' },
-	'Draft':       { bg: '#bdbdbd', color: '#fff', label: 'Taslak' }
+	'Draft':        { bg: '#bdbdbd', color: '#fff', label: 'Taslak' },
+	'Submitted':    { bg: '#90caf9', color: '#fff', label: 'Gönderildi' },
+	'Not Started':  { bg: '#ffd600', color: '#333', label: 'Başlamadı' },
+	'In Process':   { bg: '#ff9800', color: '#fff', label: 'İşlemde' },
+	'Completed':    { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' },
+	'Stopped':      { bg: '#f44336', color: '#fff', label: 'Durduruldu' },
+	'Closed':       { bg: '#9e9e9e', color: '#fff', label: 'Kapatıldı' },
+	'Cancelled':    { bg: '#d32f2f', color: '#fff', label: 'İptal Edildi' },
+	'Pending':      { bg: '#ffd600', color: '#333', label: 'Beklemede' },
+	'Open':         { bg: '#ffd600', color: '#333', label: 'Açık' },
+	'Work In Progress': { bg: '#ff9800', color: '#fff', label: 'Devam Ediyor' },
+	'Material Transferred': { bg: '#29b6f6', color: '#fff', label: 'Malzeme Aktarıldı' },
+	'On Hold':      { bg: '#ffb300', color: '#fff', label: 'Durduruldu' }
 };
 
 // Operasyonlar için özel badge haritası
 const operationStatusBadges = {
-	'Pending':      { bg: '#ffd600', color: '#333', label: 'Açık' },
-	'Not Started':  { bg: '#ffd600', color: '#333', label: 'Açık' },
-	'In Progress':  { bg: '#ff9800', color: '#fff', label: 'Devam Ediyor' },
-	'In Process':   { bg: '#ff9800', color: '#fff', label: 'Devam Ediyor' },
-	'Completed':    { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' }
+	'Draft':        { bg: '#bdbdbd', color: '#fff', label: 'Taslak' },
+	'Submitted':    { bg: '#90caf9', color: '#fff', label: 'Gönderildi' },
+	'Not Started':  { bg: '#ffd600', color: '#333', label: 'Başlamadı' },
+	'In Process':   { bg: '#ff9800', color: '#fff', label: 'İşlemde' },
+	'Completed':    { bg: '#43e97b', color: '#fff', label: 'Tamamlandı' },
+	'Stopped':      { bg: '#f44336', color: '#fff', label: 'Durduruldu' },
+	'Closed':       { bg: '#9e9e9e', color: '#fff', label: 'Kapatıldı' },
+	'Cancelled':    { bg: '#d32f2f', color: '#fff', label: 'İptal Edildi' },
+	'On Hold':      { bg: '#ffb300', color: '#fff', label: 'Durduruldu' },
+	'Pending':      { bg: '#ffd600', color: '#333', label: 'Bekleme' },
+	'Open':         { bg: '#ffd600', color: '#333', label: 'Açık' },
+	'Work In Progress': { bg: '#ff9800', color: '#fff', label: 'Devam Ediyor' },
+	'Material Transferred': { bg: '#29b6f6', color: '#fff', label: 'Malzeme Aktarıldı' },
+	
 };
 
 // Yardımcı fonksiyonlar
@@ -215,7 +234,9 @@ function initializeCalendar() {
 							planned_start_date: formatDate(wo.start),
 							planned_end_date: formatDate(wo.end),
 							name: wo.id,
-							editable: true
+							editable: true,
+							customer: wo.customer,
+							custom_end_customer: wo.custom_end_customer
 						}));
 						successCallback(events);
 					} else {
@@ -242,7 +263,8 @@ function initializeCalendar() {
 		},
 		eventDidMount: function(info) {
 			const data = info.event.extendedProps || {};
-			let tooltip = `İş Emri: ${info.event.title}\nSipariş No: ${data.sales_order || '-'}\nBaşlangıç: ${data.planned_start_date}\nBitiş: ${data.planned_end_date}\nDurum: ${data.status}`;
+			const statusLabel = (statusBadges[data.status] && statusBadges[data.status].label) ? statusBadges[data.status].label : data.status;
+			let tooltip = `İş Emri: ${info.event.title}\nSipariş No: ${data.sales_order || '-'}\nBayi: ${data.customer || '-'}\nMüşteri: ${data.custom_end_customer || '-'}\nBaşlangıç: ${data.planned_start_date}\nBitiş: ${data.planned_end_date}\nDurum: ${statusLabel}`;
 			info.el.title = tooltip;
 		},
 		eventClick: function(arg) {
@@ -291,7 +313,7 @@ function initializeCalendar() {
 
 function showWorkOrderDetails(job) {
 	const badge = statusBadges[job.status] || { bg: '#90caf9', color: '#fff', label: job.status };
-	
+
 	function formatDate(val) {
 		if (!val || val === '-') return '-';
 		const d = new Date(val);
@@ -299,108 +321,153 @@ function showWorkOrderDetails(job) {
 		return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth()+1).toString().padStart(2, '0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 	}
 
-	let html = `<div style="margin-bottom:12px;">
-		<div style="margin-bottom:8px;">
-			<label style="font-size:12px;color:#888;">İş Emri</label><br>
-			<a href="/app/work-order/${job.name}" target="_blank" style="font-weight:bold; color:#1976d2; text-decoration:underline;">${job.name}</a>
+	function buildHtml(job, salesOrder) {
+		let html = `<div style="margin-bottom:12px;">
+			<div style="margin-bottom:8px;">
+				<label style="font-size:12px;color:#888;">İş Emri</label><br>
+				<a href="/app/work-order/${job.name}" target="_blank" style="font-weight:bold; color:#1976d2; text-decoration:underline;">${job.name}</a>
+			</div>`;
+
+		if (job.sales_order) {
+			html += `<div style="margin-bottom:8px;">
+				<label style="font-size:12px;color:#888;">Satış Siparişi</label><br>
+				<a href="/app/sales-order/${job.sales_order}" target="_blank" style="font-weight:bold; color:#f57c00; text-decoration:underline;">${job.sales_order}</a>
+			</div>`;
+		}
+
+		if (salesOrder) {
+			if (salesOrder.customer) {
+				html += `<div style=\"margin-bottom:8px;\">
+					<label style=\"font-size:12px;color:#888;\">Bayi</label><br>
+					<span style=\"font-weight:bold; color:#f70404\">${salesOrder.customer}</span>
+				</div>`;
+			}
+			if (salesOrder.custom_end_customer) {
+				html += `<div style=\"margin-bottom:8px;\">
+					<label style=\"font-size:12px;color:#888;\">Müşteri</label><br>
+					<span style=\"font-weight:bold; color:#10fb07 ;\">${salesOrder.custom_end_customer}</span>
+				</div>`;
+			}
+		}
+
+		if (job.bom_no) {
+			html += `<div style=\"margin-bottom:8px;\">
+				<label style=\"font-size:12px;color:#888;\">BOM Numarası</label><br>
+				<a href=\"/app/bom/${job.bom_no}\" target=\"_blank\" style=\"font-weight:bold; color:#6d4c41; text-decoration:underline;\">${job.bom_no}</a>
+			</div>`;
+		}
+		if (job.production_plan) {
+			html += `<div style=\"margin-bottom:8px;\">
+				<label style=\"font-size:12px;color:#888;\">Üretim Planı</label><br>
+				<a href=\"/app/production-plan/${job.production_plan}\" target=\"_blank\" style=\"font-weight:bold; color:#009688; text-decoration:underline;\">${job.production_plan}</a>
+			</div>`;
+		}
+		html += `<div style=\"margin-bottom:8px;\">
+			<label style=\"font-size:12px;color:#888;\">Durumu</label><br>
+			<span style=\"display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background:${badge.bg}; color:${badge.color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\">${badge.label}</span>
+		</div>
+		<div style=\"margin-bottom:8px;\">
+			<label style=\"font-size:12px;color:#888;\">Üretilecek Miktar</label><br>
+			<span>${job.qty}</span>
+		</div>
+		<div style=\"margin-bottom:8px;\">
+			<label style=\"font-size:12px;color:#888;\">Üretilen Miktar</label><br>
+			<span>${job.produced_qty}</span>
+		</div>
+		<div style=\"margin-bottom:8px;\">
+			<label style=\"font-size:12px;color:#888;\">Planlanan Başlangıç</label><br>
+			<span>${formatDate(job.planned_start_date)}</span>
+		</div>
+		<div style=\"margin-bottom:8px;\">
+			<label style=\"font-size:12px;color:#888;\">Planlanan Bitiş</label><br>
+			<span>${formatDate(job.planned_end_date)}</span>
+		</div>
+		<div style=\"margin-bottom:8px;\">
+			<label style=\"font-size:12px;color:#888;\">Toplam Fiili Süre (dk)</label><br>
+			<span>${job.total_time_in_mins !== undefined ? job.total_time_in_mins : '-'}</span>
 		</div>`;
+
+		if (Array.isArray(job.operations) && job.operations.length > 0) {
+			html += `<div style=\"margin-bottom:8px;\">
+				<label style=\"font-size:12px;color:#888;\">Operasyonlar</label><br>
+				<table style='width:100%; border-collapse:collapse; font-size:12px; margin-top:4px;'>
+					<tr style='background:#f5f5f5; font-weight:bold;'>
+						<td style='padding:4px 6px;'>Operasyon</td>
+						<td style='padding:4px 6px;'>İş İstasyonu</td>
+						<td style='padding:4px 6px;'>Durum</td>
+						<td style='padding:4px 6px;'>Üretilen</td>
+						<td style='padding:4px 6px;'>Plan. Başlangıç</td>
+						<td style='padding:4px 6px;'>Plan. Bitiş</td>
+						<td style='padding:4px 6px;'>Fiili Başlangıç</td>
+						<td style='padding:4px 6px;'>Fiili Bitiş</td>
+					</tr>`;
+			job.operations.forEach(op => {
+				let status = op.status;
+				if ((status === 'Pending' || status === 'Not Started') && op.actual_start_time && !op.actual_end_time) {
+					status = 'In Progress';
+				}
+				const opBadge = operationStatusBadges[status] || { bg: '#ffd600', color: '#333', label: status };
+				
+				const statusLabel = opBadge.label || status;
+				html += `<tr>
+					<td style='padding:4px 6px;'>${op.operation}</td>
+					<td style='padding:4px 6px;'>${op.workstation}</td>
+					<td style='padding:4px 6px;'><span style='background:${opBadge.bg}; color:${opBadge.color}; border-radius:7px; font-size:11px; font-weight:600; padding:2px 8px;'>${statusLabel}</span></td>
+					<td style='padding:4px 6px;'>${op.completed_qty !== undefined ? op.completed_qty : '-'}</td>
+					<td style='padding:4px 6px;'>${formatDate(op.planned_start_time)}</td>
+					<td style='padding:4px 6px;'>${formatDate(op.planned_end_time)}</td>
+					<td style='padding:4px 6px;'>${formatDate(op.actual_start_time)}</td>
+					<td style='padding:4px 6px;'>${formatDate(op.actual_end_time)}</td>
+				</tr>`;
+			});
+			html += `</table></div>`;
+		}
+		return html;
+	}
 
 	if (job.sales_order) {
-		html += `<div style="margin-bottom:8px;">
-			<label style="font-size:12px;color:#888;">Satış Siparişi</label><br>
-			<a href="/app/sales-order/${job.sales_order}" target="_blank" style="font-weight:bold; color:#f57c00; text-decoration:underline;">${job.sales_order}</a>
-		</div>`;
-	}
-
-	if (job.bom_no) {
-		html += `<div style="margin-bottom:8px;">
-			<label style="font-size:12px;color:#888;">BOM Numarası</label><br>
-			<a href="/app/bom/${job.bom_no}" target="_blank" style="font-weight:bold; color:#6d4c41; text-decoration:underline;">${job.bom_no}</a>
-		</div>`;
-	}
-
-	if (job.production_plan) {
-		html += `<div style="margin-bottom:8px;">
-			<label style="font-size:12px;color:#888;">Üretim Planı</label><br>
-			<a href="/app/production-plan/${job.production_plan}" target="_blank" style="font-weight:bold; color:#009688; text-decoration:underline;">${job.production_plan}</a>
-		</div>`;
-	}
-
-	html += `<div style="margin-bottom:8px;">
-		<label style="font-size:12px;color:#888;">Durumu</label><br>
-		<span style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background:${badge.bg}; color:${badge.color}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${badge.label}</span>
-	</div>
-	<div style="margin-bottom:8px;">
-		<label style="font-size:12px;color:#888;">Üretilecek Miktar</label><br>
-		<span>${job.qty}</span>
-	</div>
-	<div style="margin-bottom:8px;">
-		<label style="font-size:12px;color:#888;">Üretilen Miktar</label><br>
-		<span>${job.produced_qty}</span>
-	</div>
-	<div style="margin-bottom:8px;">
-		<label style="font-size:12px;color:#888;">Planlanan Başlangıç</label><br>
-		<span>${formatDate(job.planned_start_date)}</span>
-	</div>
-	<div style="margin-bottom:8px;">
-		<label style="font-size:12px;color:#888;">Planlanan Bitiş</label><br>
-		<span>${formatDate(job.planned_end_date)}</span>
-	</div>
-	<div style="margin-bottom:8px;">
-		<label style="font-size:12px;color:#888;">Toplam Fiili Süre (dk)</label><br>
-		<span>${job.total_time_in_mins !== undefined ? job.total_time_in_mins : '-'}</span>
-	</div>`;
-
-	if (Array.isArray(job.operations) && job.operations.length > 0) {
-		html += `<div style="margin-bottom:8px;">
-			<label style="font-size:12px;color:#888;">Operasyonlar</label><br>
-			<table style='width:100%; border-collapse:collapse; font-size:12px; margin-top:4px;'>
-				<tr style='background:#f5f5f5; font-weight:bold;'>
-					<td style='padding:4px 6px;'>Operasyon</td>
-					<td style='padding:4px 6px;'>İş İstasyonu</td>
-					<td style='padding:4px 6px;'>Durum</td>
-					<td style='padding:4px 6px;'>Üretilen</td>
-					<td style='padding:4px 6px;'>Plan. Başlangıç</td>
-					<td style='padding:4px 6px;'>Plan. Bitiş</td>
-					<td style='padding:4px 6px;'>Fiili Başlangıç</td>
-					<td style='padding:4px 6px;'>Fiili Bitiş</td>
-				</tr>`;
-
-	job.operations.forEach(op => {
-		let status = op.status;
-		if ((status === 'Pending' || status === 'Not Started') && op.actual_start_time && !op.actual_end_time) {
-			status = 'In Progress';
-		}
-		const opBadge = operationStatusBadges[status] || { bg: '#ffd600', color: '#333', label: status };
-		html += `<tr>
-			<td style='padding:4px 6px;'>${op.operation}</td>
-			<td style='padding:4px 6px;'>${op.workstation}</td>
-			<td style='padding:4px 6px;'><span style='background:${opBadge.bg}; color:${opBadge.color}; border-radius:7px; font-size:11px; font-weight:600; padding:2px 8px;'>${opBadge.label}</span></td>
-			<td style='padding:4px 6px;'>${op.completed_qty !== undefined ? op.completed_qty : '-'}</td>
-			<td style='padding:4px 6px;'>${formatDate(op.planned_start_time)}</td>
-			<td style='padding:4px 6px;'>${formatDate(op.planned_end_time)}</td>
-			<td style='padding:4px 6px;'>${formatDate(op.actual_start_time)}</td>
-			<td style='padding:4px 6px;'>${formatDate(op.actual_end_time)}</td>
-		</tr>`;
-	});
-
-	html += `</table></div>`;
-	}
-
-	const dialog = new frappe.ui.Dialog({
-		title: 'İş Emri Detayı',
-		size: 'large',
-		fields: [
-			{
-				fieldtype: 'HTML',
-				fieldname: 'work_order_html',
-				options: html
+		frappe.call({
+			method: 'frappe.client.get',
+			args: {
+				doctype: 'Sales Order',
+				name: job.sales_order
+			},
+			callback: function(r) {
+				const salesOrder = r.message || {};
+				const html = buildHtml(job, salesOrder);
+				const dialog = new frappe.ui.Dialog({
+					title: 'İş Emri Detayı',
+					size: 'large',
+					fields: [
+						{
+							fieldtype: 'HTML',
+							fieldname: 'work_order_html',
+							options: html
+						}
+					],
+					primary_action_label: 'Kapat',
+					primary_action() { dialog.hide(); }
+				});
+				dialog.show();
 			}
-		],
-		primary_action_label: 'Kapat',
-		primary_action() { dialog.hide(); }
-	});
-	dialog.show();
+		});
+	} else {
+		const html = buildHtml(job, null);
+		const dialog = new frappe.ui.Dialog({
+			title: 'İş Emri Detayı',
+			size: 'large',
+			fields: [
+				{
+					fieldtype: 'HTML',
+					fieldname: 'work_order_html',
+					options: html
+				}
+			],
+			primary_action_label: 'Kapat',
+			primary_action() { dialog.hide(); }
+		});
+		dialog.show();
+	}
 }
 
 function updateCalendarHolidays() {
