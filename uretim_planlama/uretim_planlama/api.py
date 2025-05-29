@@ -60,6 +60,13 @@ def get_weekly_production_schedule(year=None, month=None, week_start=None, week_
     work_order_names = list(set([op['work_order'] for op in all_operations]))
     # Tüm work order'ları topluca çek
     work_orders = {wo.name: wo for wo in frappe.get_all('Work Order', filters={'name': ['in', work_order_names]}, fields=['name','item_name','production_item','bom_no','sales_order','produced_qty'])}
+    # Tüm sales order isimlerini topla
+    sales_order_names = list(set([wo.sales_order for wo in work_orders.values() if wo.sales_order]))
+    # Tüm sales order'ları topluca çek (customer ve custom_end_customer ile)
+    sales_orders = {}
+    if sales_order_names:
+        for so in frappe.get_all('Sales Order', filters={'name': ['in', sales_order_names]}, fields=['name', 'customer', 'custom_end_customer']):
+            sales_orders[so.name] = so
     # Tüm job card'ları topluca çek
     job_cards = frappe.get_all('Job Card', filters={'work_order': ['in', work_order_names]}, fields=['name','work_order','operation','for_quantity','status','total_completed_qty'])
     job_card_map = {}
@@ -127,6 +134,10 @@ def get_weekly_production_schedule(year=None, month=None, week_start=None, week_
             daily_summary.setdefault(day_name_tr[start_dt.strftime('%A')], {'planned_minutes': 0, 'jobs': 0})
             daily_summary[day_name_tr[start_dt.strftime('%A')]]['planned_minutes'] += time_in_mins
             daily_summary[day_name_tr[start_dt.strftime('%A')]]['jobs'] += 1
+            # İlgili sales order'dan bayi ve müşteri bilgisini çek
+            so = sales_orders.get(work_order.get('sales_order')) if work_order.get('sales_order') else None
+            customer = so['customer'] if so and so.get('customer') else ''
+            custom_end_customer = so['custom_end_customer'] if so and so.get('custom_end_customer') else ''
             day_schedule.setdefault(day_name_tr[start_dt.strftime('%A')], []).append({
                 'name': job_card['name'] if job_card else "",
                 'status': job_card['status'] if job_card and job_card.get('status') else status_map.get(op['status'] or "", "Tanımsız"),
@@ -136,6 +147,8 @@ def get_weekly_production_schedule(year=None, month=None, week_start=None, week_
                 'production_item': work_order.get('production_item', ''),
                 'bom_no': work_order.get('bom_no', ''),
                 'sales_order': work_order.get('sales_order', ''),
+                'customer': customer,
+                'custom_end_customer': custom_end_customer,
                 'work_order': op['work_order'],
                 'operation': op['operation'] or 'Operasyon Yok',
                 'color': get_color_for_sales_order(work_order.get('sales_order', '')),
@@ -395,9 +408,17 @@ def get_work_order_detail(work_order_id):
     # Operasyonlar child tablosu
     op_children = frappe.get_all('Work Order Operation', filters={'parent': work_order_id}, fields=[
         'operation', 'workstation', 'status', 'completed_qty', 'planned_start_time', 'planned_end_time', 'actual_start_time', 'actual_end_time', 'time_in_mins'
+    ], order_by='planned_start_time asc')
+    # İlgili iş kartlarını çek (doğru alanlarla)
+    job_cards = frappe.get_all('Job Card', filters={'work_order': work_order_id}, fields=[
+        'operation', 'status', 'actual_start_date', 'actual_end_date'
     ])
+    job_card_map = {jc['operation']: jc for jc in job_cards}
     for op in op_children:
-        # Zaman aralığı
+        jc = job_card_map.get(op['operation'])
+        status = jc['status'] if jc and jc.get('status') else op.get('status', '')
+        actual_start = jc['actual_start_date'] if jc and jc.get('actual_start_date') else op.get('actual_start_time', '')
+        actual_end = jc['actual_end_date'] if jc and jc.get('actual_end_date') else op.get('actual_end_time', '')
         planned_start = op.get('planned_start_time')
         planned_end = op.get('planned_end_time')
         time_str = ''
@@ -412,13 +433,13 @@ def get_work_order_detail(work_order_id):
         operations.append({
             'operation': op.get('operation', ''),
             'workstation': op.get('workstation', ''),
-            'status': op.get('status', ''),
+            'status': status,
             'completed_qty': op.get('completed_qty', ''),
-            'planned_start_time': op.get('planned_start_time', ''),
-            'planned_end_time': op.get('planned_end_time', ''),
+            'planned_start_time': planned_start,
+            'planned_end_time': planned_end,
             'time': time_str,
-            'actual_start_time': op.get('actual_start_time', ''),
-            'actual_end_time': op.get('actual_end_time', ''),
+            'actual_start_time': actual_start,
+            'actual_end_time': actual_end,
             'duration': op.get('time_in_mins', '')
         })
     return {
@@ -436,20 +457,34 @@ def get_work_order_detail(work_order_id):
     }
 
 @frappe.whitelist()
-def get_work_orders_for_calendar(start, end):
+def get_work_orders_for_calendar(start, end, include_draft=False):
     """
     Frappe Calendar için iş emirlerini döndürür.
     start ve end parametreleri takvimde gösterilecek aralığı belirtir.
+    include_draft parametresi taslak iş emirlerinin dahil edilip edilmeyeceğini belirtir.
     """
-    work_orders = frappe.get_all(
+    import datetime
+    # Onaylanmış iş emirleri (tarih filtresi ile)
+    approved_wos = frappe.get_all(
         "Work Order",
-        fields=["name", "planned_start_date", "planned_end_date", "status", "sales_order"],
+        fields=["name", "planned_start_date", "planned_end_date", "status", "sales_order", "docstatus"],
         filters={
+            "docstatus": 1,
             "planned_start_date": ["<=", end],
-            "planned_end_date": [">=", start],
-            "docstatus": 1
+            "planned_end_date": [">=", start]
         }
     )
+    # Taslak iş emirleri (tarih filtresi olmadan)
+    draft_wos = []
+    if include_draft:
+        draft_wos = frappe.get_all(
+            "Work Order",
+            fields=["name", "planned_start_date", "planned_end_date", "status", "sales_order", "docstatus"],
+            filters={
+                "docstatus": 0
+            }
+        )
+    work_orders = approved_wos + draft_wos
 
     # Sales Order bilgilerini topluca çek
     sales_order_names = list(set([wo.sales_order for wo in work_orders if wo.sales_order]))
@@ -458,6 +493,7 @@ def get_work_orders_for_calendar(start, end):
         for so in frappe.get_all("Sales Order", filters={"name": ["in", sales_order_names]}, fields=["name", "customer", "custom_end_customer"]):
             sales_orders[so.name] = so
 
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
     events = []
     for wo in work_orders:
         customer = None
@@ -465,15 +501,35 @@ def get_work_orders_for_calendar(start, end):
         if wo.sales_order and wo.sales_order in sales_orders:
             customer = sales_orders[wo.sales_order].customer
             custom_end_customer = sales_orders[wo.sales_order].custom_end_customer
+        # Status yönetimi:
+        status = "Draft" if wo.docstatus == 0 else (wo.status or "Not Started")
+        # Taslak iş emirlerinde tarih yoksa bugünün tarihini ata
+        start_date = wo.planned_start_date or (today_str if wo.docstatus == 0 else None)
+        end_date = wo.planned_end_date or (today_str if wo.docstatus == 0 else None)
+        # Saatleri ayarla
+        if wo.docstatus == 1 and start_date:
+            # Onaylanmışlar için 08:00-09:00
+            dt = datetime.datetime.strptime(str(start_date), '%Y-%m-%d' if len(str(start_date))==10 else '%Y-%m-%d %H:%M:%S')
+            start_date = dt.replace(hour=8, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
+            end_date = (dt.replace(hour=9, minute=0, second=0)).strftime('%Y-%m-%d %H:%M:%S')
+        elif wo.docstatus == 0 and start_date:
+            # Taslaklar için sadece 08:00
+            dt = datetime.datetime.strptime(str(start_date), '%Y-%m-%d' if len(str(start_date))==10 else '%Y-%m-%d %H:%M:%S')
+            start_date = dt.replace(hour=8, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
+            end_date = start_date
+        # Eğer onaylanmış iş emrinde tarih yoksa, event ekleme
+        if wo.docstatus == 1 and (not start_date or not end_date):
+            continue
         events.append({
             "id": wo.name,
             "title": wo.name,
-            "start": wo.planned_start_date,
-            "end": wo.planned_end_date,
-            "status": wo.status,
+            "start": start_date,
+            "end": end_date,
+            "status": status,
             "sales_order": wo.sales_order,
             "customer": customer,
-            "custom_end_customer": custom_end_customer
+            "custom_end_customer": custom_end_customer,
+            "is_draft": wo.docstatus == 0
         })
     return events
 
@@ -491,20 +547,32 @@ def get_holidays_for_calendar(start, end):
 @frappe.whitelist()
 def update_work_order_date(work_order_id, new_start):
     try:
+        from datetime import datetime, timedelta
+        def to_8am(dt_str):
+            return datetime.strptime(dt_str, "%Y-%m-%d").replace(hour=8, minute=0, second=0)
+
         work_order = frappe.get_doc("Work Order", work_order_id)
         old_start = work_order.planned_start_date
-        duration = (work_order.planned_end_date - work_order.planned_start_date).days
-        work_order.planned_start_date = new_start
+        old_end = work_order.planned_end_date
+        # Eğer eski tarihlerden biri yoksa duration=0 kabul et
+        if old_start and old_end:
+            duration = (old_end - old_start).days
+        else:
+            duration = 0
+        work_order.planned_start_date = to_8am(new_start)
         if duration > 0:
-            from datetime import datetime, timedelta
-            new_end = datetime.strptime(new_start, "%Y-%m-%d") + timedelta(days=duration)
-            work_order.planned_end_date = new_end.strftime("%Y-%m-%d")
+            new_end = to_8am(new_start) + timedelta(days=duration)
+            work_order.planned_end_date = new_end
+        else:
+            work_order.planned_end_date = to_8am(new_start)
         work_order.save()
         # Operasyonları da yeni tarihe göre güncelle
         for op in work_order.operations:
             op.planned_start_time = work_order.planned_start_date
             if duration > 0:
                 op.planned_end_time = work_order.planned_end_date
+            else:
+                op.planned_end_time = work_order.planned_start_date
         work_order.save()
         return {"success": True}
     except Exception as e:
