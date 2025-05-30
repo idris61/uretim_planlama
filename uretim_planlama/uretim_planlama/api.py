@@ -508,15 +508,33 @@ def get_work_orders_for_calendar(start, end, include_draft=False):
         end_date = wo.planned_end_date or (today_str if wo.docstatus == 0 else None)
         # Saatleri ayarla
         if wo.docstatus == 1 and start_date:
-            # Onaylanmışlar için 08:00-09:00
-            dt = datetime.datetime.strptime(str(start_date), '%Y-%m-%d' if len(str(start_date))==10 else '%Y-%m-%d %H:%M:%S')
-            start_date = dt.replace(hour=8, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
-            end_date = (dt.replace(hour=9, minute=0, second=0)).strftime('%Y-%m-%d %H:%M:%S')
+            try:
+                # ISO 8601 formatını işle
+                if 'T' in str(start_date):
+                    dt = datetime.datetime.fromisoformat(str(start_date).replace('Z', '+00:00'))
+                else:
+                    # Eski format için
+                    dt = datetime.datetime.strptime(str(start_date), '%Y-%m-%d' if len(str(start_date))==10 else '%Y-%m-%d %H:%M:%S')
+                start_date = dt.replace(hour=8, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
+                end_date = (dt.replace(hour=9, minute=0, second=0)).strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                # Hata durumunda varsayılan değerleri kullan
+                start_date = None
+                end_date = None
         elif wo.docstatus == 0 and start_date:
-            # Taslaklar için sadece 08:00
-            dt = datetime.datetime.strptime(str(start_date), '%Y-%m-%d' if len(str(start_date))==10 else '%Y-%m-%d %H:%M:%S')
-            start_date = dt.replace(hour=8, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
-            end_date = start_date
+            try:
+                # ISO 8601 formatını işle
+                if 'T' in str(start_date):
+                    dt = datetime.datetime.fromisoformat(str(start_date).replace('Z', '+00:00'))
+                else:
+                    # Eski format için
+                    dt = datetime.datetime.strptime(str(start_date), '%Y-%m-%d' if len(str(start_date))==10 else '%Y-%m-%d %H:%M:%S')
+                start_date = dt.replace(hour=8, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
+                end_date = start_date
+            except ValueError:
+                # Hata durumunda varsayılan değerleri kullan
+                start_date = None
+                end_date = None
         # Eğer onaylanmış iş emrinde tarih yoksa, event ekleme
         if wo.docstatus == 1 and (not start_date or not end_date):
             continue
