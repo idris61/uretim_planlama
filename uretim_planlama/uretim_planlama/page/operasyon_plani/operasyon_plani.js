@@ -1,4 +1,4 @@
-frappe.pages['uretim_plani'].on_page_load = function(wrapper) {
+frappe.pages['operasyon_plani'].on_page_load = function(wrapper) {
 	frappe.require(['/assets/uretim_planlama/js/status_colors.js'], function() {
 		if (!uretim_planlama?.status_colors) {
 			frappe.msgprint({
