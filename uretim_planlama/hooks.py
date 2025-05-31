@@ -8,7 +8,7 @@ app_license = "mit"
 # Fixtures (isteğe bağlı özelleştirilebilir)
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
-    {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]}
+    {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]], "files": ["uretim_planlama/uretim_planlama/fixtures/property_setters.json"]}
 ]
 
 
@@ -50,7 +50,10 @@ fixtures = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+    "Production Plan": ["public/js/production_plan_chart.js", "public/js/production_plan_table.js", "public/js/opti_plan_table.js", "public/js/production_plan_po_items.js"]
+}
+
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}

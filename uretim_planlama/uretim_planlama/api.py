@@ -4,6 +4,7 @@ from datetime import timedelta
 from calendar import monthrange
 import pandas as pd
 from collections import defaultdict
+from frappe import _
 
 day_name_tr = {
     'Monday': 'Pazartesi', 'Tuesday': 'Salı', 'Wednesday': 'Çarşamba',
@@ -596,3 +597,190 @@ def update_work_order_date(work_order_id, new_start):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Work Order Date Update Error")
         return {"success": False, "error": str(e)}
+
+@frappe.whitelist()
+def get_production_plan_chart_data(production_plan):
+    """Get data for the production plan chart"""
+    if not production_plan:
+        return None
+
+    # Get production plan details
+    plan = frappe.get_doc('Production Plan', production_plan)
+    
+    # Example chart data structure
+    # You can modify this according to your needs
+    chart_data = {
+        'labels': [],
+        'datasets': [
+            {
+                'name': 'Planlanan Miktar',
+                'values': []
+            },
+            {
+                'name': 'Tamamlanan Miktar',
+                'values': []
+            }
+        ]
+    }
+
+    # Get items from production plan
+    for item in plan.po_items:
+        chart_data['labels'].append(item.item_code)
+        chart_data['datasets'][0]['values'].append(item.planned_qty)
+        chart_data['datasets'][1]['values'].append(item.completed_qty or 0)
+
+    return chart_data
+
+@frappe.whitelist()
+def get_daily_cutting_matrix(from_date, to_date):
+    """
+    Belirtilen tarih aralığındaki kesim planlarını getirir.
+    """
+    try:
+        frappe.logger().info(f"[API] get_daily_cutting_matrix çağrıldı: from_date={from_date}, to_date={to_date}")
+        # Tarihleri kontrol et ve formatla
+        if not from_date or not to_date:
+            frappe.logger().error("[API] Tarih parametreleri eksik")
+            return []
+        # Tarihleri YYYY-MM-DD formatına çevir
+        try:
+            from_date = frappe.utils.getdate(from_date).strftime('%Y-%m-%d')
+            to_date = frappe.utils.getdate(to_date).strftime('%Y-%m-%d')
+        except Exception as e:
+            frappe.logger().error(f"[API] Tarih formatı hatası: {str(e)}")
+            return []
+        frappe.logger().info(f"[API] Formatlanmış tarihler: from_date={from_date}, to_date={to_date}")
+        frappe.logger().info(f"[API] SQL sorgusu başlatılıyor: from_date={from_date}, to_date={to_date}")
+        # SQL sorgusundan docstatus filtresi kaldırıldı
+        result = frappe.db.sql("""
+            SELECT 
+                DATE(planning_date) AS date,
+                workstation,
+                SUM(total_mtul) AS total_mtul,
+                SUM(total_quantity) AS total_quantity
+            FROM `tabCutting Machine Plan`
+            WHERE DATE(planning_date) BETWEEN %s AND %s
+            GROUP BY DATE(planning_date), workstation
+            ORDER BY DATE(planning_date), workstation
+        """, (from_date, to_date), as_dict=True)
+        frappe.logger().info(f"[API] SQL sorgusu tamamlandı. Kayıt sayısı: {len(result)}. Sonuç: {result}")
+        if not result:
+            # Veri yoksa örnek veri oluştur
+            frappe.logger().info("[API] Sorgudan veri gelmedi, örnek veri oluşturuluyor.")
+            current_date = frappe.utils.getdate(from_date)
+            end_date = frappe.utils.getdate(to_date)
+            result = []
+            while current_date <= end_date:
+                result.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'workstation': 'Kesim 1',
+                    'total_mtul': 0,
+                    'total_quantity': 0
+                })
+                current_date = frappe.utils.add_days(current_date, 1)
+            frappe.logger().info(f"[API] Oluşturulan örnek veri: {result}")
+        return result
+    except Exception as e:
+        frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {str(e)}")
+        frappe.logger().error(frappe.get_traceback())
+        return []
+
+@frappe.whitelist()
+def generate_cutting_plan(docname):
+    """
+    Verilen Production Plan belgesine bağlı po_items verilerine göre;
+    - Aynı planlama tarihi ve iş istasyonu varsa o Cutting Machine Plan belgesine ekleme yapılır.
+    - Yoksa yeni belge oluşturulur.
+    - Her satır sadece bir kez eklenir.
+    """
+    doc = frappe.get_doc("Production Plan", docname)
+
+    plan_map = {}  # key: date::workstation → Cutting Machine Plan nesnesi
+
+    for row in doc.po_items:
+        # Gerekli alanları al
+        workstation_name = row.custom_workstation
+        date_obj = row.planned_start_date
+        mtul = row.custom_mtul_per_piece
+        qty = row.planned_qty
+
+        # Tarih objesini stringe çevir
+        date = frappe.utils.getdate(date_obj).isoformat()
+
+        # Zorunlu alan kontrolü
+        if not (workstation_name and date and mtul and qty):
+            continue
+
+        key = f"{date}::{workstation_name}"
+
+        # plan_map'te yoksa Cutting Plan bul/oluştur
+        if key not in plan_map:
+            existing_plan = frappe.db.get_value(
+                "Cutting Machine Plan",
+                filters={"planning_date": date, "workstation": workstation_name},
+                fieldname="name"
+            )
+
+            if existing_plan:
+                plan_doc = frappe.get_doc("Cutting Machine Plan", existing_plan)
+            else:
+                plan_doc = frappe.new_doc("Cutting Machine Plan")
+                plan_doc.planning_date = date
+                plan_doc.workstation = workstation_name
+                plan_doc.insert(ignore_permissions=True)
+
+            plan_map[key] = plan_doc
+        else:
+            plan_doc = plan_map[key]
+
+        # Aynı üretim planı + satırı zaten varsa tekrar ekleme
+        is_duplicate = any(
+            d.production_plan == doc.name and d.production_plan_item == row.name
+            for d in plan_doc.plan_details
+        )
+        if is_duplicate:
+            continue
+
+        # Yeni satırı ekle
+        plan_doc.append("plan_details", {
+            "item_code": row.item_code,
+            "mtul_per_piece": mtul,
+            "quantity": qty,
+            "total_mtul": float(mtul) * float(qty),
+            "production_plan": doc.name,
+            "production_plan_item": row.name
+        })
+
+    # Belgeleri kaydet
+    for plan_doc in plan_map.values():
+        plan_doc.total_quantity = sum(d.quantity for d in plan_doc.plan_details)
+        plan_doc.total_mtul = sum(d.total_mtul for d in plan_doc.plan_details)
+        plan_doc.save(ignore_permissions=True)
+
+    return {"success": True, "message": "Kesim Planı Başarıyla Oluşturuldu."}
+
+@frappe.whitelist()
+def delete_cutting_plans(docname):
+    """
+    Production Plan iptal edildiğinde ilgili kesim planlarını siler.
+    """
+    try:
+        cutting_plans = frappe.get_all("Cutting Machine Plan", fields=["name"])
+        for plan in cutting_plans:
+            doc_plan = frappe.get_doc("Cutting Machine Plan", plan.name)
+            original_len = len(doc_plan.plan_details)
+            updated_rows = [d for d in doc_plan.plan_details if d.production_plan != docname]
+        
+            if len(updated_rows) != original_len:
+                doc_plan.set("plan_details", updated_rows)
+                if updated_rows:
+                    doc_plan.total_quantity = sum(d.quantity for d in updated_rows)
+                    doc_plan.total_mtul = sum(d.total_mtul for d in updated_rows)
+                    doc_plan.save(ignore_permissions=True)
+                else:
+                    frappe.delete_doc("Cutting Machine Plan", doc_plan.name, force=True)
+                    
+        return {"success": True, "message": "✅ Kesim Planları Otomatik Olarak Silindi"}
+
+    except Exception as e:
+        return {"success": False, "message": f"Kesim Planı Silinemedi: {str(e)}"}
