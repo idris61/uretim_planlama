@@ -10,7 +10,7 @@ frappe.ui.form.on('Production Plan', {
         frappe.utils.debounce(() => {
             if (frm.fields_dict['po_items']?.grid) {
                 attachRowSelectionHandler(frm);
-                 updateSelectedTotalMtul(frm); // Başlangıçta ve refresh sonrası paneli güncelle
+                updateSelectedTotalMtul(frm); // Başlangıçta ve refresh sonrası paneli güncelle
             }
         }, 500)(); // 500ms gecikme ile hemen zamanla
     },
@@ -21,9 +21,21 @@ frappe.ui.form.on('Production Plan', {
         frappe.utils.debounce(() => {
             if (frm.fields_dict['po_items']?.grid) {
                 attachRowSelectionHandler(frm);
-                 updateSelectedTotalMtul(frm); // Başlangıçta ve onload sonrası paneli güncelle
+                updateSelectedTotalMtul(frm); // Başlangıçta ve onload sonrası paneli güncelle
             }
         }, 500)(); // 500ms gecikme ile hemen zamanla
+    },
+
+    after_save(frm) {
+        // Kaydetme sonrası paneli gizle
+        const panel = $('#montaj-ogeleri-panel');
+        if (panel.length && panel.is(':visible')) {
+            panel.hide();
+        }
+        // Seçili öğe özeti ve toplamı sıfırla
+        $('#selected-total-mtul').text('0.00');
+        // Panelin görünürlüğünü güncelle
+        updateSelectedTotalMtul(frm);
     }
 });
 

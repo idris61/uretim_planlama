@@ -780,7 +780,7 @@ def delete_cutting_plans(docname):
                 else:
                     frappe.delete_doc("Cutting Machine Plan", doc_plan.name, force=True)
                     
-        return {"success": True, "message": "✅ Kesim Planları Otomatik Olarak Silindi"}
+        return {"success": True, "message": "Kesim Planları Otomatik Olarak Silindi"}
 
     except Exception as e:
         return {"success": False, "message": f"Kesim Planı Silinemedi: {str(e)}"}

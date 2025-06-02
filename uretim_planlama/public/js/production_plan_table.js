@@ -77,7 +77,7 @@ frappe.ui.form.on("Production Plan", {
 
         function load_cutting_table(from_date, to_date) {
             frappe.call({
-                method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_matrix", // API metodunu tam yol olarak belirt
+                method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_matrix",
                 args: { from_date, to_date },
                 callback: function (r) {
                     const $table = $('#cutting-matrix-table');
@@ -86,43 +86,44 @@ frappe.ui.form.on("Production Plan", {
                     let backend_data = r.message || [];
                     console.log("[Backend Verisi]", backend_data);
 
-                    const temp_data = [];
-                    // Geçici planları (frm.doc.po_items) ayrı bir listeye al
-                    (frm.doc.po_items || []).forEach(row => {
-                         if (!(row.custom_workstation && row.planned_start_date && row.custom_mtul_per_piece && row.planned_qty)) return;
+                    // Geçici planları sadece docstatus 0 (taslak) iken ekle
+                    let temp_data = [];
+                    let temp_summary = {};
+                    if (frm.doc.docstatus === 0) {
+                        (frm.doc.po_items || []).forEach(row => {
+                            if (!(row.custom_workstation && row.planned_start_date && row.custom_mtul_per_piece && row.planned_qty)) return;
 
-                         const date_obj = frappe.datetime.str_to_obj(row.planned_start_date);
-                         if (!date_obj) return;
-                         const date = date_obj.toISOString().split('T')[0];
-                         const mtul = (parseFloat(row.custom_mtul_per_piece) || 0) * (parseFloat(row.planned_qty) || 0);
-                         const quantity = parseFloat(row.planned_qty) || 0;
+                            const date_obj = frappe.datetime.str_to_obj(row.planned_start_date);
+                            if (!date_obj) return;
+                            const date = date_obj.toISOString().split('T')[0];
+                            const mtul = (parseFloat(row.custom_mtul_per_piece) || 0) * (parseFloat(row.planned_qty) || 0);
+                            const quantity = parseFloat(row.planned_qty) || 0;
 
-                         temp_data.push({
-                            date: date,
-                            workstation: row.custom_workstation,
-                            mtul: mtul,
-                            quantity: quantity
-                         });
-                     });
+                            temp_data.push({
+                                date: date,
+                                workstation: row.custom_workstation,
+                                mtul: mtul,
+                                quantity: quantity
+                            });
+                        });
 
-                    // Geçici veriyi tarih ve iş istasyonuna göre topla
-                    const temp_summary = {};
-                    temp_data.forEach(item => {
-                        const key = `${item.date}::${item.workstation}`;
-                        if (!temp_summary[key]) {
-                            temp_summary[key] = {
-                                date: item.date,
-                                workstation: item.workstation,
-                                total_mtul: 0,
-                                total_quantity: 0,
-                            };
-                        }
-                        temp_summary[key].total_mtul += item.mtul;
-                        temp_summary[key].total_quantity += item.quantity;
-                    });
+                        // Geçici veriyi tarih ve iş istasyonuna göre topla
+                        temp_data.forEach(item => {
+                            const key = `${item.date}::${item.workstation}`;
+                            if (!temp_summary[key]) {
+                                temp_summary[key] = {
+                                    date: item.date,
+                                    workstation: item.workstation,
+                                    total_mtul: 0,
+                                    total_quantity: 0,
+                                };
+                            }
+                            temp_summary[key].total_mtul += item.mtul;
+                            temp_summary[key].total_quantity += item.quantity;
+                        });
+                    }
 
                     console.log("[Geçici Plan Özeti]", temp_summary);
-
 
                     // Backend ve geçici veriyi birleştir (Toplam MTUL ve Adet için)
                     const combined = {};
@@ -140,7 +141,7 @@ frappe.ui.form.on("Production Plan", {
                     Object.values(temp_summary).forEach(temp_row => {
                         const key = `${temp_row.date}::${temp_row.workstation}`;
                         if (!combined[key]) {
-                             // Eğer backend'de bu gün/istasyon yoksa, tamamı geçicidir
+                            // Eğer backend'de bu gün/istasyon yoksa, tamamı geçicidir
                             combined[key] = {
                                 date: temp_row.date,
                                 workstation: temp_row.workstation,
