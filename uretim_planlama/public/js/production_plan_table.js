@@ -75,7 +75,8 @@ frappe.ui.form.on("Production Plan", {
             refresh_table();
         }
 
-        function load_cutting_table(from_date, to_date) {
+        // load_cutting_table fonksiyonunu window'a ekle
+        window.load_cutting_table = function(from_date, to_date) {
             frappe.call({
                 method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_matrix",
                 args: { from_date, to_date },
@@ -84,7 +85,15 @@ frappe.ui.form.on("Production Plan", {
                     $table.empty();
 
                     let backend_data = r.message || [];
-                    console.log("[Backend Verisi]", backend_data);
+                    // Üretim türüne göre filtreleme (grafikteki seçiciye göre)
+                    const productionType = $('#production-type-select').val();
+                    const isPVC = productionType === 'pvc';
+                    const isCam = productionType === 'cam';
+                    backend_data = backend_data.filter(row => {
+                        if (isPVC) return row.workstation && (row.workstation.includes('Murat') || row.workstation.includes('Kaban'));
+                        if (isCam) return row.workstation && row.workstation.includes('Bottero');
+                        return true;
+                    });
 
                     // Geçici planları sadece docstatus 0 (taslak) iken ekle
                     let temp_data = [];
@@ -92,6 +101,10 @@ frappe.ui.form.on("Production Plan", {
                     if (frm.doc.docstatus === 0) {
                         (frm.doc.po_items || []).forEach(row => {
                             if (!(row.custom_workstation && row.planned_start_date && row.custom_mtul_per_piece && row.planned_qty)) return;
+
+                            // Üretim türüne göre filtrele
+                            if (isPVC && !(row.custom_workstation.includes('Murat') || row.custom_workstation.includes('Kaban'))) return;
+                            if (isCam && !row.custom_workstation.includes('Bottero')) return;
 
                             const date_obj = frappe.datetime.str_to_obj(row.planned_start_date);
                             if (!date_obj) return;
@@ -217,7 +230,7 @@ frappe.ui.form.on("Production Plan", {
                                 <tr>
                                     <th style="width: 160px;">Tarih</th>
                                     <th style="width: 150px;">İstasyon</th>
-                                    <th>Toplam MTUL - Toplam Adet</th>
+                                    <th>Toplam MTUL / m2 - Toplam Adet</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -292,7 +305,7 @@ frappe.ui.form.on("Production Plan", {
                                         <tr>
                                             <th style="width: 160px;">Tarih</th>
                                             <th style="width: 150px;">İstasyon</th>
-                                            <th>Toplam MTUL - Toplam Adet</th>
+                                            <th>Toplam MTUL / m2 - Toplam Adet</th>
                                         </tr>
                                     </thead>
                                     <tbody>

@@ -17,6 +17,17 @@ frappe.ui.form.on("Production Plan", {
             const from_default = frappe.datetime.add_days(today, -10);
             const to_date_default = frappe.datetime.add_days(today, 10);
 
+            // Üretim Türü seçici (tek) - sadece grafiğin üstüne ekle
+            $(
+                `<div id="production-type-select-wrapper" style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+                    <label for="production-type-select" style="margin-right: 8px; font-weight: 500;">Üretim Türü:</label>
+                    <select id="production-type-select" class="form-control" style="width: 120px; display: inline-block;">
+                        <option value="pvc">PVC</option>
+                        <option value="cam">Cam</option>
+                    </select>
+                </div>`
+            ).insertBefore(po_items_wrapper);
+
             $(
                 `<div id="cutting-matrix-chart-wrapper" style="
                     margin-bottom: 24px;
@@ -36,7 +47,7 @@ frappe.ui.form.on("Production Plan", {
                         </button>
                     </div>
                     <div id="cutting-matrix-chart" style="position: relative;"></div>
-                </div>`).insertBefore(po_items_wrapper);
+                </div>`).insertAfter('#production-type-select-wrapper');
 
             const from_date = frappe.ui.form.make_control({
                 df: {
@@ -68,17 +79,22 @@ frappe.ui.form.on("Production Plan", {
             to_date.make_input();
             to_date.set_value(to_date_default);
 
-            const refresh_chart = () => {
+            const refresh_all = () => {
                 const from = from_date.get_value();
                 const to = to_date.get_value();
-                if (from && to) load_cutting_chart(from, to);
+                if (from && to) {
+                    load_cutting_chart(from, to);
+                    if (window.load_cutting_table) window.load_cutting_table(from, to);
+                }
             };
 
-            $('#cutting-chart-refresh-btn').on('click', refresh_chart);
-            from_date.$input.on('change', refresh_chart);
-            to_date.$input.on('change', refresh_chart);
+            $('#cutting-chart-refresh-btn').on('click', refresh_all);
+            from_date.$input.on('change', refresh_all);
+            to_date.$input.on('change', refresh_all);
+            // Üretim türü değiştiğinde hem grafik hem tabloyu yenile
+            $('#production-type-select').on('change', refresh_all);
 
-            refresh_chart();
+            refresh_all();
         }
     },
 
@@ -136,6 +152,16 @@ function load_cutting_chart(from_date, to_date) {
             $chart.empty();
 
             let backend_data = r.message || [];
+            // Üretim türüne göre filtreleme
+            const productionType = $('#production-type-select').val();
+            const isPVC = productionType === 'pvc';
+            const isCam = productionType === 'cam';
+            backend_data = backend_data.filter(row => {
+                if (isPVC) return row.workstation && (row.workstation.includes('Murat') || row.workstation.includes('Kaban'));
+                if (isCam) return row.workstation && row.workstation.includes('Bottero');
+                return true;
+            });
+
             const date_labels = [...new Set(backend_data.map(row => row.date))].sort();
             const workstations = [...new Set(backend_data.map(row => row.workstation))].sort();
 
@@ -145,6 +171,11 @@ function load_cutting_chart(from_date, to_date) {
 
             // Her istasyon için tek dataset (baraj ve kırmızı yok)
             const datasets = workstations.map((ws, idx) => {
+                // Bottero için özel renk, diğerleri için palette
+                let color = color_palette[idx % color_palette.length];
+                if (ws.includes('Bottero')) {
+                    color = '#1976d2'; // Belirgin mavi
+                }
                 return {
                     name: ws,
                     chartType: 'bar',
@@ -152,7 +183,7 @@ function load_cutting_chart(from_date, to_date) {
                         const found = backend_data.find(row => row.date === date && row.workstation === ws);
                         return found ? found.total_mtul : 0;
                     }),
-                    color: color_palette[idx % color_palette.length]
+                    color: color
                 }
             });
 

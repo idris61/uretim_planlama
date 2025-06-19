@@ -105,7 +105,7 @@ function load_opti_plan_table(frm) {
                     <th style="border: 1px solid #dee2e6; padding: 8px; width: 160px; text-align: left;">Renk</th>
                     <th style="border: 1px solid #dee2e6; padding: 8px; width: 130px; text-align: left;">İş İstasyonu</th>
                     <th style="border: 1px solid #dee2e6; padding: 8px; width: 110px; text-align: right;">Planlanan Miktar</th>
-                    <th style="border: 1px solid #dee2e6; padding: 8px; width: 110px; text-align: right;">Toplam MTUL</th>
+                    <th style="border: 1px solid #dee2e6; padding: 8px; width: 110px; text-align: right;">Toplam MTUL / m2</th>
                     <th style="border: 1px solid #dee2e6; padding: 8px; width: 140px; text-align: left;">Planlanan Başlangıç Tarihi</th>
                 </tr>
             </thead>
