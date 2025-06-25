@@ -784,3 +784,237 @@ def delete_cutting_plans(docname):
 
     except Exception as e:
         return {"success": False, "message": f"Kesim Planı Silinemedi: {str(e)}"}
+
+@frappe.whitelist()
+def get_profile_stock_panel(profil=None, depo=None, boy=None, scrap=None):
+    """
+    Profil stok paneli için birleşik ve filtrelenebilir veri seti döner.
+    - ERPNext anlık stok (mtül)
+    - Rezerv (mtül)
+    - Kullanılabilir (mtül)
+    - Boy bazında stok (adet, mtül)
+    - Parça profil (is_scrap_piece)
+    - Rezervasyon (boy/adet)
+    - Son giriş/çıkış tarihi
+    Filtreler: profil, depo, boy, scrap (opsiyonel)
+    """
+    frappe.log_error(
+        title="STOK PANEL DEBUG",
+        message=f"[DEBUG] get_profile_stock_panel params: profil={profil}, depo={depo}, boy={boy}, scrap={scrap}"
+    )
+    bin_filters = {}
+    if profil: bin_filters["item_code"] = profil.strip()
+    if depo: bin_filters["warehouse"] = depo.strip()
+    bins = frappe.get_all("Bin", filters=bin_filters, fields=["item_code", "actual_qty", "reserved_qty", "warehouse"])
+    frappe.log_error(
+        title="STOK PANEL DEBUG",
+        message=f"[DEBUG] bins count: {len(bins)}, örnek: {bins[0] if bins else 'yok'}"
+    )
+    ledger_filters = {}
+    if profil: ledger_filters["profile_type"] = profil.strip()
+    if boy is not None and boy != "":
+        try:
+            ledger_filters["length"] = float(boy)
+        except:
+            ledger_filters["length"] = boy
+    if scrap is not None:
+        ledger_filters["is_scrap_piece"] = int(scrap)
+    ledgers = frappe.get_all(
+        "Profile Stock Ledger",
+        filters=ledger_filters,
+        fields=["profile_type", "length", "qty", "total_length", "is_scrap_piece", "modified"]
+    )
+    frappe.log_error(
+        title="STOK PANEL DEBUG",
+        message=f"[DEBUG] ledgers count: {len(ledgers)}, örnek: {ledgers[0] if ledgers else 'yok'}"
+    )
+    # Rezervasyonlar (örnek: Profile Reservation doctype varsa)
+    if frappe.db.table_exists("Profile Reservation"):
+        reservations = frappe.get_all(
+            "Profile Reservation",
+            fields=["profile_type", "length", "reserved_qty"]
+        )
+    else:
+        reservations = []
+    last_dates = {}
+    for l in ledgers:
+        entry = frappe.get_all("Profile Entry Item", filters={"item_code": l["profile_type"], "length": l["length"]}, fields=["parent", "creation"], order_by="creation desc", limit=1)
+        exit = frappe.get_all("Profile Exit Item", filters={"item_code": l["profile_type"], "length": l["length"]}, fields=["parent", "creation"], order_by="creation desc", limit=1)
+        last_dates[l["profile_type"], l["length"]] = {
+            "last_entry": entry[0]["creation"] if entry else None,
+            "last_exit": exit[0]["creation"] if exit else None
+        }
+    # Profil adlarını topluca çek
+    item_names = {}
+    if ledgers:
+        item_codes = list(set([l["profile_type"] for l in ledgers]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    result = []
+    for b in bins:
+        for l in ledgers:
+            # Eşleşme: profil ve boy birebir aynı olmalı, depo Bin'den alınacak
+            if (
+                str(l["profile_type"]).strip().lower() == str(b["item_code"]).strip().lower() and
+                (boy is None or str(l["length"]) == str(boy) or (isinstance(boy, (int, float)) and float(l["length"]) == float(boy)))
+            ):
+                rezerv = next((r for r in reservations if r["profile_type"] == l["profile_type"] and r["length"] == l["length"]), None)
+                tarih = last_dates.get((l["profile_type"], l["length"]), {})
+                result.append({
+                    "profil": b["item_code"],
+                    "profil_adi": item_names.get(b["item_code"], ""),
+                    "depo": b["warehouse"],
+                    "erpnext_stok": b["actual_qty"],
+                    "rezerv": b["reserved_qty"],
+                    "kullanilabilir": b["actual_qty"] - b["reserved_qty"],
+                    "boy": l["length"],
+                    "boy_stok_adet": l["qty"],
+                    "boy_stok_mtul": l["total_length"],
+                    "scrap": l["is_scrap_piece"] if "is_scrap_piece" in l else 0,
+                    "boy_rezerv": rezerv["reserved_qty"] if rezerv else 0,
+                    "son_giris": tarih.get("last_entry"),
+                    "son_cikis": tarih.get("last_exit"),
+                    "guncelleme": l["modified"]
+                })
+    frappe.log_error(
+        title="STOK PANEL DEBUG",
+        message=f"[DEBUG] result length: {len(result)}"
+    )
+    return result
+
+@frappe.whitelist()
+def get_total_stock_summary(profil=None, depo=None):
+    """
+    ERPNext Bin tablosundan toplam stok (mtül) bilgisini depo ve ürün bazında döndürür.
+    """
+    filters = {}
+    if profil:
+        filters["item_code"] = profil
+    if depo:
+        filters["warehouse"] = depo
+    bins = frappe.get_all("Bin", filters=filters, fields=["item_code", "warehouse", "actual_qty"])
+    # item_name ekle
+    item_names = {}
+    if bins:
+        item_codes = list(set([b["item_code"] for b in bins]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    result = []
+    for b in bins:
+        result.append({
+            "profil": b["item_code"],
+            "profil_adi": item_names.get(b["item_code"], ""),
+            "depo": b["warehouse"],
+            "toplam_stok_mtul": b["actual_qty"]
+        })
+    return result
+
+@frappe.whitelist()
+def get_profile_stock_by_length(profil=None, boy=None, scrap=None):
+    """
+    Profile Stock Ledger'dan boy bazında stokları döndürür.
+    Ayrıca Rezerved Raw Materials doctype'ından toplam rezerv (mtül) değerini ekler.
+    """
+    filters = {}
+    if profil:
+        filters["profile_type"] = profil
+    if boy:
+        try:
+            filters["length"] = float(boy)
+        except:
+            filters["length"] = boy
+    if scrap is not None:
+        filters["is_scrap_piece"] = int(scrap)
+    ledgers = frappe.get_all("Profile Stock Ledger", filters=filters, fields=["profile_type", "length", "qty", "total_length", "is_scrap_piece", "modified"])
+    # item_name ekle
+    item_names = {}
+    if ledgers:
+        item_codes = list(set([l["profile_type"] for l in ledgers]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    # Rezervleri çek (mtül bazında)
+    rezervler = frappe.get_all(
+        "Rezerved Raw Materials",
+        fields=["item_code", "quantity"]
+    )
+    rezerv_map = {}
+    for r in rezervler:
+        rezerv_map.setdefault(r["item_code"], 0)
+        rezerv_map[r["item_code"]] += float(r["quantity"] or 0)
+    result = []
+    for l in ledgers:
+        rezerv = rezerv_map.get(l["profile_type"], 0)
+        result.append({
+            "profil": l["profile_type"],
+            "profil_adi": item_names.get(l["profile_type"], ""),
+            "boy": l["length"],
+            "adet": l["qty"],
+            "mtul": l["total_length"],
+            "rezerv": rezerv,
+            "guncelleme": l["modified"]
+        })
+    return result
+
+@frappe.whitelist()
+def get_scrap_profile_entries(profile_code=None):
+    """
+    Scrap Profile Entry kayıtlarını döndürür (sadece seçilen profile_code için).
+    """
+    filters = {}
+    if profile_code:
+        filters["profile_code"] = profile_code
+    entries = frappe.get_all(
+        "Scrap Profile Entry",
+        filters=filters,
+        fields=["name", "profile_code", "length", "qty", "total_length", "description", "entry_date", "modified"]
+    )
+    # item_name ekle
+    item_names = {}
+    if entries:
+        item_codes = list(set([e["profile_code"] for e in entries]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    result = []
+    for e in entries:
+        result.append({
+            "profil": e["profile_code"],
+            "profil_adi": item_names.get(e["profile_code"], ""),
+            "boy": e["length"],
+            "adet": e["qty"],
+            "mtul": e["total_length"],
+            "aciklama": e["description"],
+            "tarih": e["entry_date"],
+            "guncelleme": e["modified"]
+        })
+    return result
+
+@frappe.whitelist()
+def get_reserved_raw_materials_for_profile(profil=None):
+    """
+    Profil (ürün/mamul veya hammadde) filtresine göre rezerve hammaddeleri döndürür.
+    """
+    if profil:
+        # Önce doğrudan hammadde olarak arama yap
+        reserved = frappe.get_all(
+            "Rezerved Raw Materials",
+            filters={"item_code": profil},
+            fields=["item_code", "item_name", "quantity", "sales_order"]
+        )
+        if reserved:
+            return reserved
+        # Eğer hammadde olarak bulunamazsa, mamul olarak satış siparişlerini bul
+        sales_orders = [d.name for d in frappe.get_all("Sales Order", fields=["name"])
+                        if any(item.item_code == profil for item in frappe.get_all("Sales Order Item", filters={"parent": d.name}, fields=["item_code"]))]
+        if sales_orders:
+            reserved = frappe.get_all(
+                "Rezerved Raw Materials",
+                filters={"sales_order": ["in", sales_orders]},
+                fields=["item_code", "item_name", "quantity", "sales_order"]
+            )
+            return reserved
+        return []
+    # Profil seçilmemişse tüm rezerve hammaddeleri döndür
+    return frappe.get_all(
+        "Rezerved Raw Materials",
+        fields=["item_code", "item_name", "quantity", "sales_order"]
+    )

@@ -51,7 +51,8 @@ fixtures = [
 
 # include js in doctype views
 doctype_js = {
-    "Production Plan": ["public/js/production_plan_chart.js", "public/js/production_plan_table.js", "public/js/opti_plan_table.js", "public/js/production_plan_po_items.js"]
+    "Production Plan": ["public/js/production_plan_chart.js", "public/js/production_plan_table.js", "public/js/opti_plan_table.js", "public/js/production_plan_po_items.js"],
+    "Sales Order": "public/js/sales_order/sales_order.js"
 }
 
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
@@ -147,18 +148,22 @@ doctype_js = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    "Sales Order": {
+        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
+        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel"
+    },
+    "Delivery Note": {
+        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
+        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel"
+    },
+    "Sales Invoice": {
+        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
+        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel"
+    }
+}
 
-# Scheduled Tasks
-# ---------------
-
-# scheduler_events = {
+# scheduled_tasks = {
 # 	"all": [
 # 		"uretim_planlama.tasks.all"
 # 	],

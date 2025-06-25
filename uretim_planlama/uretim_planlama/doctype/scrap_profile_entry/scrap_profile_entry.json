@@ -1,0 +1,101 @@
+{
+ "actions": [],
+ "creation": "2025-06-24 01:46:52.744753",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "profile_code",
+  "length",
+  "qty",
+  "total_length",
+  "description",
+  "entry_date",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Profile Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "length",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Length (m)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Quantity",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_length",
+   "fieldtype": "Float",
+   "label": "Total Length (m)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "label": "Description"
+  },
+  {
+   "default": "now",
+   "fieldname": "entry_date",
+   "fieldtype": "Datetime",
+   "label": "Entry Date"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Scrap Profile Entry",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-06-24 14:32:04.422796",
+ "modified_by": "Administrator",
+ "module": "Uretim Planlama",
+ "name": "Scrap Profile Entry",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "read": 1,
+   "role": "Manufacturing Manager",
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Manufacturing User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
