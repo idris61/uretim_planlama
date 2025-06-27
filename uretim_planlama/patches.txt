@@ -6,3 +6,5 @@
 # Patches added in this section will be executed after doctypes are migrated
 
 uretim_planlama.patches.add_custom_raw_materials_html_field
+uretim_planlama.patches.add_profile_fields_to_purchase_receipt_item
+uretim_planlama.patches.add_profile_fields_to_purchase_receipt_item_v2

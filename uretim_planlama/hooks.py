@@ -33,7 +33,9 @@ fixtures = [
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/uretim_planlama/css/uretim_planlama.css"
-# app_include_js = "/assets/uretim_planlama/js/uretim_planlama.js"
+app_include_js = [
+    "/assets/uretim_planlama/js/purchase_receipt_profile_fields.js"
+]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/uretim_planlama/css/uretim_planlama.css"
@@ -160,6 +162,12 @@ doc_events = {
     "Sales Invoice": {
         "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
         "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel"
+    },
+    "Purchase Receipt": {
+        "on_submit": "uretim_planlama.uretim_planlama.purchase_receipt_events.on_submit"
+    },
+    "Profile Stock Ledger": {
+        "after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
     }
 }
 
@@ -256,4 +264,6 @@ doc_events = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+
+after_import = "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import_profile_stock_ledger"
 

@@ -10,7 +10,8 @@
   "item_code",
   "output_quantity",
   "length",
-  "total_length"
+  "total_length",
+  "opt_no"
  ],
  "fields": [
   {
@@ -37,7 +38,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Length (m)",
-   "options": "5 m\n5,5 m\n6 m",
+   "options": "5\n6\n6,5",
    "reqd": 1
   },
   {
@@ -49,13 +50,18 @@
    "in_standard_filter": 1,
    "label": "Total Lenght",
    "read_only": 1
+  },
+  {
+   "fieldname": "opt_no",
+   "fieldtype": "Data",
+   "label": "OPT No"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-06-23 16:34:12.984929",
+ "modified": "2025-06-25 22:04:25.836185",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Profile Exit Item",

@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "creation": "2025-06-23 10:27:52.623709",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -47,7 +48,7 @@
   }
  ],
  "links": [],
- "modified": "2025-06-24 14:28:20.587820",
+ "modified": "2025-06-27 00:19:54.028796",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Profile Stock Ledger",
