@@ -153,7 +153,8 @@ doctype_js = {
 doc_events = {
     "Sales Order": {
         "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
-        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel"
+        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel",
+        "before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit"
     },
     "Delivery Note": {
         "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
