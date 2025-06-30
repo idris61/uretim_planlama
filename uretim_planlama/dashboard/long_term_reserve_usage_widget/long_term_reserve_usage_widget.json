@@ -1,0 +1,23 @@
+{
+	"chart_name": "Long Term Reserve Usage Widget",
+	"chart_type": "Report",
+	"creation": "2025-06-28 00:35:00.000000",
+	"doctype": "Dashboard Chart",
+	"filters_json": "{}",
+	"group_by_type": "Count",
+	"idx": 0,
+	"is_custom": 1,
+	"is_public": 1,
+	"last_modified": "2025-06-28 00:35:00.000000",
+	"modified": "2025-06-28 00:35:00.000000",
+	"modified_by": "Administrator",
+	"module": "Uretim Planlama",
+	"name": "Long Term Reserve Usage Widget",
+	"number_of_groups": 0,
+	"owner": "Administrator",
+	"report": "Long Term Reserve Usage Report",
+	"timeseries": 0,
+	"type": "Bar",
+	"use_report_chart": 0,
+	"y_axis": []
+} 

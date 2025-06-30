@@ -1,0 +1,35 @@
+{
+	"cards": [
+		{
+			"chart": "Long Term Reserve Usage Widget",
+			"creation": "2025-06-28 00:40:00.000000",
+			"dashboard": "Uretim Planlama Dashboard",
+			"docstatus": 0,
+			"doctype": "Dashboard Chart",
+			"idx": 1,
+			"is_custom": 1,
+			"is_public": 1,
+			"modified": "2025-06-28 00:40:00.000000",
+			"modified_by": "Administrator",
+			"module": "Uretim Planlama",
+			"name": "Long Term Reserve Usage Widget",
+			"owner": "Administrator",
+			"parent": "Uretim Planlama Dashboard",
+			"parentfield": "cards",
+			"parenttype": "Dashboard",
+			"type": "chart"
+		}
+	],
+	"creation": "2025-06-28 00:40:00.000000",
+	"dashboard_name": "Uretim Planlama Dashboard",
+	"docstatus": 0,
+	"doctype": "Dashboard",
+	"idx": 0,
+	"is_default": 0,
+	"is_standard": 1,
+	"modified": "2025-06-28 00:40:00.000000",
+	"modified_by": "Administrator",
+	"module": "Uretim Planlama",
+	"name": "Uretim Planlama Dashboard",
+	"owner": "Administrator"
+} 

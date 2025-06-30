@@ -1,0 +1,52 @@
+{
+	"creation": "2025-06-28 00:30:00.000000",
+	"doctype": "Report",
+	"engine": "Query Report",
+	"filters": [
+		{
+			"fieldname": "sales_order",
+			"fieldtype": "Link",
+			"label": "Satış Siparişi",
+			"options": "Sales Order"
+		},
+		{
+			"fieldname": "item_code",
+			"fieldtype": "Link",
+			"label": "Hammadde",
+			"options": "Item"
+		},
+		{
+			"fieldname": "status",
+			"fieldtype": "Select",
+			"label": "Durum",
+			"options": "Aktif\nYenilendi"
+		},
+		{
+			"fieldname": "from_date",
+			"fieldtype": "Date",
+			"label": "Başlangıç Tarihi"
+		},
+		{
+			"fieldname": "to_date",
+			"fieldtype": "Date",
+			"label": "Bitiş Tarihi"
+		}
+	],
+	"function": "uretim_planlama.reports.long_term_reserve_usage_report.long_term_reserve_usage_report.execute",
+	"is_standard": "No",
+	"json": "{\"filters\":[{\"fieldname\":\"sales_order\",\"fieldtype\":\"Link\",\"label\":\"Satış Siparişi\",\"options\":\"Sales Order\"},{\"fieldname\":\"item_code\",\"fieldtype\":\"Link\",\"label\":\"Hammadde\",\"options\":\"Item\"},{\"fieldname\":\"status\",\"fieldtype\":\"Select\",\"label\":\"Durum\",\"options\":\"Aktif\\nYenilendi\"},{\"fieldname\":\"from_date\",\"fieldtype\":\"Date\",\"label\":\"Başlangıç Tarihi\"},{\"fieldname\":\"to_date\",\"fieldtype\":\"Date\",\"label\":\"Bitiş Tarihi\"}],\"function\":\"uretim_planlama.reports.long_term_reserve_usage_report.long_term_reserve_usage_report.execute\"}",
+	"modified": "2025-06-28 00:30:00.000000",
+	"module": "Uretim Planlama",
+	"name": "Long Term Reserve Usage Report",
+	"owner": "Administrator",
+	"report_name": "Long Term Reserve Usage Report",
+	"report_type": "Query Report",
+	"roles": [
+		{
+			"role": "System Manager"
+		},
+		{
+			"role": "Uretim Sorumlusu"
+		}
+	]
+} 
