@@ -1,9 +1,11 @@
 import frappe
 from frappe import _
 from datetime import datetime, timedelta
+import json
 
 @frappe.whitelist()
 def get_sales_order_raw_materials(sales_order):
+	"""Satış siparişi için gerekli hammadde ve stok bilgilerini döndürür."""
 	if not sales_order or sales_order.startswith("new-"):
 		frappe.throw(_("Lütfen önce Satış Siparişini kaydedin."), frappe.ValidationError)
 	try:
@@ -56,22 +58,15 @@ def get_sales_order_raw_materials(sales_order):
 	is_submitted = so.docstatus == 1
 	for data in raw_materials.values():
 		kullanilabilir_stok = float(data["stock"] or 0) - float(data["reserved_qty"] or 0)
-		if is_submitted:
-			acik_miktar = 0
-		else:
-			acik_miktar = float(data["qty"] or 0) - kullanilabilir_stok
+		acik_miktar = 0 if is_submitted else float(data["qty"] or 0) - kullanilabilir_stok
 		mr_items = frappe.db.sql(
 			"SELECT mri.parent, mri.qty, mr.transaction_date FROM `tabMaterial Request Item` mri INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name WHERE mri.item_code = %s AND mri.docstatus = 1 AND mr.material_request_type = 'Purchase'",
 			(data["raw_material"],), as_dict=True
 		)
-		malzeme_talep_miktari = sum([row.qty for row in mr_items]) if mr_items else 0
-		malzeme_talep_tooltip = ", ".join([f"{row.parent} ({row.qty})" for row in mr_items])
 		po_items = frappe.db.sql(
 			"SELECT poi.parent, poi.qty, poi.schedule_date FROM `tabPurchase Order Item` poi INNER JOIN `tabPurchase Order` po ON poi.parent = po.name WHERE poi.item_code = %s AND poi.docstatus = 1 AND po.docstatus = 1 AND (poi.qty > IFNULL(poi.received_qty, 0))",
 			(data["raw_material"],), as_dict=True
 		)
-		siparis_edilen_miktar = sum([row.qty for row in po_items]) if po_items else 0
-		siparis_edilen_tooltip = ", ".join([f"{row.parent} ({row.qty})" for row in po_items])
 		beklenen_teslim_tarihi = min([row.schedule_date for row in po_items if row.schedule_date], default=None)
 		long_term_details = get_long_term_reserve_details(data["raw_material"])
 		used_long_term_details = get_used_long_term_reserve_details(data["raw_material"])
@@ -87,20 +82,15 @@ def get_sales_order_raw_materials(sales_order):
 			"so_items": ", ".join(data["so_items"]),
 			"kullanilabilir_stok": kullanilabilir_stok,
 			"acik_miktar": acik_miktar,
-			"malzeme_talep_miktari": malzeme_talep_miktari,
-			"malzeme_talep_tooltip": malzeme_talep_tooltip,
-			"siparis_edilen_miktar": siparis_edilen_miktar,
-			"siparis_edilen_tooltip": siparis_edilen_tooltip,
+			"malzeme_talep_details": mr_items,
+			"siparis_edilen_details": po_items,
 			"beklenen_teslim_tarihi": beklenen_teslim_tarihi,
 			"long_term_reserve_qty": data["long_term_reserve_qty"],
 			"used_from_long_term_reserve": data["used_from_long_term_reserve"],
 			"long_term_details": long_term_details,
-			"used_long_term_details": used_long_term_details,
-			"malzeme_talep_details": mr_items,
-			"siparis_edilen_details": po_items
+			"used_long_term_details": used_long_term_details
 		})
-	result = sorted(result, key=lambda x: float(x.get("acik_miktar", 0)), reverse=True)
-	return result
+	return sorted(result, key=lambda x: float(x.get("acik_miktar", 0)), reverse=True)
 
 @frappe.whitelist()
 def get_long_term_reserve_qty(item_code):
@@ -250,4 +240,168 @@ def restore_reservations_on_work_order_cancel(doc, method):
 			rm_doc.insert(ignore_permissions=True)
 	frappe.db.commit()
 	frappe.msgprint(_("İş emri iptal edildi, rezervler tekrar eklendi."), indicator="orange")
+
+@frappe.whitelist()
+def check_long_term_reserve_availability(sales_order):
+	if not sales_order or sales_order.startswith("new-"):
+		frappe.throw(_("Lütfen önce Satış Siparişini kaydedin."), frappe.ValidationError)
+	so = frappe.get_doc("Sales Order", sales_order)
+	raw_materials = get_sales_order_raw_materials(sales_order)
+	recommendations = []
+	for row in raw_materials:
+		acik_miktar = float(row.get("acik_miktar", 0))
+		uzun_vadeli_rezerv = float(row.get("long_term_reserve_qty", 0))
+		kullanilan_rezerv = float(row.get("used_from_long_term_reserve", 0))
+		kullanilabilir_uzun_vadeli = max(uzun_vadeli_rezerv - kullanilan_rezerv, 0)
+		if acik_miktar > 0 and kullanilabilir_uzun_vadeli > 0:
+			onerilen_kullanim = min(acik_miktar, kullanilabilir_uzun_vadeli)
+			recommendations.append({
+				"item_code": row.get("raw_material"),
+				"item_name": row.get("item_name"),
+				"acik_miktar": acik_miktar,
+				"uzun_vadeli_rezerv": uzun_vadeli_rezerv,
+				"kullanilan_rezerv": kullanilan_rezerv,
+				"kullanilabilir_uzun_vadeli": kullanilabilir_uzun_vadeli,
+				"onerilen_kullanim": onerilen_kullanim
+			})
+	return recommendations
+
+def delete_long_term_reserve_usage_on_cancel(doc, method):
+	sales_order = getattr(doc, "name", None)
+	if not sales_order:
+		return
+	try:
+		usage_rows = frappe.get_all(
+			"Long Term Reserve Usage",
+			filters={"sales_order": sales_order},
+			fields=["name"]
+		)
+		for row in usage_rows:
+			frappe.delete_doc("Long Term Reserve Usage", row["name"], ignore_permissions=True)
+		frappe.db.commit()
+		frappe.msgprint(_("{0} için uzun vadeli rezerv kullanımları silindi.").format(sales_order), alert=True, indicator="orange")
+	except Exception:
+		frappe.log_error("Sales Order cancel hook (delete_long_term_reserve_usage_on_cancel) HATA", frappe.get_traceback())
+
+def check_raw_material_stock_on_submit(doc, method):
+	try:
+		raw_materials = get_sales_order_raw_materials(doc.name)
+		eksik_list = []
+		for row in raw_materials:
+			acik_miktar = float(row.get("acik_miktar", 0))
+			if acik_miktar > 0:
+				eksik_list.append(f"{row.get('raw_material')} ({acik_miktar})")
+		if eksik_list:
+			frappe.throw(
+				_("Aşağıdaki hammaddeler için stok yetersiz: {0}").format(", ".join(eksik_list)),
+				frappe.ValidationError
+			)
+	except Exception:
+		frappe.log_error("Sales Order before_submit hook (check_raw_material_stock_on_submit) HATA", frappe.get_traceback())
+
+@frappe.whitelist()
+def use_long_term_reserve_bulk(sales_order, usage_data):
+	"""
+	usage_data: JSON string [{"item_code": "...", "qty": ...}, ...]
+	"""
+	if not sales_order or not usage_data:
+		return {"success": False, "message": "Eksik parametre."}
+	try:
+		usage_list = json.loads(usage_data)
+		for usage in usage_list:
+			item_code = usage.get("item_code")
+			qty = float(usage.get("qty", 0))
+			if not item_code or qty <= 0:
+				continue
+			# Daha önce kullanım var mı kontrol et
+			existing = frappe.get_all(
+				"Long Term Reserve Usage",
+				filters={"sales_order": sales_order, "item_code": item_code},
+				fields=["name"]
+			)
+			if existing:
+				usage_doc = frappe.get_doc("Long Term Reserve Usage", existing[0]["name"])
+				usage_doc.used_qty += qty
+				usage_doc.usage_date = frappe.utils.nowdate()
+				usage_doc.save(ignore_permissions=True)
+			else:
+				usage_doc = frappe.new_doc("Long Term Reserve Usage")
+				usage_doc.sales_order = sales_order
+				usage_doc.item_code = item_code
+				usage_doc.used_qty = qty
+				usage_doc.usage_date = frappe.utils.nowdate()
+				usage_doc.insert(ignore_permissions=True)
+		frappe.db.commit()
+		return {"success": True, "message": "Uzun vadeli rezerv kullanımı başarıyla kaydedildi."}
+	except Exception:
+		frappe.log_error("use_long_term_reserve_bulk HATA", frappe.get_traceback())
+		return {"success": False, "message": "Bir hata oluştu. Lütfen tekrar deneyin."}
+
+@frappe.whitelist()
+def create_material_request_for_shortages(sales_order):
+	if not sales_order:
+		return {"success": False, "message": "Satış Siparişi bulunamadı."}
+	try:
+		raw_materials = get_sales_order_raw_materials(sales_order)
+		shortage_items = []
+		for row in raw_materials:
+			acik_miktar = float(row.get("acik_miktar", 0))
+			if acik_miktar > 0:
+				shortage_items.append({
+					"item_code": row.get("raw_material"),
+					"qty": acik_miktar,
+					"schedule_date": frappe.utils.nowdate()
+				})
+		if not shortage_items:
+			return {"success": False, "message": "Eksik hammadde yok, talep oluşturulmadı."}
+		mr = frappe.new_doc("Material Request")
+		mr.material_request_type = "Purchase"
+		mr.schedule_date = frappe.utils.nowdate()
+		mr.company = frappe.db.get_value("Sales Order", sales_order, "company")
+		mr.set("items", [])
+		for item in shortage_items:
+			mr.append("items", {
+				"item_code": item["item_code"],
+				"qty": item["qty"],
+				"schedule_date": item["schedule_date"],
+				"warehouse": None
+			})
+		mr.insert(ignore_permissions=True)
+		mr.submit()
+		return {
+			"success": True,
+			"message": "Satınalma Talebi başarıyla oluşturuldu.",
+			"mr_name": mr.name,
+			"created_rows": shortage_items
+		}
+	except Exception:
+		frappe.log_error("create_material_request_for_shortages HATA", frappe.get_traceback())
+		return {"success": False, "message": "Bir hata oluştu. Lütfen tekrar deneyin."}
+
+def restore_long_term_reserve_on_purchase_receipt(doc, method):
+	try:
+		for item in getattr(doc, "items", []):
+			item_code = item.item_code
+			qty = float(item.qty or 0)
+			# Bu item ile ilişkili tüm Long Term Reserve Usage kayıtlarını bul
+			usage_rows = frappe.get_all(
+				"Long Term Reserve Usage",
+				filters={"item_code": item_code},
+				fields=["name", "used_qty"]
+			)
+			for usage in usage_rows:
+				usage_doc = frappe.get_doc("Long Term Reserve Usage", usage["name"])
+				if qty >= usage_doc.used_qty:
+					qty -= usage_doc.used_qty
+					usage_doc.delete(ignore_permissions=True)
+				else:
+					usage_doc.used_qty -= qty
+					usage_doc.save(ignore_permissions=True)
+					qty = 0
+				if qty <= 0:
+					break
+		frappe.db.commit()
+		frappe.msgprint(_("Satınalma fişi ile ilişkili uzun vadeli rezerv kullanımları geri yüklendi."), indicator="green")
+	except Exception:
+		frappe.log_error("restore_long_term_reserve_on_purchase_receipt HATA", frappe.get_traceback())
  

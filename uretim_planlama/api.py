@@ -1,3 +1,24 @@
+import frappe
+from frappe.utils import getdate, add_days, get_datetime
+from datetime import timedelta
+from calendar import monthrange
+from frappe import _
+
+# Türkçe gün isimleri ve durum haritası
+DAY_NAME_TR = {
+    'Monday': 'Pazartesi', 'Tuesday': 'Salı', 'Wednesday': 'Çarşamba',
+    'Thursday': 'Perşembe', 'Friday': 'Cuma', 'Saturday': 'Cumartesi', 'Sunday': 'Pazar'
+}
+STATUS_MAP = {
+    "In Process": "Devam ediyor",
+    "Completed": "Tamamlandı",
+    "Not Started": "Açık",
+    "Açık": "Açık",
+    "Devam ediyor": "Devam ediyor",
+    "Tamamlandı": "Tamamlandı",
+    "İptal Edildi": "İptal Edildi"
+}
+
 @frappe.whitelist()
 def get_total_stock_summary(profil=None, depo=None):
     """
