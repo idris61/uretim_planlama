@@ -378,10 +378,18 @@ function loadRawMaterialsTable(frm) {
                     }
                     let acikMiktarCell = acikMiktar > 0 ? `<span class='acik-miktar'>${acikMiktar.toFixed(2)}</span>` : `<span class='stok-pozitif-box'>0</span>`;
                     let kullanilabilirStokCell = kullanilabilirStok > 0 ? `<span class='stok-pozitif-box'>${kullanilabilirStok.toFixed(2)}</span>` : `<span class='stok-negatif'>${kullanilabilirStok.toFixed(2)}</span>`;
-                    let uzunVadeliRezervCell = uzunVadeliRezerv > 0 ? `<span class='beyaz-kutu rezerv-mavi'>${uzunVadeliRezerv.toFixed(2)}</span>` : `<span class='beyaz-kutu rezerv-mavi'>${uzunVadeliRezerv.toFixed(2)}</span>`;
-                    let kullanilanRezervCell = `<span class='beyaz-kutu kullanilan-rezerv-turuncu'>${kullanilanRezerv.toFixed(2)}</span>`;
-                    let malzemeTalepCell = (parseFloat(row.malzeme_talep_miktari) || 0) > 0 ? `<span style='color:#1976d2;font-weight:bold;cursor:pointer;' title='${row.malzeme_talep_tooltip}'>${row.malzeme_talep_miktari} <span style='font-size:10px;'>Tedarik Sürecinde</span></span>` : '-';
-                    let siparisEdilenCell = (parseFloat(row.siparis_edilen_miktar) || 0) > 0 ? `<span style='color:#1976d2;font-weight:bold;cursor:pointer;' title='${row.siparis_edilen_tooltip}'>${row.siparis_edilen_miktar} <span style='font-size:10px;'>Sipariş Verildi</span></span>` : '-';
+                    let uzunVadeliRezervCell = uzunVadeliRezerv > 0
+                        ? `<a href="#" class="beyaz-kutu rezerv-mavi long-term-detail-link" data-item='${row.raw_material}' style="text-decoration:underline;">${uzunVadeliRezerv.toFixed(2)}</a>`
+                        : `<span class='beyaz-kutu rezerv-mavi'>${uzunVadeliRezerv.toFixed(2)}</span>`;
+                    let kullanilanRezervCell = kullanilanRezerv > 0
+                        ? `<a href="#" class="beyaz-kutu kullanilan-rezerv-turuncu used-long-term-detail-link" data-item='${row.raw_material}' style="text-decoration:underline;">${kullanilanRezerv.toFixed(2)}</a>`
+                        : `<span class='beyaz-kutu kullanilan-rezerv-turuncu'>${kullanilanRezerv.toFixed(2)}</span>`;
+                    let malzemeTalepCell = (row.malzeme_talep_details && row.malzeme_talep_details.length > 0)
+                        ? `<a href="#" class="malzeme-talep-detail-link" data-item='${row.raw_material}' style="color:#1976d2;font-weight:bold;text-decoration:underline;">${row.malzeme_talep_details.reduce((a,b)=>a+parseFloat(b.qty||0),0)}</a>`
+                        : '-';
+                    let siparisEdilenCell = (row.siparis_edilen_details && row.siparis_edilen_details.length > 0)
+                        ? `<a href="#" class="siparis-edilen-detail-link" data-item='${row.raw_material}' style="color:#1976d2;font-weight:bold;text-decoration:underline;">${row.siparis_edilen_details.reduce((a,b)=>a+parseFloat(b.qty||0),0)}</a>`
+                        : '-';
                     let beklenenTeslimCell = row.beklenen_teslim_tarihi ? row.beklenen_teslim_tarihi : '-';
                     let qtyFormatted = (row.qty !== undefined && row.qty !== null) ? parseFloat(row.qty).toFixed(2) : '';
                     let reservedQtyFormatted = (row.reserved_qty !== undefined && row.reserved_qty !== null) ? parseFloat(row.reserved_qty).toFixed(2) : '';
@@ -456,10 +464,125 @@ function loadRawMaterialsTable(frm) {
                     }
                     }
                 }
-                // Tabloyu ekledikten sonra tooltipleri etkinleştir
+                // Tabloyu ekledikten sonra eventleri bağla:
                 setTimeout(function() {
-                    $("[data-toggle='tooltip']").tooltip({html:true, trigger:'hover click'});
+                    // Uzun vadeli rezerv detay linkleri
+                    document.querySelectorAll('.long-term-detail-link').forEach(el => {
+                        el.onclick = function(e) {
+                            e.preventDefault();
+                            let itemCode = el.getAttribute('data-item');
+                            let row = r.message.find(rw => rw.raw_material === itemCode);
+                            if (row && row.long_term_details && row.long_term_details.length > 0) {
+                                showDetailsModal(__('Long Term Reserve Details'), row.long_term_details, [__('Sales Order'), __('Customer'), __('Delivery Date'), __('Quantity')], 'sales-order');
+                            } else {
+                                frappe.show_alert({message:__('No details found.'), indicator:'orange'});
+                            }
+                        };
+                    });
+                    // Kullanılan uzun vadeli rezerv detay linkleri
+                    document.querySelectorAll('.used-long-term-detail-link').forEach(el => {
+                        el.onclick = function(e) {
+                            e.preventDefault();
+                            let itemCode = el.getAttribute('data-item');
+                            let row = r.message.find(rw => rw.raw_material === itemCode);
+                            if (row && row.used_long_term_details && row.used_long_term_details.length > 0) {
+                                showDetailsModal(__('Used Long Term Reserve Details'), row.used_long_term_details, [__('Sales Order'), __('Customer'), __('Usage Date'), __('Used Qty')], 'sales-order');
+                            } else {
+                                frappe.show_alert({message:__('No details found.'), indicator:'orange'});
+                            }
+                        };
+                    });
+                    // Malzeme Talep Detay linkleri
+                    document.querySelectorAll('.malzeme-talep-detail-link').forEach(el => {
+                        el.onclick = function(e) {
+                            e.preventDefault();
+                            let itemCode = el.getAttribute('data-item');
+                            let row = r.message.find(rw => rw.raw_material === itemCode);
+                            if (row && row.malzeme_talep_details && row.malzeme_talep_details.length > 0) {
+                                showDocumentDetailsModal(__('Material Request Details'), row.malzeme_talep_details, [__('Document No'), __('Quantity'), __('Date')], 'material-request');
+                            }
+                        };
+                    });
+                    // Sipariş Edilen Detay linkleri
+                    document.querySelectorAll('.siparis-edilen-detail-link').forEach(el => {
+                        el.onclick = function(e) {
+                            e.preventDefault();
+                            let itemCode = el.getAttribute('data-item');
+                            let row = r.message.find(rw => rw.raw_material === itemCode);
+                            if (row && row.siparis_edilen_details && row.siparis_edilen_details.length > 0) {
+                                showDocumentDetailsModal(__('Purchase Order Details'), row.siparis_edilen_details, [__('Document No'), __('Quantity'), __('Date')], 'purchase-order');
+                            }
+                        };
+                    });
+                    // Tooltipleri etkinleştir
+                    $(`[data-toggle='tooltip']`).tooltip({html:true, trigger:'hover click'});
                 }, 100);
             }
         });
     }
+
+
+// Modal gösterme fonksiyonu (her tür detay için)
+function showDetailsModal(title, details, columns, doctype) {
+    // Türkçe başlık -> backend anahtarı eşlemesi
+    const colMap = {
+        'Satış Siparişi': ['sales_order', 'parent'],
+        'Müşteri': ['customer'],
+        'Teslimat Tarihi': ['delivery_date'],
+        'Kullanım Tarihi': ['usage_date'],
+        'Miktar': ['quantity', 'qty'],
+        'Kullanılan Miktar': ['used_qty'],
+        'Belge No': ['parent'],
+        'Tarih': ['schedule_date', 'transaction_date'],
+        'Quantity': ['quantity', 'qty'],
+        'Date': ['schedule_date', 'transaction_date'],
+        'Customer': ['customer'],
+        'Delivery Date': ['delivery_date'],
+        'Usage Date': ['usage_date'],
+        'Used Qty': ['used_qty'],
+        'Document No': ['parent'],
+        'Sales Order': ['sales_order', 'parent']
+    };
+    let modalHtml = `
+        <div class="modal fade" id="detailsModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">${title}</h5>
+                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-bordered table-hover">
+                            <thead><tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr></thead>
+                            <tbody>`;
+    details.forEach(row => {
+        modalHtml += `<tr>`;
+        columns.forEach(col => {
+            let val = '';
+            // Belge linki için
+            if(col === __('Sales Order') || col === __('Document No') || col === 'Satış Siparişi' || col === 'Belge No') {
+                let keyList = colMap[col] || [];
+                let docVal = '';
+                for (let k of keyList) { if (row[k]) { docVal = row[k]; break; } }
+                let doctype_link = doctype || (col.includes('Satış') ? 'sales-order' : '');
+                if (docVal) {
+                    val = `<a href="/app/${doctype_link}/${docVal}" target="_blank">${docVal}</a>`;
+                }
+            } else {
+                let keyList = colMap[col] || [col.toLowerCase().replace(/ /g,'_')];
+                for (let k of keyList) { if (row[k] !== undefined && row[k] !== null) { val = row[k]; break; } }
+            }
+            modalHtml += `<td>${val || ''}</td>`;
+        });
+        modalHtml += `</tr>`;
+    });
+    modalHtml += `</tbody></table></div></div></div></div>`;
+    if (document.getElementById('detailsModal')) document.getElementById('detailsModal').remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    $('#detailsModal').modal('show');
+}
+
+// Modal fonksiyonu
+function showDocumentDetailsModal(title, details, columns, doctype) {
+    showDetailsModal(title, details, columns, doctype);
+}
