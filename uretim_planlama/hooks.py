@@ -19,6 +19,10 @@ app_include_js = [
     "/assets/uretim_planlama/js/purchase_receipt_profile_fields.js"
 ]
 
+app_include_css = [
+    "/assets/uretim_planlama/css/sales_order.css"
+]
+
 doctype_js = {
     "Production Plan": [
         "public/js/production_plan_chart.js",
@@ -33,7 +37,10 @@ doctype_js = {
 # Clean code: Yalnızca aktif kullanılan eventler ve fonksiyonlar listeleniyor.
 doc_events = {
     "Sales Order": {
-        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
+        "on_submit": [
+            "uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
+            "uretim_planlama.sales_order_hooks.raw_materials.handle_child_sales_order_reserves"
+        ],
         "on_cancel": [
             "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel",
             "uretim_planlama.sales_order_hooks.raw_materials.delete_long_term_reserve_usage_on_cancel"

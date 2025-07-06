@@ -1,69 +1,38 @@
 {
- "actions": [],
- "allow_rename": 1,
- "creation": "2025-06-27 23:58:28.713415",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "sales_order",
-  "item_code",
-  "used_qty",
-  "usage_date",
-  "description"
- ],
- "fields": [
-  {
-   "fieldname": "sales_order",
-   "fieldtype": "Link",
-   "label": "Sales Order",
-   "options": "Sales Order"
-  },
-  {
-   "fieldname": "item_code",
-   "fieldtype": "Link",
-   "label": "Item Code",
-   "options": "Item"
-  },
-  {
-   "fieldname": "used_qty",
-   "fieldtype": "Float",
-   "label": "Used Qty"
-  },
-  {
-   "fieldname": "usage_date",
-   "fieldtype": "Date",
-   "label": "Usage Date "
-  },
-  {
-   "fieldname": "description",
-   "fieldtype": "Data",
-   "label": "Description"
+  "doctype": "DocType",
+  "name": "Long Term Reserve Usage",
+  "module": "Uretim Planlama",
+  "custom": 0,
+  "fields": [
+    {"fieldname": "sales_order", "fieldtype": "Link", "label": "Satış Siparişi", "options": "Sales Order", "reqd": 1, "in_list_view": 1},
+    {"fieldname": "parent_sales_order", "fieldtype": "Link", "label": "Parent Sales Order", "options": "Sales Order", "in_list_view": 1, "reqd": 0, "read_only": 0},
+    {"fieldname": "item_code", "fieldtype": "Link", "label": "Hammadde", "options": "Item", "reqd": 1, "in_list_view": 1},
+    {"fieldname": "item_name", "fieldtype": "Data", "label": "Hammadde Adı", "read_only": 1, "in_list_view": 1},
+    {"fieldname": "used_qty", "fieldtype": "Float", "label": "Kullanılan Miktar", "reqd": 1, "in_list_view": 1},
+    {"fieldname": "usage_date", "fieldtype": "Date", "label": "Kullanım Tarihi", "default": "Today", "in_list_view": 1},
+    {"fieldname": "description", "fieldtype": "Data", "label": "Açıklama", "in_list_view": 1},
+    {"fieldname": "status", "fieldtype": "Select", "label": "Durum", "options": "Aktif\nYenilendi", "default": "Aktif", "in_list_view": 1}
+  ],
+  "field_order": [
+    "sales_order", "item_code", "item_name", "used_qty", "usage_date", "description", "status"
+  ],
+  "permissions": [
+    {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "submit": 1, "cancel": 1, "amend": 1},
+    {"role": "Uretim Sorumlusu", "read": 1, "write": 1, "create": 1}
+  ],
+  "engine": "InnoDB",
+  "row_format": "Dynamic",
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "list_view_settings": {
+    "fields": ["sales_order", "item_code", "item_name", "used_qty", "usage_date", "status"],
+    "columns": [
+      {"fieldname": "sales_order", "label": "Satış Siparişi", "width": 120},
+      {"fieldname": "item_code", "label": "Hammadde", "width": 100},
+      {"fieldname": "item_name", "label": "Hammadde Adı", "width": 150},
+      {"fieldname": "used_qty", "label": "Kullanılan Miktar", "width": 120},
+      {"fieldname": "usage_date", "label": "Kullanım Tarihi", "width": 100},
+      {"fieldname": "status", "label": "Durum", "width": 80}
+    ]
   }
- ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2025-06-28 00:02:48.349879",
- "modified_by": "Administrator",
- "module": "Uretim Planlama",
- "name": "Long Term Reserve Usage",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  }
- ],
- "row_format": "Dynamic",
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": []
-}
+} 

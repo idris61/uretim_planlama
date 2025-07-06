@@ -1,0 +1,30 @@
+/* Toplam Rezerv Miktarı ve benzeri kutular için pembe arka plan */
+.rezerv-pembe {
+    background: #e573b4 !important;
+    color: #fff !important;
+    border-radius: 6px;
+    padding: 2px 12px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+/* Diğer kutu stilleriyle uyumlu olması için örnek (gerekirse): */
+.beyaz-kutu {
+    background: #fff;
+    border-radius: 6px;
+    padding: 2px 12px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+/* Toplam Rezerv Miktarı kutusu tıklanabilir olduğunda altı çizili olsun */
+.total-reserved-detail-link {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.total-reserved-detail-link u {
+    color: #8D5524 !important;
+    font-weight: bold !important;
+    text-decoration: underline;
+} 
