@@ -222,7 +222,7 @@ def get_sales_order_raw_materials(sales_order):
             # --- YENİ: toplam rezerv ve toplam uzun vadeli rezerv ---
             aktif_rezerv = total_rezerv_map.get(item_code, 0)
             kullanilmis_rezerv = total_usage_map.get(item_code, 0)
-            toplam_rezerv = aktif_rezerv + kullanilmis_rezerv
+            toplam_rezerv = aktif_rezerv
             toplam_uzun_vadeli_rezerv = total_long_term_map.get(item_code, 0)
             raw_materials[item_code] = {
                 "raw_material": item_code,
@@ -626,7 +626,7 @@ def upsert_long_term_reserve_usage(sales_order, item_code, qty, is_long_term_chi
     )
     if existing:
         usage_doc = frappe.get_doc("Long Term Reserve Usage", existing[0]["name"])
-        usage_doc.used_qty += qty
+        usage_doc.used_qty = qty  # <-- Birikmeli değil, yeni miktarı yaz
         usage_doc.usage_date = frappe.utils.nowdate()
         if is_long_term_child and parent_sales_order:
             usage_doc.parent_sales_order = parent_sales_order
@@ -871,3 +871,9 @@ def handle_child_sales_order_reserves(doc, method):
     frappe.db.commit()
     print(f"[DEBUG] handle_child_sales_order_reserves TAMAMLANDI: {getattr(doc, 'name', None)}")
     frappe.msgprint(_("Satış siparişi için rezervler güncellendi."), indicator="green")
+
+def release_reservations_on_job_card_complete(doc, method):
+    pass
+
+def restore_long_term_reserve_on_purchase_receipt(doc, method):
+    pass
