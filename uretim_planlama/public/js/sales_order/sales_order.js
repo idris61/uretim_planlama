@@ -431,23 +431,22 @@ function loadRawMaterialsTable(frm) {
                 // Satırları renk önceliğine göre sıralamak için önce rowClass'ı belirleyip diziye at
                 let rows = r.message.map(row => {
                     let rowClass = '';
-                    let kullanilabilirStok = parseFloat(row.kullanilabilir_stok) || 0;
                     let acikMiktar = parseFloat(row.acik_miktar) || 0;
-                    let stok = parseFloat(row.stock) || 0;
-                    if (acikMiktar > 0) {
+                    let kullanilabilirStok = parseFloat(row.kullanilabilir_stok) || 0;
+                    if (Math.abs(acikMiktar) > 0.001) {
                         rowClass = 'table-danger';
-                    } else if (kullanilabilirStok > 0) {
+                    } else if (kullanilabilirStok > 0.001) {
                         rowClass = 'table-success';
-                    } else if (stok > 0) {
+                    } else {
                         rowClass = 'table-warning';
                     }
                     return { row, rowClass };
                 });
-                // Renk önceliği: yeşil (success), sarı (warning), kırmızı (danger)
+                // Renk önceliği: kırmızı > sarı > yeşil
                 const renkOncelik = {
-                    'table-success': 1,
+                    'table-danger': 1,
                     'table-warning': 2,
-                    'table-danger': 3,
+                    'table-success': 3,
                     '': 99
                 };
                 rows.sort((a, b) => (renkOncelik[a.rowClass] || 99) - (renkOncelik[b.rowClass] || 99));
@@ -461,8 +460,15 @@ function loadRawMaterialsTable(frm) {
                     stok_by_warehouse = row.stock_by_warehouse || {};
                     uzunVadeliRezerv = parseFloat(row.total_long_term_reserve_qty) || 0;
                     kullanilanRezerv = parseFloat(row.used_from_long_term_reserve) || 0;
-                    acikMiktarCell = acikMiktar > 0 ? `<span class='acik-miktar'>${acikMiktar.toFixed(2)}</span>` : `<span class='stok-pozitif-box'>0</span>`;
-                    kullanilabilirStokCell = kullanilabilirStok > 0 ? `<span class='stok-pozitif-box'>${kullanilabilirStok.toFixed(2)}</span>` : `<span class='stok-negatif'>${kullanilabilirStok.toFixed(2)}</span>`;
+                    // Child siparişlerde özel gösterim (backend'den gelen alanlara göre)
+                    let isLongTermChild = row.is_long_term_child || row.parent_sales_order;
+                    if (isLongTermChild) {
+                        kullanilabilirStokCell = "<span title='Ana rezervden karşılanacak' style='color:#888;cursor:help;'>-</span>";
+                        acikMiktarCell = "<span title='Ana rezervden karşılanacak' style='color:#888;cursor:help;'>-</span>";
+                    } else {
+                        acikMiktarCell = Math.abs(acikMiktar) > 0.001 ? `<span class='acik-miktar'>${acikMiktar.toFixed(2)}</span>` : `<span class='stok-pozitif-box'>0</span>`;
+                        kullanilabilirStokCell = kullanilabilirStok > 0.001 ? `<span class='stok-pozitif-box'>${kullanilabilirStok.toFixed(2)}</span>` : `<span class='stok-negatif'>${kullanilabilirStok.toFixed(2)}</span>`;
+                    }
                     toplamRezervCell = `<span class='beyaz-kutu rezerv-pembe total-reserved-detail-link' data-item='${row.raw_material}'><span style='color:#fff; text-decoration:underline; cursor:pointer;'>${parseFloat(row.total_reserved_qty || 0).toFixed(2)}</span></span>`;
                     // Uzun vadeli rezerv detay linki
                     uzunVadeliRezervCell = uzunVadeliRezerv > 0
@@ -677,6 +683,7 @@ function renderDetailsModal(title, details, columns, doctype) {
     // --- HATA DÜZELTME: hasLongTerm ve hasChild fonksiyon başında tanımlanmalı ---
     let hasLongTerm = false;
     let hasChild = false;
+    let hasChildUsage = false;
     if (!details || details.length === 0) {
         html += `<tr><td colspan='${columns.length}' style='text-align:center;'>Kayıt bulunamadı.</td></tr>`;
     } else {
@@ -692,11 +699,19 @@ function renderDetailsModal(title, details, columns, doctype) {
             // Child sipariş mi?
             let isChild = false;
             if (detail.is_long_term_child || detail.parent_sales_order) isChild = true;
+            // Child usage satırı mı? (ana rezervden child'a aktarılan miktar)
+            let isChildUsage = false;
+            if (detail.is_child_usage) isChildUsage = true;
+            
             if (isLongTerm) hasLongTerm = true;
             if (isChild) hasChild = true;
+            if (isChildUsage) hasChildUsage = true;
+            
             let rowStyle = '';
             if (isLongTerm) rowStyle = "background:#e3f2fd;color:#1976d2;font-weight:bold;";
             if (isChild) rowStyle = "background:#fff3e0;color:#ff9800;font-weight:bold;";
+            if (isChildUsage) rowStyle = "background:#fff3e0;color:#ff9800;font-weight:bold;";
+            
             html += `<tr${rowStyle ? ` style='${rowStyle}'` : ''}>`;
             columns.forEach(col => {
                 let val = '';
@@ -747,6 +762,9 @@ function renderDetailsModal(title, details, columns, doctype) {
     }
     if (hasChild) {
         html += `<div style='color:#ff9800;font-size:12px;font-style:italic;margin-top:2px;'>Turuncu renkli satırlar alt (child) siparişleri göstermektedir.</div>`;
+    }
+    if (hasChildUsage) {
+        html += `<div style='color:#ff9800;font-size:12px;font-style:italic;margin-top:2px;'>Turuncu renkli satırlar, ana siparişten child siparişlere aktarılan rezerv miktarını göstermektedir. Toplam rezerv değişmez.</div>`;
     }
     frappe.msgprint({
         title: title,

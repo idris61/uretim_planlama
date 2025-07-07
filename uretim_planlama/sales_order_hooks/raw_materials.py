@@ -134,7 +134,7 @@ def get_sales_order_raw_materials(sales_order):
     reserve_warehouse_stock_map = get_reserve_warehouse_stock_map(all_item_codes, reserve_warehouse)
 
     # --- YENİ: Her item için sistemdeki toplam rezerv ve uzun vadeli rezervi çek ---
-    # Tüm aktif/onaylanmış siparişler için toplam rezerv
+    # Tüm aktif/onaylanmış siparişler için toplam rezerv (aktif rezerv)
     total_rezerv_rows = frappe.db.sql(
         """
         SELECT item_code, SUM(quantity) as total_quantity
@@ -145,7 +145,18 @@ def get_sales_order_raw_materials(sales_order):
     )
     total_rezerv_map = {row.item_code: normalize_qty(row.total_quantity) for row in total_rezerv_rows}
 
-    # Tüm aktif/onaylanmış uzun vadeli siparişler için toplam uzun vadeli rezerv
+    # --- YENİ: Kullanılmış rezervleri (usage) da topla ---
+    total_usage_rows = frappe.db.sql(
+        """
+        SELECT item_code, SUM(used_qty) as total_used
+        FROM `tabLong Term Reserve Usage`
+        GROUP BY item_code
+        """,
+        as_dict=True
+    )
+    total_usage_map = {row.item_code: normalize_qty(row.total_used) for row in total_usage_rows}
+
+    # --- YENİ: Tüm aktif/onaylanmış uzun vadeli siparişler için toplam uzun vadeli rezerv ---
     today = frappe.utils.nowdate()
     thirty_days_later = (datetime.strptime(today, "%Y-%m-%d") + timedelta(days=30)).strftime("%Y-%m-%d")
     total_long_term_rows = frappe.db.sql(
@@ -178,11 +189,29 @@ def get_sales_order_raw_materials(sales_order):
             long_term_reserve_qty = rezerv_map.get(long_term_key, 0)
         # --- toplam rezerv detayları ---
         total_reserved_details = frappe.db.sql('''
-            SELECT rrm.sales_order, so.customer, IFNULL(so.custom_end_customer, '') as custom_end_customer, so.delivery_date, rrm.quantity
+            SELECT rrm.sales_order, so.customer, IFNULL(so.custom_end_customer, '') as custom_end_customer, so.delivery_date, rrm.quantity,
+                   so.is_long_term_child, so.parent_sales_order
             FROM `tabRezerved Raw Materials` rrm
             INNER JOIN `tabSales Order` so ON rrm.sales_order = so.name
             WHERE rrm.item_code = %s
         ''', (item_code,), as_dict=True)
+        
+        # --- YENİ: Child siparişlere aktarılan rezerv detaylarını ekle ---
+        child_usage_details = frappe.db.sql('''
+            SELECT ltru.sales_order as child_sales_order, ltru.parent_sales_order, ltru.used_qty as quantity,
+                   so.customer, IFNULL(so.custom_end_customer, '') as custom_end_customer, so.delivery_date,
+                   so.is_long_term_child, so.parent_sales_order
+            FROM `tabLong Term Reserve Usage` ltru
+            INNER JOIN `tabSales Order` so ON ltru.sales_order = so.name
+            WHERE ltru.item_code = %s AND ltru.parent_sales_order IS NOT NULL
+        ''', (item_code,), as_dict=True)
+        
+        # Child usage detaylarını total_reserved_details'e ekle
+        for child_detail in child_usage_details:
+            # Child satırı için sales_order alanını child_sales_order olarak ayarla
+            child_detail['sales_order'] = child_detail['child_sales_order']
+            child_detail['is_child_usage'] = True  # Bu satırın child usage olduğunu belirt
+            total_reserved_details.append(child_detail)
         # İlk kez ekleniyorsa
         if item_code not in raw_materials:
             reserved_qty = rezerv_map.get((so.name, item_code), 0)
@@ -191,7 +220,9 @@ def get_sales_order_raw_materials(sales_order):
             item_name = item_names.get(item_code, "")
             reserve_warehouse_stock = reserve_warehouse_stock_map.get(item_code, 0)
             # --- YENİ: toplam rezerv ve toplam uzun vadeli rezerv ---
-            toplam_rezerv = total_rezerv_map.get(item_code, 0)
+            aktif_rezerv = total_rezerv_map.get(item_code, 0)
+            kullanilmis_rezerv = total_usage_map.get(item_code, 0)
+            toplam_rezerv = aktif_rezerv + kullanilmis_rezerv
             toplam_uzun_vadeli_rezerv = total_long_term_map.get(item_code, 0)
             raw_materials[item_code] = {
                 "raw_material": item_code,
@@ -218,11 +249,13 @@ def get_sales_order_raw_materials(sales_order):
     result = []
     is_submitted = so.docstatus == 1
     for data in raw_materials.values():
+        toplam_stok = float(data["stock"] or 0)
+        toplam_rezerv = float(data["total_reserved_qty"] or 0)  # sistemdeki tüm rezervlerin toplamı
         if is_long_term_child and parent_sales_order:
-            acik_miktar = float(data["qty"] or 0)  # stok bakmaksızın ihtiyacın tamamı
-            kullanilabilir_stok = 0  # Hata engellemek için burada da tanımlanıyor
+            acik_miktar = float(data["qty"] or 0)
+            kullanilabilir_stok = 0
         else:
-            kullanilabilir_stok = float(data["stock"] or 0) - float(data["reserved_qty"] or 0)
+            kullanilabilir_stok = toplam_stok - toplam_rezerv
             acik_miktar = max(float(data["qty"] or 0) - kullanilabilir_stok, 0)
         mr_items = frappe.db.sql(
             "SELECT mri.parent, mri.qty, mr.transaction_date FROM `tabMaterial Request Item` mri INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name WHERE mri.item_code = %s AND mri.docstatus = 1 AND mr.material_request_type = 'Purchase'",
@@ -280,7 +313,10 @@ def get_sales_order_raw_materials(sales_order):
             # --- yeni toplamlar ---
             "total_reserved_qty": data["total_reserved_qty"],
             "total_long_term_reserve_qty": data["total_long_term_reserve_qty"],
-            "total_reserved_details": data["total_reserved_details"]
+            "total_reserved_details": data["total_reserved_details"],
+            # Child bilgisini ekle
+            "is_long_term_child": is_long_term_child,
+            "parent_sales_order": parent_sales_order
         })
     return sorted(result, key=lambda x: float(x.get("acik_miktar", 0)), reverse=True)
 
