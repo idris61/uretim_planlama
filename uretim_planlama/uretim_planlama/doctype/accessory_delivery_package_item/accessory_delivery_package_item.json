@@ -1,0 +1,49 @@
+{
+  "doctype": "DocType",
+  "name": "Accessory Delivery Package Item",
+  "module": "Uretim Planlama",
+  "custom": 1,
+  "fields": [
+    {
+      "fieldname": "item_code",
+      "label": "Item Code",
+      "fieldtype": "Link",
+      "options": "Item",
+      "reqd": 1
+    },
+    {
+      "fieldname": "item_name",
+      "label": "Item Name",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "qty",
+      "label": "Quantity",
+      "fieldtype": "Float",
+      "reqd": 1
+    },
+    {
+      "fieldname": "uom",
+      "label": "UOM",
+      "fieldtype": "Link",
+      "options": "UOM"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "Stock User",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    }
+  ],
+  "istable": 1
+} 

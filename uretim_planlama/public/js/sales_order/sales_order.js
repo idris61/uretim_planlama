@@ -532,15 +532,8 @@ function loadRawMaterialsTable(frm) {
                                 callback: function(res) {
                                     if (res.message && res.message.success) {
                                         let message = res.message.message || 'Satınalma Talebi oluşturuldu.';
-                                        if (res.message.created_rows) {
-                                            let shortageCount = res.message.created_rows.filter(row => row.type === 'shortage').length;
-                                            let renewalCount = res.message.created_rows.filter(row => row.type === 'renewal').length;
-                                            if (renewalCount > 0) {
-                                                message += ` (${shortageCount} eksik miktar, ${renewalCount} rezerv yenileme)`;
-                                            }
-                                        }
                                         frappe.show_alert({
-                                            message: `${message} <a href='/app/material-request/${res.message.mr_name}' target='_blank'>${res.message.mr_name}</a>` ,
+                                            message: `${message} <a href='/app/material-request/${res.message.mr_name}' target='_blank'>${res.message.mr_name}</a>`,
                                             indicator: 'green'
                                         });
                                         loadRawMaterialsTable(frm);
@@ -552,8 +545,7 @@ function loadRawMaterialsTable(frm) {
                                     }
                                 }
                             });
-                        }
-                    }
+                        };
                     }
                 }
                 // Tabloyu ekledikten sonra eventleri bağla:
@@ -623,9 +615,9 @@ function loadRawMaterialsTable(frm) {
                     $(`[data-toggle='tooltip']`).tooltip({html:true, trigger:'hover click'});
                 }, 100);
             }
-        });
-    }
-
+        },
+    });
+}
 
 // Modal gösterme fonksiyonu (her tür detay için) - mapping sadeleştirildi, "Nihai Müşteri" ve özel alanlar korundu
 function enrichDetailsWithEndCustomer(details) {

@@ -30,7 +30,10 @@ doctype_js = {
         "public/js/opti_plan_table.js",
         "public/js/production_plan_po_items.js"
     ],
-    "Sales Order": "public/js/sales_order/sales_order.js"
+    "Sales Order": "public/js/sales_order/sales_order.js",
+    # Accessory Delivery Package için özel JS
+    "Accessory Delivery Package": "public/js/opti_no_select.js",
+    "Test Opti No": "public/js/opti_no_select.js"
 }
 
 # DocType Event Hook'ları
@@ -55,15 +58,11 @@ doc_events = {
         "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
         "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel"
     },
-    "Purchase Receipt": {
-        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.restore_long_term_reserve_on_purchase_receipt"
-    },
     "Profile Stock Ledger": {
         "after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
     },
     "Job Card": {
-        "on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete",
-        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
+        "on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
     },
     "Stock Entry": {
         "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry"

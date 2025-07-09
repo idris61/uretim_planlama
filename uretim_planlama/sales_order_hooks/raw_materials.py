@@ -872,8 +872,43 @@ def handle_child_sales_order_reserves(doc, method):
     print(f"[DEBUG] handle_child_sales_order_reserves TAMAMLANDI: {getattr(doc, 'name', None)}")
     frappe.msgprint(_("Satış siparişi için rezervler güncellendi."), indicator="green")
 
-def release_reservations_on_job_card_complete(doc, method):
-    pass
-
-def restore_long_term_reserve_on_purchase_receipt(doc, method):
-    pass
+@frappe.whitelist()
+def create_material_request_for_shortages(sales_order):
+    if not sales_order:
+        return {"success": False, "message": "Satış Siparişi bulunamadı."}
+    try:
+        raw_materials = get_sales_order_raw_materials(sales_order)
+        shortage_items = []
+        for row in raw_materials:
+            acik_miktar = float(row.get("acik_miktar", 0))
+            if acik_miktar > 0:
+                shortage_items.append({
+                    "item_code": row.get("raw_material"),
+                    "qty": acik_miktar,
+                    "schedule_date": frappe.utils.nowdate()
+                })
+        if not shortage_items:
+            return {"success": False, "message": "Eksik hammadde yok, talep oluşturulmadı."}
+        mr = frappe.new_doc("Material Request")
+        mr.material_request_type = "Purchase"
+        mr.schedule_date = frappe.utils.nowdate()
+        mr.company = frappe.db.get_value("Sales Order", sales_order, "company")
+        mr.set("items", [])
+        for item in shortage_items:
+            mr.append("items", {
+                "item_code": item["item_code"],
+                "qty": item["qty"],
+                "schedule_date": item["schedule_date"],
+                "warehouse": None
+            })
+        mr.insert(ignore_permissions=True)
+        mr.submit()
+        return {
+            "success": True,
+            "message": "Satınalma Talebi başarıyla oluşturuldu.",
+            "mr_name": mr.name,
+            "created_rows": shortage_items
+        }
+    except Exception:
+        frappe.log_error("create_material_request_for_shortages HATA", frappe.get_traceback())
+        return {"success": False, "message": "Bir hata oluştu. Lütfen tekrar deneyin."}

@@ -60,3 +60,71 @@ def get_total_stock_summary(profil=None, depo=None):
             "kullanilabilir_mtul": kullanilabilir_mtul
         })
     return result 
+
+@frappe.whitelist()
+def get_materials_by_opti(opti_no):
+    """
+    Girdi: Production Plan'ın name (docname) değeri
+    Çıktı: Üretim planı, bağlı satış siparişleri, malzeme listesi (MLY entegrasyonu için placeholder)
+    """
+    plan = frappe.get_doc("Production Plan", opti_no)
+    if not plan:
+        frappe.throw(_("Production Plan not found for OpTi No: {0}").format(opti_no))
+    # Child table'dan sales_orders listesini çek
+    sales_orders = [row.sales_order for row in plan.sales_orders if row.sales_order]
+    # Placeholder: Fetch MLY file materials (to be implemented)
+    materials = []  # Bu kısım API ile doldurulacak
+    return {
+        "production_plan": plan.name,
+        "sales_orders": sales_orders,
+        "materials": materials
+    }
+
+@frappe.whitelist()
+def create_delivery_package(data):
+    """
+    Create Accessory Delivery Package with given data (materials, opti_no, delivered_to, notes, etc).
+    """
+    import json
+    if isinstance(data, str):
+        data = json.loads(data)
+    doc = frappe.new_doc("Accessory Delivery Package")
+    doc.opti_no = data.get("opti_no")
+    doc.sales_order = data.get("sales_order")
+    doc.delivered_to = data.get("delivered_to")
+    doc.delivered_by = frappe.session.user
+    doc.delivery_date = frappe.utils.now_datetime()
+    doc.notes = data.get("notes")
+    for item in data.get("item_list", []):
+        doc.append("item_list", {
+            "item_code": item.get("item_code"),
+            "item_name": item.get("item_name"),
+            "qty": item.get("qty"),
+            "uom": item.get("uom")
+        })
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name} 
+
+@frappe.whitelist()
+def get_approved_opti_nos():
+    """
+    Onaylı üretim planlarının hem OpTi No (custom_opti_no) hem de name (docname) değerlerini döndürür.
+    """
+    return frappe.get_all(
+        "Production Plan",
+        filters={"docstatus": 1},
+        fields=["name", "custom_opti_no"],
+        order_by="creation desc"
+    )
+
+@frappe.whitelist()
+def get_sales_orders_by_opti(opti_no):
+    """
+    Seçilen OpTi No'ya (Production Plan'ın name'i) ait satış siparişlerini, sales_orders child table'ından döndürür.
+    """
+    plan = frappe.get_doc("Production Plan", opti_no)
+    if not plan:
+        return []
+    sales_orders = [row.sales_order for row in plan.sales_orders if row.sales_order]
+    return sales_orders 
