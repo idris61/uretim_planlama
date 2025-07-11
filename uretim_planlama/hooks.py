@@ -9,67 +9,79 @@ app_email = "idris@example.com"
 app_license = "MIT"
 
 # Fixtures (isteğe bağlı özelleştirilebilir)
+# fixtures = [
+#     {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
+#     {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]], "files": ["uretim_planlama/uretim_planlama/fixtures/property_setters.json"]}
+# ]
+
 fixtures = [
-    {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
-    {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]], "files": ["uretim_planlama/uretim_planlama/fixtures/property_setters.json"]}
+	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Workflow"},
+	# {"dt": "Workflow State"},
+	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
+	# {"dt": "Item Group"},
+	# {"dt": "Workstation"},
+	# {"dt": "Operation"},
+	# {"dt": "UOM"},
+	# {"dt": "Cam"},
+	# {"dt": "Profile Type"},
+	# {"dt": "Cam Recipe"},
 ]
+
 
 # Uygulama içi JS/CSS dosyaları
-app_include_js = [
-    "/assets/uretim_planlama/js/purchase_receipt_profile_fields.js"
-]
+app_include_js = ["/assets/uretim_planlama/js/purchase_receipt_profile_fields.js"]
 
-app_include_css = [
-    "/assets/uretim_planlama/css/sales_order.css"
-]
+app_include_css = ["/assets/uretim_planlama/css/sales_order.css"]
 
 doctype_js = {
-    "Production Plan": [
-        "public/js/production_plan_chart.js",
-        "public/js/production_plan_table.js",
-        "public/js/opti_plan_table.js",
-        "public/js/production_plan_po_items.js"
-    ],
-    "Sales Order": "public/js/sales_order/sales_order.js",
-    # Accessory Delivery Package için özel JS
-    "Accessory Delivery Package": "public/js/opti_no_select.js",
-    "Test Opti No": "public/js/opti_no_select.js"
+	"Production Plan": [
+		"public/js/production_plan_chart.js",
+		"public/js/production_plan_table.js",
+		"public/js/opti_plan_table.js",
+		"public/js/production_plan_po_items.js",
+	],
+	"Sales Order": "public/js/sales_order/sales_order.js",
+	# Accessory Delivery Package için özel JS
+	"Accessory Delivery Package": "public/js/opti_no_select.js",
+	"Test Opti No": "public/js/opti_no_select.js",
 }
 
 # DocType Event Hook'ları
 # Clean code: Yalnızca aktif kullanılan eventler ve fonksiyonlar listeleniyor.
 doc_events = {
-    "Sales Order": {
-        "on_submit": [
-            "uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
-            "uretim_planlama.sales_order_hooks.raw_materials.handle_child_sales_order_reserves"
-        ],
-        "on_cancel": [
-            "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel",
-            "uretim_planlama.sales_order_hooks.raw_materials.delete_long_term_reserve_usage_on_cancel"
-        ],
-        "before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit"
-    },
-    "Delivery Note": {
-        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
-        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel"
-    },
-    "Sales Invoice": {
-        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
-        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel"
-    },
-    "Profile Stock Ledger": {
-        "after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
-    },
-    "Job Card": {
-        "on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
-    },
-    "Stock Entry": {
-        "on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry"
-    },
-    "Work Order": {
-        "on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
-    }
+	"Sales Order": {
+		"on_submit": [
+			"uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
+			"uretim_planlama.sales_order_hooks.raw_materials.handle_child_sales_order_reserves",
+		],
+		"on_cancel": [
+			"uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel",
+			"uretim_planlama.sales_order_hooks.raw_materials.delete_long_term_reserve_usage_on_cancel",
+		],
+		"before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit",
+	},
+	"Delivery Note": {
+		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
+		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel",
+	},
+	"Sales Invoice": {
+		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
+		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel",
+	},
+	"Profile Stock Ledger": {
+		"after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
+	},
+	# "Job Card": {
+	# 	"on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
+	# },
+	"Stock Entry": {
+		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry"
+	},
+	"Work Order": {
+		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
+	},
 }
 
 # after_import işlemi
@@ -77,10 +89,9 @@ after_import = "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.pro
 
 # Modül konfigürasyonu
 modules = {
-    "Uretim Planlama": {
-        "color": "grey",
-        "icon": "octicon octicon-file-directory",
-        "label": "Üretim Planlama"
-    }
+	"Uretim Planlama": {
+		"color": "grey",
+		"icon": "octicon octicon-file-directory",
+		"label": "Üretim Planlama",
+	}
 }
-
