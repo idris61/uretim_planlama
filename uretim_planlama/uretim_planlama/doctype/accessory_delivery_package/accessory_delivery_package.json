@@ -1,8 +1,7 @@
 {
  "actions": [],
- "app": "uretim_planlama",
- "creation": "2025-07-08 15:46:28.804971",
- "custom": 1,
+ "allow_rename": 1,
+ "creation": "2025-07-09 11:58:14.309748",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -71,29 +70,25 @@
    "search_index": 1
   }
  ],
- "is_submittable": 1,
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-08 18:11:41.048079",
- "modified_by": "ozerpan@gmail.com",
+ "modified": "2025-07-10 09:53:55.406351",
+ "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Accessory Delivery Package",
  "owner": "Administrator",
  "permissions": [
   {
-   "amend": 1,
-   "cancel": 1,
    "create": 1,
    "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
    "read": 1,
+   "report": 1,
    "role": "System Manager",
-   "submit": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "read": 1,
-   "role": "Stock User",
+   "share": 1,
    "write": 1
   }
  ],

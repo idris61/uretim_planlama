@@ -14,14 +14,9 @@ fixtures = [
     {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]], "files": ["uretim_planlama/uretim_planlama/fixtures/property_setters.json"]}
 ]
 
-# Uygulama içi JS/CSS dosyaları
-app_include_js = [
-    "/assets/uretim_planlama/js/purchase_receipt_profile_fields.js"
-]
-
-app_include_css = [
-    "/assets/uretim_planlama/css/sales_order.css"
-]
+# Uygulama içi JS/CSS dosyaları (gereksiz dosya referansı yok)
+app_include_js = []
+app_include_css = []
 
 doctype_js = {
     "Production Plan": [
@@ -31,13 +26,9 @@ doctype_js = {
         "public/js/production_plan_po_items.js"
     ],
     "Sales Order": "public/js/sales_order/sales_order.js",
-    # Accessory Delivery Package için özel JS
-    "Accessory Delivery Package": "public/js/opti_no_select.js",
-    "Test Opti No": "public/js/opti_no_select.js"
 }
 
-# DocType Event Hook'ları
-# Clean code: Yalnızca aktif kullanılan eventler ve fonksiyonlar listeleniyor.
+# DocType Event Hook'ları (yalnızca aktif kullanılanlar)
 doc_events = {
     "Sales Order": {
         "on_submit": [

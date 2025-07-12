@@ -7,7 +7,8 @@ frappe.pages['accessory_delivery_package_create'].on_page_load = function(wrappe
 
     $(frappe.render_template('accessory_delivery_package_create', {})).appendTo(page.body);
 
-   frappe.call({
+    // OpTi No dropdown'u doldur
+    frappe.call({
         method: 'uretim_planlama.uretim_planlama.api.get_approved_opti_nos',
         callback: function(r) {
             let $select = $('#adp_opti_no');
@@ -109,6 +110,9 @@ $(document).on('click', '#adp_search_btn', function() {
                 });
             }
             $('#adp_materials_section').show();
+        },
+        error: function(err) {
+            $alert.html('<div class="alert alert-danger">Malzeme listesi alınamadı.</div>').show();
         }
     });
 });
@@ -162,6 +166,9 @@ $(document).on('click', '#adp_create_btn', function() {
             } else {
                 $alert.html('<div class="alert alert-danger">Teslimat Paketi oluşturulamadı.</div>').show();
             }
+        },
+        error: function(err) {
+            $alert.html('<div class="alert alert-danger">Teslimat Paketi oluşturulamadı.</div>').show();
         }
     });
 }); 
