@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-07-11 14:37:32.846946",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_j5zs",
+  "planning_date",
+  "workstation",
+  "total_mtul",
+  "total_quantity",
+  "plan_details"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_j5zs",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "planning_date",
+   "fieldtype": "Data",
+   "label": "Planlama Tarihi"
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "\u0130\u015f \u0130stasyonu",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "total_mtul",
+   "fieldtype": "Float",
+   "label": "Toplam MTUL"
+  },
+  {
+   "fieldname": "total_quantity",
+   "fieldtype": "Int",
+   "label": "Toplam Miktar"
+  },
+  {
+   "fieldname": "plan_details",
+   "fieldtype": "Table",
+   "label": "Kesim Plan\u0131 Sat\u0131rlar\u0131",
+   "options": "Cutting Plan Row"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-07-11 14:42:03.505743",
+ "modified_by": "Administrator",
+ "module": "Uretim Planlama",
+ "name": "Cutting Machine Plan",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
