@@ -948,12 +948,12 @@ def get_materials_by_opti(opti_no):
 @frappe.whitelist()
 def get_approved_opti_nos():
     """
-    Onaylı üretim planlarının hem OpTi No (opti_no) hem de name (docname) değerlerini döndürür.
+    Onaylı üretim planlarının hem OpTi No (custom_opti_no) hem de name (docname) değerlerini döndürür.
     """
     return frappe.get_all(
         "Production Plan",
         filters={"docstatus": 1},
-        fields=["name", "opti_no"],
+        fields=["name", "custom_opti_no"],
         order_by="creation desc"
     )
 
@@ -969,14 +969,16 @@ def get_sales_orders_by_opti(opti_no):
     return sales_orders
 
 @frappe.whitelist()
-def get_bom_materials_by_sales_order(sales_order):
+def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
+    # Parametre dict olarak gelirse düzelt
+    if isinstance(sales_order, dict):
+        sales_order = sales_order.get('sales_order')
     """
     Verilen satış siparişine (sales_order) ait Work Order'lardan veya doğrudan Sales Order/BOM'dan ilgili BOM item'larını döndürür.
     Zincir:
     1. Onaylı Work Order → BOM → BOM Item
     2. Onaysız Work Order → BOM → BOM Item
-    3. Sales Order'ın bom_no'su → BOM Item
-    4. Production Plan üzerinden BOM bul (varsa)
+    3. Production Plan üzerinden BOM bul (varsa)
     """
     import frappe
     items = []
@@ -1006,36 +1008,20 @@ def get_bom_materials_by_sales_order(sales_order):
             fields=["item_code", "item_name", "qty", "uom"]
         )
         for item in bom_items:
+            real_item_name = frappe.db.get_value("Item", item.item_code, "item_name") or item.item_code
             items.append({
                 "item_code": item.item_code,
-                "item_name": item.item_name,
+                "item_name": real_item_name,
                 "qty": item.qty,
                 "uom": item.uom
             })
     if items:
         frappe.log_error(f"[DEBUG] Work Order zincirinden malzeme bulundu, count={len(items)}")
         return items
-    # 3. Sales Order'ın bom_no'su
-    so = frappe.get_value("Sales Order", sales_order, ["bom_no"])
-    if so and so[0]:
-        bom_no = so[0]
-        bom_items = frappe.get_all(
-            "BOM Item",
-            filters={"parent": bom_no},
-            fields=["item_code", "item_name", "qty", "uom"]
-        )
-        for item in bom_items:
-            items.append({
-                "item_code": item.item_code,
-                "item_name": item.item_name,
-                "qty": item.qty,
-                "uom": item.uom
-            })
-        if items:
-            frappe.log_error(f"[DEBUG] Sales Order'ın bom_no'sundan malzeme bulundu, count={len(items)}")
-            return items
-    # 4. Production Plan üzerinden BOM bul
-    plan_name = frappe.db.get_value("Production Plan Sales Order", {"sales_order": sales_order}, "parent")
+    # 3. Production Plan üzerinden BOM bul (varsa)
+    plan_name = None
+    if sales_order:
+        plan_name = frappe.db.get_value("Production Plan Sales Order", {"sales_order": sales_order}, "parent")
     if plan_name:
         plan = frappe.get_doc("Production Plan", plan_name)
         for row in getattr(plan, "po_items", []):
@@ -1046,9 +1032,10 @@ def get_bom_materials_by_sales_order(sales_order):
                     fields=["item_code", "item_name", "qty", "uom"]
                 )
                 for item in bom_items:
+                    real_item_name = frappe.db.get_value("Item", item.item_code, "item_name") or item.item_code
                     items.append({
                         "item_code": item.item_code,
-                        "item_name": item.item_name,
+                        "item_name": real_item_name,
                         "qty": item.qty,
                         "uom": item.uom
                     })
@@ -1067,7 +1054,8 @@ def create_delivery_package(data):
     if isinstance(data, str):
         data = json.loads(data)
     doc = frappe.new_doc("Accessory Delivery Package")
-    doc.opti_no = data.get("opti_no")
+    doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
+    doc.production_plan = data.get("production_plan")  # Üretim planı name'i
     doc.sales_order = data.get("sales_order")
     doc.delivered_to = data.get("delivered_to")
     doc.delivered_by = frappe.session.user

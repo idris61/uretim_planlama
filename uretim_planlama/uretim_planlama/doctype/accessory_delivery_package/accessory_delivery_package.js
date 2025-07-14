@@ -12,8 +12,8 @@ frappe.ui.form.on('Accessory Delivery Package', {
                 callback: function(r) {
                     let options = [{ label: '', value: '' }];
                     (r.message || []).forEach(function(row) {
-                        if (row.opti_no && row.name) {
-                            options.push({ label: row.opti_no, value: row.name });
+                        if (row.custom_opti_no && row.name) {
+                            options.push({ label: row.custom_opti_no, value: row.name });
                         }
                     });
                     frm.set_df_property('opti_no', 'options', options);

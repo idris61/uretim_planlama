@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2025-07-09 11:58:14.309748",
+ "creation": "2025-07-12 17:11:03.362845",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -72,9 +72,10 @@
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2025-07-10 09:53:55.406351",
- "modified_by": "Administrator",
+ "modified": "2025-07-12 18:43:26.122059",
+ "modified_by": "ozerpan@gmail.com",
  "module": "Uretim Planlama",
  "name": "Accessory Delivery Package",
  "owner": "Administrator",

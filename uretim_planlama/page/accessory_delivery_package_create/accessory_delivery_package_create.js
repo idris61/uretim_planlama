@@ -65,13 +65,16 @@ frappe.templates['accessory_delivery_package_create'] =
 
 // OpTi No seçilince Sales Order dropdown'ı doldur
 $(document).on('change', '#adp_opti_no', function() {
-    let opti_no = $(this).val();
+    let production_plan = $(this).val();
+    let custom_opti_no = $(this).find('option:selected').text();
+    $('#adp_opti_no').data('custom_opti_no', custom_opti_no);
+    $('#adp_opti_no').data('production_plan', production_plan);
     let $so = $('#adp_sales_order');
     $so.empty().append('<option value="">Seçiniz</option>');
-    if (!opti_no) return;
+    if (!production_plan) return;
     frappe.call({
         method: 'uretim_planlama.uretim_planlama.api.get_sales_orders_by_opti',
-        args: { opti_no: opti_no },
+        args: { opti_no: production_plan },
         callback: function(r) {
             (r.message || []).forEach(function(so) {
                 $so.append(`<option value="${so}">${so}</option>`);
@@ -119,7 +122,8 @@ $(document).on('click', '#adp_search_btn', function() {
 
 // Teslimat Paketi Oluştur
 $(document).on('click', '#adp_create_btn', function() {
-    let opti_no = $('#adp_opti_no').val();
+    let production_plan = $('#adp_opti_no').data('production_plan');
+    let opti_no = $('#adp_opti_no').data('custom_opti_no');
     let sales_order = $('#adp_sales_order').val();
     let delivered_to = $('#adp_delivered_to').val();
     let notes = $('#adp_notes').val();
@@ -148,6 +152,7 @@ $(document).on('click', '#adp_create_btn', function() {
         args: {
             data: {
                 opti_no: opti_no,
+                production_plan: production_plan,
                 sales_order: sales_order,
                 delivered_to: delivered_to,
                 notes: notes,
