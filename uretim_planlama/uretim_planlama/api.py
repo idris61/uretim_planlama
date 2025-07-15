@@ -1326,7 +1326,22 @@ def get_sales_orders_by_opti(opti_no):
 	if not plan:
 		return []
 	sales_orders = [row.sales_order for row in plan.sales_orders if row.sales_order]
-	return sales_orders
+
+	accessory_delivery_packages = frappe.get_all(
+		"Accessory Delivery Package",
+		filters={"opti_no": opti_no},
+		fields=["name", "opti_no", "sales_order"],
+	)
+
+	used_sales_orders = [pkg["sales_order"] for pkg in accessory_delivery_packages]
+	unused_sales_orders = [so for so in sales_orders if so not in used_sales_orders]
+
+	print("\nDebug:", "SO's:", sales_orders, "\n")
+	print("\nDebug:", "Packages:", accessory_delivery_packages, "\n")
+	print("\nDebug:", "Used SO's:", used_sales_orders, "\n")
+	print("\nDebug:", "Unused SO's:", unused_sales_orders, "\n")
+
+	return unused_sales_orders
 
 
 @frappe.whitelist()

@@ -44,8 +44,8 @@ frappe.ui.form.on("Accessory Delivery Package", {
 	},
 
 	get_materials: function (frm) {
-		if (!frm.doc.opti_no) {
-			frappe.throw(__("Please select Opti No"));
+		if (!frm.doc.opti_no || !frm.doc.sales_order) {
+			frappe.throw(__("Please select Opti No and Sales Order"));
 		}
 
 		frappe.call({
