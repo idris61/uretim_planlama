@@ -1021,141 +1021,51 @@ def delete_cutting_plans(docname):
 
 @frappe.whitelist()
 def get_profile_stock_panel(profil=None, depo=None, boy=None, scrap=None):
-	"""
-	Profil stok paneli için birleşik ve filtrelenebilir veri seti döner.
-	- ERPNext anlık stok (mtül)
-	- Rezerv (mtül)
-	- Kullanılabilir (mtül)
-	- Boy bazında stok (adet, mtül)
-	- Parça profil (is_scrap_piece)
-	- Rezervasyon (boy/adet)
-	- Son giriş/çıkış tarihi
-	Filtreler: profil, depo, boy, scrap (opsiyonel)
-	"""
-	frappe.log_error(
-		title="STOK PANEL DEBUG",
-		message=f"[DEBUG] get_profile_stock_panel params: profil={profil}, depo={depo}, boy={boy}, scrap={scrap}",
-	)
-	bin_filters = {}
-	if profil:
-		bin_filters["item_code"] = profil.strip()
-	if depo:
-		bin_filters["warehouse"] = depo.strip()
-	bins = frappe.get_all(
-		"Bin",
-		filters=bin_filters,
-		fields=["item_code", "actual_qty", "reserved_qty", "warehouse"],
-	)
-	frappe.log_error(
-		title="STOK PANEL DEBUG",
-		message=f"[DEBUG] bins count: {len(bins)}, örnek: {bins[0] if bins else 'yok'}",
-	)
-	ledger_filters = {}
-	if profil:
-		ledger_filters["profile_type"] = profil.strip()
-	if boy is not None and boy != "":
-		try:
-			ledger_filters["length"] = float(boy)
-		except:
-			ledger_filters["length"] = boy
-	if scrap is not None:
-		ledger_filters["is_scrap_piece"] = int(scrap)
-	ledgers = frappe.get_all(
-		"Profile Stock Ledger",
-		filters=ledger_filters,
-		fields=[
-			"profile_type",
-			"length",
-			"qty",
-			"total_length",
-			"is_scrap_piece",
-			"modified",
-		],
-	)
-	frappe.log_error(
-		title="STOK PANEL DEBUG",
-		message=f"[DEBUG] ledgers count: {len(ledgers)}, örnek: {ledgers[0] if ledgers else 'yok'}",
-	)
-	# Rezervasyonlar (örnek: Profile Reservation doctype varsa)
-	if frappe.db.table_exists("Profile Reservation"):
-		reservations = frappe.get_all(
-			"Profile Reservation", fields=["profile_type", "length", "reserved_qty"]
-		)
-	else:
-		reservations = []
-	last_dates = {}
-	for l in ledgers:
-		entry = frappe.get_all(
-			"Profile Entry Item",
-			filters={"item_code": l["profile_type"], "length": l["length"]},
-			fields=["parent", "creation"],
-			order_by="creation desc",
-			limit=1,
-		)
-		exit = frappe.get_all(
-			"Profile Exit Item",
-			filters={"item_code": l["profile_type"], "length": l["length"]},
-			fields=["parent", "creation"],
-			order_by="creation desc",
-			limit=1,
-		)
-		last_dates[l["profile_type"], l["length"]] = {
-			"last_entry": entry[0]["creation"] if entry else None,
-			"last_exit": exit[0]["creation"] if exit else None,
-		}
-	# Profil adlarını topluca çek
-	item_names = {}
-	if ledgers:
-		item_codes = list(set([l["profile_type"] for l in ledgers]))
-		for item in frappe.get_all(
-			"Item",
-			filters={"item_code": ["in", item_codes]},
-			fields=["item_code", "item_name"],
-		):
-			item_names[item["item_code"]] = item["item_name"]
-	result = []
-	for b in bins:
-		for l in ledgers:
-			# Eşleşme: profil ve boy birebir aynı olmalı, depo Bin'den alınacak
-			if str(l["profile_type"]).strip().lower() == str(
-				b["item_code"]
-			).strip().lower() and (
-				boy is None
-				or str(l["length"]) == str(boy)
-				or (isinstance(boy, (int, float)) and float(l["length"]) == float(boy))
-			):
-				rezerv = next(
-					(
-						r
-						for r in reservations
-						if r["profile_type"] == l["profile_type"]
-						and r["length"] == l["length"]
-					),
-					None,
-				)
-				tarih = last_dates.get((l["profile_type"], l["length"]), {})
-				result.append(
-					{
-						"profil": b["item_code"],
-						"profil_adi": item_names.get(b["item_code"], ""),
-						"depo": b["warehouse"],
-						"erpnext_stok": b["actual_qty"],
-						"rezerv": b["reserved_qty"],
-						"kullanilabilir": b["actual_qty"] - b["reserved_qty"],
-						"boy": l["length"],
-						"boy_stok_adet": l["qty"],
-						"boy_stok_mtul": l["total_length"],
-						"scrap": l["is_scrap_piece"] if "is_scrap_piece" in l else 0,
-						"boy_rezerv": rezerv["reserved_qty"] if rezerv else 0,
-						"son_giris": tarih.get("last_entry"),
-						"son_cikis": tarih.get("last_exit"),
-						"guncelleme": l["modified"],
-					}
-				)
-	frappe.log_error(
-		title="STOK PANEL DEBUG", message=f"[DEBUG] result length: {len(result)}"
-	)
-	return result
+    """
+    Profil stok paneli için tablo bazında veri seti döner.
+    - depo_stoklari: ERPNext anlık stok (mtül), rezerv, kullanılabilir (mtül)
+    - boy_bazinda_stok: Boy bazında stok (adet, mtül, rezerv)
+    - scrap_profiller: Parça profil kayıtları (açıklama, tarih, vs)
+    - hammadde_rezervleri: Rezerve hammaddeler (profil bazında)
+    Filtreler: profil, depo, boy, scrap (opsiyonel)
+    """
+    depo_stoklari = get_total_stock_summary(profil=profil, depo=depo)
+    boy_bazinda_stok = get_profile_stock_by_length(profil=profil, boy=boy, scrap=0)
+    scrap_profiller = get_scrap_profile_entries(profile_code=profil)
+    hammadde_rezervleri = get_reserved_raw_materials_for_profile(profil=profil) or []
+    return {
+        "depo_stoklari": depo_stoklari,
+        "boy_bazinda_stok": boy_bazinda_stok,
+        "scrap_profiller": scrap_profiller,
+        "hammadde_rezervleri": hammadde_rezervleri
+    }
+
+@frappe.whitelist()
+def create_delivery_package(data):
+    """
+    Verilen bilgilerle Accessory Delivery Package oluşturur (malzeme listesi, opti_no, teslim alan, notlar, vb).
+    """
+    import json
+    if isinstance(data, str):
+        data = json.loads(data)
+    doc = frappe.new_doc("Accessory Delivery Package")
+    doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
+    doc.production_plan = data.get("production_plan")  # Üretim planı name'i
+    doc.sales_order = data.get("sales_order")
+    doc.delivered_to = data.get("delivered_to")
+    doc.delivered_by = frappe.session.user
+    doc.delivery_date = frappe.utils.now_datetime()
+    doc.notes = data.get("notes")
+    for item in data.get("item_list", []):
+        doc.append("item_list", {
+            "item_code": item.get("item_code"),
+            "item_name": item.get("item_name"),
+            "qty": item.get("qty"),
+            "uom": item.get("uom")
+        })
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name}
 
 
 @frappe.whitelist()
@@ -1564,3 +1474,4 @@ def get_scrap_profile_entries(profile_code=None):
             "guncelleme": e["modified"]
         })
     return result
+
