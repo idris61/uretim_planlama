@@ -341,7 +341,7 @@ def get_sales_order_raw_materials(sales_order):
 			kullanilabilir_stok = toplam_stok - toplam_rezerv
 			acik_miktar = max(float(data["qty"] or 0) - kullanilabilir_stok, 0)
 		mr_items = frappe.db.sql(
-			"SELECT mri.parent, mri.qty, mr.transaction_date FROM `tabMaterial Request Item` mri INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name WHERE mri.item_code = %s AND mri.docstatus = 1 AND mr.material_request_type = 'Purchase'",
+			"SELECT mri.parent, mri.qty, mr.transaction_date FROM `tabMaterial Request Item` mri INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name WHERE mri.item_code = %s AND mri.docstatus != 1 AND mr.material_request_type = 'Purchase'",
 			(data["raw_material"],),
 			as_dict=True,
 		)
