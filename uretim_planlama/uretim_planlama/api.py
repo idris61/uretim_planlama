@@ -1445,31 +1445,122 @@ def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
 
 @frappe.whitelist()
 def create_delivery_package(data):
-	"""
-	Verilen bilgilerle Accessory Delivery Package oluşturur (malzeme listesi, opti_no, teslim alan, notlar, vb).
-	"""
-	import json
+    """
+    Verilen bilgilerle Accessory Delivery Package oluşturur (malzeme listesi, opti_no, teslim alan, notlar, vb).
+    """
+    import json
+    if isinstance(data, str):
+        data = json.loads(data)
+    doc = frappe.new_doc("Accessory Delivery Package")
+    doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
+    doc.production_plan = data.get("production_plan")  # Üretim planı name'i
+    doc.sales_order = data.get("sales_order")
+    doc.delivered_to = data.get("delivered_to")
+    doc.delivered_by = frappe.session.user
+    doc.delivery_date = frappe.utils.now_datetime()
+    doc.notes = data.get("notes")
+    for item in data.get("item_list", []):
+        doc.append("item_list", {
+            "item_code": item.get("item_code"),
+            "item_name": item.get("item_name"),
+            "qty": item.get("qty"),
+            "uom": item.get("uom")
+        })
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name} 
 
-	if isinstance(data, str):
-		data = json.loads(data)
-	doc = frappe.new_doc("Accessory Delivery Package")
-	doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
-	doc.production_plan = data.get("production_plan")  # Üretim planı name'i
-	doc.sales_order = data.get("sales_order")
-	doc.delivered_to = data.get("delivered_to")
-	doc.delivered_by = frappe.session.user
-	doc.delivery_date = frappe.utils.now_datetime()
-	doc.notes = data.get("notes")
-	for item in data.get("item_list", []):
-		doc.append(
-			"item_list",
-			{
-				"item_code": item.get("item_code"),
-				"item_name": item.get("item_name"),
-				"qty": item.get("qty"),
-				"uom": item.get("uom"),
-			},
-		)
-	doc.save()
-	frappe.db.commit()
-	return {"name": doc.name}
+@frappe.whitelist()
+def get_reserved_raw_materials_for_profile(profil=None):
+    """
+    Profil (ürün/mamul veya hammadde) filtresine göre rezerve hammaddeleri döndürür.
+    """
+    filters = {}
+    if profil:
+        # Önce doğrudan hammadde olarak arama yap
+        reserved = frappe.get_all(
+            "Rezerved Raw Materials",
+            filters={"item_code": profil},
+            fields=["item_code", "item_name", "quantity", "sales_order"]
+        )
+        if reserved:
+            return reserved
+
+@frappe.whitelist()
+def get_profile_stock_by_length(profil=None, boy=None, scrap=None):
+    """
+    Profile Stock Ledger'dan boy bazında stokları döndürür.
+    Ayrıca Rezerved Raw Materials doctype'ından toplam rezerv (mtül) değerini ekler.
+    """
+    filters = {}
+    if profil:
+        filters["profile_type"] = profil
+    if boy:
+        try:
+            filters["length"] = float(boy)
+        except:
+            filters["length"] = boy
+    if scrap is not None:
+        filters["is_scrap_piece"] = int(scrap)
+    ledgers = frappe.get_all("Profile Stock Ledger", filters=filters, fields=["profile_type", "length", "qty", "total_length", "is_scrap_piece", "modified"])
+    # item_name ekle
+    item_names = {}
+    if ledgers:
+        item_codes = list(set([l["profile_type"] for l in ledgers]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    # Rezervleri çek (mtül bazında)
+    rezervler = frappe.get_all(
+        "Rezerved Raw Materials",
+        fields=["item_code", "quantity"]
+    )
+    rezerv_map = {}
+    for r in rezervler:
+        rezerv_map.setdefault(r["item_code"], 0)
+        rezerv_map[r["item_code"]] += float(r["quantity"] or 0)
+    result = []
+    for l in ledgers:
+        rezerv = rezerv_map.get(l["profile_type"], 0)
+        result.append({
+            "profil": l["profile_type"],
+            "profil_adi": item_names.get(l["profile_type"], ""),
+            "boy": l["length"],
+            "adet": l["qty"],
+            "mtul": l["total_length"],
+            "rezerv": rezerv,
+            "guncelleme": l["modified"]
+        })
+    return result
+
+@frappe.whitelist()
+def get_scrap_profile_entries(profile_code=None):
+    """
+    Scrap Profile Entry kayıtlarını döndürür (sadece seçilen profile_code için).
+    """
+    filters = {}
+    if profile_code:
+        filters["profile_code"] = profile_code
+    entries = frappe.get_all(
+        "Scrap Profile Entry",
+        filters=filters,
+        fields=["name", "profile_code", "length", "qty", "total_length", "description", "entry_date", "modified"]
+    )
+    # item_name ekle
+    item_names = {}
+    if entries:
+        item_codes = list(set([e["profile_code"] for e in entries]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    result = []
+    for e in entries:
+        result.append({
+            "profil": e["profile_code"],
+            "profil_adi": item_names.get(e["profile_code"], ""),
+            "boy": e["length"],
+            "adet": e["qty"],
+            "mtul": e["total_length"],
+            "aciklama": e["description"],
+            "tarih": e["entry_date"],
+            "guncelleme": e["modified"]
+        })
+    return result
