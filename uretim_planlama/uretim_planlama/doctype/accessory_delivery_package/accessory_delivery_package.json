@@ -7,12 +7,14 @@
  "field_order": [
   "opti_no",
   "sales_order",
-  "notes",
+  "dealer",
+  "end_customer",
   "get_materials",
   "column_break_jlct",
   "delivered_by",
   "delivered_to",
   "delivery_date",
+  "notes",
   "section_break_dlpj",
   "assembly_items",
   "item_list",
@@ -92,11 +94,24 @@
    "fieldtype": "Table",
    "label": "Assembly Items",
    "options": "Production Plan Item"
+  },
+  {
+   "fieldname": "dealer",
+   "fieldtype": "Link",
+   "label": "Dealer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "end_customer",
+   "fieldtype": "Data",
+   "label": "End Customer",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2025-07-15 08:56:57.187139",
+ "modified": "2025-07-15 14:58:27.348572",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Accessory Delivery Package",

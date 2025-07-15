@@ -1237,22 +1237,36 @@ def get_approved_opti_nos():
 	"""
 	Onaylı üretim planlarının hem OpTi No (custom_opti_no) hem de name (docname) değerlerini döndürür.
 	"""
-	result = frappe.get_all(
+	production_plans = frappe.get_all(
 		"Production Plan",
 		filters={"docstatus": 1},
 		fields=["name", "custom_opti_no"],
 		order_by="creation desc",
 	)
 
-	print("\nDebug:", "Result:", result, "\n")
-	return result
+	active_plans = []
+
+	for plan in production_plans:
+		sales_orders = get_sales_orders_by_opti(plan.custom_opti_no)
+		if sales_orders:
+			active_plans.append(plan)
+
+	return active_plans
+
+
+@frappe.whitelist()
+def get_sales_order_details(order_no):
+	try:
+		sales_order = frappe.get_doc("Sales Order", order_no)
+	except Exception as e:
+		print(f"An error occurred: {e}")
+		frappe.throw(_("Sales Order not found."))
+
+	return sales_order
 
 
 @frappe.whitelist()
 def get_materials(opti_no, sales_order):
-	print("\n\n-- Get Materials -- START\n")
-	print("Opti No:", opti_no)
-	print("Sales Order:", sales_order)
 	values = {"opti_no": opti_no, "sales_order": sales_order}
 
 	# AND (
@@ -1266,6 +1280,7 @@ def get_materials(opti_no, sales_order):
 		"""
 	    SELECT
 	        bi.item_code,
+			bi.item_name,
 	        SUM((bi.qty / bom.quantity) * ppi.planned_qty) AS qty,
 	        i.item_group,
 	        ig.parent_item_group,
@@ -1305,16 +1320,7 @@ def get_materials(opti_no, sales_order):
 
 	result = {"ppi_items": ppi_items, "materials": materials}
 
-	print("Result:")
-	# for r in result:
-	# 	print(f"{r.item_code} -> {r.item_group} -> {r.parent_item_group}")
-	for key, value in materials[0].items():
-		print(f"{key}: {value}")
-	print("\n\n")
-	for key, value in ppi_items[0].items():
-		print(f"{key}: {value}")
 	return result
-	print("\n-- Get Materials -- END\n\n")
 
 
 @frappe.whitelist()
@@ -1335,11 +1341,6 @@ def get_sales_orders_by_opti(opti_no):
 
 	used_sales_orders = [pkg["sales_order"] for pkg in accessory_delivery_packages]
 	unused_sales_orders = [so for so in sales_orders if so not in used_sales_orders]
-
-	print("\nDebug:", "SO's:", sales_orders, "\n")
-	print("\nDebug:", "Packages:", accessory_delivery_packages, "\n")
-	print("\nDebug:", "Used SO's:", used_sales_orders, "\n")
-	print("\nDebug:", "Unused SO's:", unused_sales_orders, "\n")
 
 	return unused_sales_orders
 
