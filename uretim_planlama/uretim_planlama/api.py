@@ -1147,22 +1147,36 @@ def get_approved_opti_nos():
 	"""
 	Onaylı üretim planlarının hem OpTi No (custom_opti_no) hem de name (docname) değerlerini döndürür.
 	"""
-	result = frappe.get_all(
+	production_plans = frappe.get_all(
 		"Production Plan",
 		filters={"docstatus": 1},
 		fields=["name", "custom_opti_no"],
 		order_by="creation desc",
 	)
 
-	print("\nDebug:", "Result:", result, "\n")
-	return result
+	active_plans = []
+
+	for plan in production_plans:
+		sales_orders = get_sales_orders_by_opti(plan.custom_opti_no)
+		if sales_orders:
+			active_plans.append(plan)
+
+	return active_plans
+
+
+@frappe.whitelist()
+def get_sales_order_details(order_no):
+	try:
+		sales_order = frappe.get_doc("Sales Order", order_no)
+	except Exception as e:
+		print(f"An error occurred: {e}")
+		frappe.throw(_("Sales Order not found."))
+
+	return sales_order
 
 
 @frappe.whitelist()
 def get_materials(opti_no, sales_order):
-	print("\n\n-- Get Materials -- START\n")
-	print("Opti No:", opti_no)
-	print("Sales Order:", sales_order)
 	values = {"opti_no": opti_no, "sales_order": sales_order}
 
 	# AND (
@@ -1174,22 +1188,29 @@ def get_materials(opti_no, sales_order):
 
 	materials = frappe.db.sql(
 		"""
-		SELECT bi.*, sum(bi.qty) as qty, i.item_group, ig.parent_item_group
-		FROM `tabProduction Plan Item` ppi
-		INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
-		INNER JOIN `tabBOM Item` bi ON bi.parent = ppi.bom_no
-		INNER JOIN `tabItem` i ON i.item_code = bi.item_code
-		INNER JOIN `tabItem Group` ig ON i.item_group = ig.name
-		WHERE pp.custom_opti_no = %(opti_no)s
-		AND ppi.sales_order = %(sales_order)s
-		AND (
+	    SELECT
+	        bi.item_code,
+			bi.item_name,
+	        SUM((bi.qty / bom.quantity) * ppi.planned_qty) AS qty,
+	        i.item_group,
+	        ig.parent_item_group,
+	        i.stock_uom AS uom
+	    FROM `tabProduction Plan Item` ppi
+	    INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+	    INNER JOIN `tabBOM` bom ON ppi.bom_no = bom.name
+	    INNER JOIN `tabBOM Item` bi ON bi.parent = bom.name
+	    INNER JOIN `tabItem` i ON i.item_code = bi.item_code
+	    INNER JOIN `tabItem Group` ig ON i.item_group = ig.name
+	    WHERE pp.custom_opti_no = %(opti_no)s
+	    AND ppi.sales_order = %(sales_order)s
+	    AND (
 	        i.item_group LIKE '%%Aksesuar%%' OR
 	        i.item_group LIKE '%%Izolasyon%%' OR
 	        ig.parent_item_group LIKE '%%Aksesuar%%' OR
 	        ig.parent_item_group LIKE '%%Izolasyon%%'
 	    )
-		GROUP BY bi.item_code
-		ORDER BY i.item_group, bi.item_code
+	    GROUP BY bi.item_code, i.item_group, ig.parent_item_group, i.stock_uom
+	    ORDER BY i.item_group, bi.item_code
 		""",
 		values=values,
 		as_dict=1,
@@ -1209,16 +1230,7 @@ def get_materials(opti_no, sales_order):
 
 	result = {"ppi_items": ppi_items, "materials": materials}
 
-	print("Result:")
-	# for r in result:
-	# 	print(f"{r.item_code} -> {r.item_group} -> {r.parent_item_group}")
-	for key, value in materials[0].items():
-		print(f"{key}: {value}")
-	print("\n\n")
-	for key, value in ppi_items[0].items():
-		print(f"{key}: {value}")
 	return result
-	print("\n-- Get Materials -- END\n\n")
 
 
 @frappe.whitelist()
@@ -1230,7 +1242,17 @@ def get_sales_orders_by_opti(opti_no):
 	if not plan:
 		return []
 	sales_orders = [row.sales_order for row in plan.sales_orders if row.sales_order]
-	return sales_orders
+
+	accessory_delivery_packages = frappe.get_all(
+		"Accessory Delivery Package",
+		filters={"opti_no": opti_no},
+		fields=["name", "opti_no", "sales_order"],
+	)
+
+	used_sales_orders = [pkg["sales_order"] for pkg in accessory_delivery_packages]
+	unused_sales_orders = [so for so in sales_orders if so not in used_sales_orders]
+
+	return unused_sales_orders
 
 
 @frappe.whitelist()
@@ -1332,6 +1354,33 @@ def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
 
 
 @frappe.whitelist()
+def create_delivery_package(data):
+    """
+    Verilen bilgilerle Accessory Delivery Package oluşturur (malzeme listesi, opti_no, teslim alan, notlar, vb).
+    """
+    import json
+    if isinstance(data, str):
+        data = json.loads(data)
+    doc = frappe.new_doc("Accessory Delivery Package")
+    doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
+    doc.production_plan = data.get("production_plan")  # Üretim planı name'i
+    doc.sales_order = data.get("sales_order")
+    doc.delivered_to = data.get("delivered_to")
+    doc.delivered_by = frappe.session.user
+    doc.delivery_date = frappe.utils.now_datetime()
+    doc.notes = data.get("notes")
+    for item in data.get("item_list", []):
+        doc.append("item_list", {
+            "item_code": item.get("item_code"),
+            "item_name": item.get("item_name"),
+            "qty": item.get("qty"),
+            "uom": item.get("uom")
+        })
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name} 
+
+@frappe.whitelist()
 def get_reserved_raw_materials_for_profile(profil=None):
     """
     Profil (ürün/mamul veya hammadde) filtresine göre rezerve hammaddeleri döndürür.
@@ -1425,3 +1474,4 @@ def get_scrap_profile_entries(profile_code=None):
             "guncelleme": e["modified"]
         })
     return result
+

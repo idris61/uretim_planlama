@@ -2,13 +2,8 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Accessory Delivery Package", {
-	onload: function (frm) {
-		console.log("-- Loaded --");
-	},
 	refresh: function (frm) {
 		// opti_no alanı için {label, value} kullanılabilir
-		console.log("-- Refreshed --");
-
 		if (
 			frm.fields_dict.opti_no &&
 			frm.fields_dict.opti_no.df.fieldtype === "Select"
@@ -20,7 +15,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 					let options = [{ label: "", value: "" }];
 					(r.message || []).forEach(function (row) {
 						if (row.custom_opti_no && row.name) {
-							// options.push({ label: row.custom_opti_no, value: row.name });
 							options.push({
 								label: row.custom_opti_no,
 								value: row.custom_opti_no,
@@ -28,7 +22,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 						}
 					});
 					frm.set_df_property("opti_no", "options", options);
-					console.log("[DEBUG] opti_no options:", options);
 				},
 			});
 		}
@@ -44,8 +37,8 @@ frappe.ui.form.on("Accessory Delivery Package", {
 	},
 
 	get_materials: function (frm) {
-		if (!frm.doc.opti_no) {
-			frappe.throw(__("Please select Opti No"));
+		if (!frm.doc.opti_no || !frm.doc.sales_order) {
+			frappe.throw(__("Please select Opti No and Sales Order"));
 		}
 
 		frappe.call({
@@ -98,7 +91,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 	},
 
 	opti_no: function (frm) {
-		console.log("[DEBUG] opti_no seçildi, value:", frm.doc.opti_no);
 		// opti_no değişince sales_order alanını temizle
 		frm.set_value("sales_order", "");
 		// opti_no'ya bağlı sales_order'ları çekip form objesine ata
@@ -108,10 +100,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 				args: { opti_no: frm.doc.opti_no },
 				callback: function (r) {
 					frm.sales_orders_for_opti = r.message || [];
-					console.log(
-						"[DEBUG] sales_orders_for_opti:",
-						frm.sales_orders_for_opti,
-					);
 				},
 			});
 		} else {
@@ -119,6 +107,25 @@ frappe.ui.form.on("Accessory Delivery Package", {
 		}
 	},
 	sales_order: function (frm) {
-		console.log("[DEBUG] sales_order seçildi, value:", frm.doc.sales_order);
+		if (!frm.doc.sales_order) {
+			frm.set_value("dealer", "");
+			frm.set_value("end_customer", "");
+			frm.refresh_field("dealer");
+			frm.refresh_field("end_customer");
+			return;
+		}
+
+		frappe.call({
+			method: "uretim_planlama.uretim_planlama.api.get_sales_order_details",
+			args: { order_no: frm.doc.sales_order },
+			callback: function (r) {
+				if (!r.message) return;
+				const sales_order = r.message;
+				frm.set_value("dealer", sales_order.customer);
+				frm.set_value("end_customer", sales_order.custom_end_customer);
+				frm.refresh_field("dealer");
+				frm.refresh_field("end_customer");
+			},
+		});
 	},
 });
