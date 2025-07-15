@@ -1264,22 +1264,28 @@ def get_materials(opti_no, sales_order):
 
 	materials = frappe.db.sql(
 		"""
-		SELECT bi.*, sum(bi.qty) as qty, i.item_group, ig.parent_item_group
-		FROM `tabProduction Plan Item` ppi
-		INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
-		INNER JOIN `tabBOM Item` bi ON bi.parent = ppi.bom_no
-		INNER JOIN `tabItem` i ON i.item_code = bi.item_code
-		INNER JOIN `tabItem Group` ig ON i.item_group = ig.name
-		WHERE pp.custom_opti_no = %(opti_no)s
-		AND ppi.sales_order = %(sales_order)s
-		AND (
+	    SELECT
+	        bi.item_code,
+	        SUM((bi.qty / bom.quantity) * ppi.planned_qty) AS qty,
+	        i.item_group,
+	        ig.parent_item_group,
+	        i.stock_uom AS uom
+	    FROM `tabProduction Plan Item` ppi
+	    INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+	    INNER JOIN `tabBOM` bom ON ppi.bom_no = bom.name
+	    INNER JOIN `tabBOM Item` bi ON bi.parent = bom.name
+	    INNER JOIN `tabItem` i ON i.item_code = bi.item_code
+	    INNER JOIN `tabItem Group` ig ON i.item_group = ig.name
+	    WHERE pp.custom_opti_no = %(opti_no)s
+	    AND ppi.sales_order = %(sales_order)s
+	    AND (
 	        i.item_group LIKE '%%Aksesuar%%' OR
 	        i.item_group LIKE '%%Izolasyon%%' OR
 	        ig.parent_item_group LIKE '%%Aksesuar%%' OR
 	        ig.parent_item_group LIKE '%%Izolasyon%%'
 	    )
-		GROUP BY bi.item_code
-		ORDER BY i.item_group, bi.item_code
+	    GROUP BY bi.item_code, i.item_group, ig.parent_item_group, i.stock_uom
+	    ORDER BY i.item_group, bi.item_code
 		""",
 		values=values,
 		as_dict=1,
