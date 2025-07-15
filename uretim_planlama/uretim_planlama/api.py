@@ -1255,6 +1255,13 @@ def get_materials(opti_no, sales_order):
 	print("Sales Order:", sales_order)
 	values = {"opti_no": opti_no, "sales_order": sales_order}
 
+	# AND (
+	#        i.item_group LIKE '%%Aksesuar%%' OR
+	#        i.item_group LIKE '%%Montaj ve Izolasyon%%' OR
+	#        ig.parent_item_group LIKE '%%Aksesuar%%' OR
+	#        ig.parent_item_group LIKE '%%Montaj ve Izolasyon%%'
+	#    )
+
 	materials = frappe.db.sql(
 		"""
 		SELECT bi.*, sum(bi.qty) as qty, i.item_group, ig.parent_item_group
