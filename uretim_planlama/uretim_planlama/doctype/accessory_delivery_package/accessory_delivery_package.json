@@ -1,17 +1,21 @@
 {
  "actions": [],
- "allow_rename": 1,
- "creation": "2025-07-12 17:11:03.362845",
+ "app": "uretim_planlama",
+ "creation": "2025-07-08 15:46:28.804971",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "opti_no",
   "sales_order",
-  "item_list",
-  "delivered_to",
-  "delivered_by",
-  "delivery_date",
   "notes",
+  "get_materials",
+  "column_break_jlct",
+  "delivered_by",
+  "delivered_to",
+  "delivery_date",
+  "section_break_dlpj",
+  "assembly_items",
+  "item_list",
   "amended_from"
  ],
  "fields": [
@@ -57,7 +61,8 @@
   {
    "fieldname": "notes",
    "fieldtype": "Text",
-   "label": "Notes"
+   "label": "Notes",
+   "max_height": "100px"
   },
   {
    "fieldname": "amended_from",
@@ -68,28 +73,50 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "column_break_jlct",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_dlpj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "get_materials",
+   "fieldtype": "Button",
+   "label": "Get Materials"
+  },
+  {
+   "fieldname": "assembly_items",
+   "fieldtype": "Table",
+   "label": "Assembly Items",
+   "options": "Production Plan Item"
   }
  ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-07-12 18:43:26.122059",
- "modified_by": "ozerpan@gmail.com",
+ "modified": "2025-07-15 08:56:57.187139",
+ "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Accessory Delivery Package",
  "owner": "Administrator",
  "permissions": [
   {
+   "amend": 1,
+   "cancel": 1,
    "create": 1,
    "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
    "read": 1,
-   "report": 1,
    "role": "System Manager",
-   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "Stock User",
    "write": 1
   }
  ],
