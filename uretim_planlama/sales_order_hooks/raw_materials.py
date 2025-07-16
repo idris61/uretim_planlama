@@ -1246,3 +1246,25 @@ def test_quantity_comparison():
 		)
 
 	return results
+
+
+def remove_reservations_on_work_order_complete(doc, method):
+    """
+    İş emri tamamlandığında (stok hareketi oluşmuyorsa), ilgili satış siparişi ve hammaddeler için rezervleri siler.
+    """
+    if getattr(doc, "status", None) != "Completed":
+        return
+    sales_order = getattr(doc, "sales_order", None)
+    if not sales_order:
+        return
+    for item in getattr(doc, "required_items", []):
+        item_code = item.item_code
+        reserved = frappe.get_all(
+            "Rezerved Raw Materials",
+            filters={"sales_order": sales_order, "item_code": item_code},
+            fields=["name", "quantity"],
+        )
+        for row in reserved:
+            frappe.delete_doc("Rezerved Raw Materials", row["name"], ignore_permissions=True)
+    frappe.db.commit()
+    frappe.msgprint(_("İş emri tamamlandı, rezervler silindi."), indicator="green")
