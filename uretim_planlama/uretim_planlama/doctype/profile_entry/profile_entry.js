@@ -6,3 +6,20 @@
 
 // 	},
 // });
+
+frappe.ui.form.on('Profile Entry Item', {
+    received_quantity: function(frm, cdt, cdn) {
+        calculate_total_length(frm, cdt, cdn);
+    },
+    length: function(frm, cdt, cdn) {
+        calculate_total_length(frm, cdt, cdn);
+    }
+});
+
+function calculate_total_length(frm, cdt, cdn) {
+    var row = locals[cdt][cdn];
+    var length = parseFloat((row.length + '').replace(' m', '').replace(',', '.')) || 0;
+    var qty = row.received_quantity || 0;
+    row.total_length = Math.round(length * qty * 1000) / 1000;
+    frm.fields_dict.items.grid.refresh();
+}
