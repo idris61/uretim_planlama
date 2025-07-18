@@ -38,6 +38,7 @@ doctype_js = {
 	],
 	"Sales Order": "public/js/sales_order/sales_order.js",
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
+	"Delivery Note": "public/js/delivery_note_assembly_accessory_html.js",
 }
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
