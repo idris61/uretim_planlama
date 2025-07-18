@@ -42,6 +42,10 @@ doctype_js = {
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
 doc_events = {
+	"Production Plan": {
+		"on_submit": "uretim_planlama.custom_hooks.production_plan.on_submit.on_submit",
+		"on_cancel": "uretim_planlama.custom_hooks.production_plan.on_cancel.on_cancel",
+	},
 	"Sales Order": {
 		"on_submit": [
 			"uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
