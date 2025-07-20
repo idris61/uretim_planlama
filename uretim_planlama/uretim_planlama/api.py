@@ -1439,48 +1439,67 @@ def get_profile_stock_by_length(profil=None, boy=None, scrap=None):
 
 @frappe.whitelist()
 def get_scrap_profile_entries(profile_code=None):
-	"""
-	Scrap Profile Entry kayıtlarını döndürür (sadece seçilen profile_code için).
-	"""
-	filters = {}
-	if profile_code:
-		filters["profile_code"] = profile_code
-	entries = frappe.get_all(
-		"Scrap Profile Entry",
-		filters=filters,
-		fields=[
-			"name",
-			"profile_code",
-			"length",
-			"qty",
-			"total_length",
-			"description",
-			"entry_date",
-			"modified",
-		],
-	)
-	# item_name ekle
-	item_names = {}
-	if entries:
-		item_codes = list(set([e["profile_code"] for e in entries]))
-		for item in frappe.get_all(
-			"Item",
-			filters={"item_code": ["in", item_codes]},
-			fields=["item_code", "item_name"],
-		):
-			item_names[item["item_code"]] = item["item_name"]
-	result = []
-	for e in entries:
-		result.append(
-			{
-				"profil": e["profile_code"],
-				"profil_adi": item_names.get(e["profile_code"], ""),
-				"boy": e["length"],
-				"adet": e["qty"],
-				"mtul": e["total_length"],
-				"aciklama": e["description"],
-				"tarih": e["entry_date"],
-				"guncelleme": e["modified"],
-			}
-		)
-	return result
+    """
+    Scrap Profile Entry kayıtlarını döndürür (sadece seçilen profile_code için).
+    """
+    filters = {}
+    if profile_code:
+        filters["profile_code"] = profile_code
+    entries = frappe.get_all(
+        "Scrap Profile Entry",
+        filters=filters,
+        fields=["name", "profile_code", "length", "qty", "total_length", "description", "entry_date", "modified"]
+    )
+    # item_name ekle
+    item_names = {}
+    if entries:
+        item_codes = list(set([e["profile_code"] for e in entries]))
+        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
+            item_names[item["item_code"]] = item["item_name"]
+    result = []
+    for e in entries:
+        result.append({
+            "profil": e["profile_code"],
+            "profil_adi": item_names.get(e["profile_code"], ""),
+            "boy": e["length"],
+            "adet": e["qty"],
+            "mtul": e["total_length"],
+            "aciklama": e["description"],
+            "tarih": e["entry_date"],
+            "guncelleme": e["modified"]
+        })
+    return result
+
+
+import json
+import frappe
+
+@frappe.whitelist()
+def get_assembly_accessory_materials(sales_orders):
+    """
+    Verilen bir veya birden fazla Sales Order için, ilgili Fiyat2 List ve Fiyat2 Item kayıtlarından
+    Stock Code, Stock Name, qty, uom alanlarını döndürür.
+    """
+    try:
+        sales_orders = json.loads(sales_orders)
+    except Exception:
+        return []
+    result = []
+    for so in sales_orders:
+        fiyat2 = frappe.get_all("Fiyat2 List", filters={"order_no": so}, fields=["name"])
+        if not fiyat2:
+            continue
+        fiyat2_items = frappe.get_all(
+            "Fiyat2 Item",
+            filters={"parent": fiyat2[0].name},
+            fields=["stock_code", "stock_name", "qty", "uom"]
+        )
+        for item in fiyat2_items:
+            result.append({
+                "sales_order": so,
+                "stock_code": item["stock_code"],
+                "stock_name": item["stock_name"],
+                "qty": item["qty"],
+                "uom": item.get("uom", "")
+            })
+    return result

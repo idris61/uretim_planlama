@@ -5,45 +5,44 @@ import frappe
 from frappe import _
 
 
-# --- Miktar normalize fonksiyonu ---
-def normalize_qty(qty, ndigits=2):
-	"""
-	Tüm miktar işlemlerinde kullanılacak normalize fonksiyonu. EPSILON yok, sadece round.
-	Decimal precision için varsayılan 2 hane kullanılır.
-	"""
-	try:
-		result = round(float(qty or 0), ndigits)
-		# Çok küçük sayıları sıfır olarak kabul et
-		if abs(result) < 0.001:
-			return 0.0
-		return result
-	except Exception:
-		return 0.0
+# --- Sistem float precision'u dinamik çekme fonksiyonu ---
+def get_system_float_precision():
+    try:
+        return int(frappe.db.get_single_value("System Settings", "float_precision") or 4)
+    except Exception:
+        return 4
 
+# --- Miktar normalize fonksiyonu (güncel) ---
+def normalize_qty(qty, ndigits=None):
+    """
+    Tüm miktar işlemlerinde kullanılacak normalize fonksiyonu.
+    Sistem ayarındaki float precision kadar yuvarlar.
+    """
+    if ndigits is None:
+        ndigits = get_system_float_precision()
+    try:
+        result = round(float(qty or 0), ndigits)
+        if abs(result) < 10 ** (-ndigits):
+            return 0.0
+        return result
+    except Exception:
+        return 0.0
 
-def qty_equals(qty1, qty2, tolerance=0.05):
-	"""
-	İki miktar değerini tolerans ile karşılaştırır. Floating point hassasiyet sorunları için.
-	0.02 toleransı 2 ondalık basamağa uygun.
-	"""
-	return abs(float(qty1 or 0) - float(qty2 or 0)) <= tolerance
+# --- Karşılaştırma fonksiyonları (güncel) ---
+def qty_equals(qty1, qty2, tolerance=None):
+    if tolerance is None:
+        tolerance = 10 ** (-get_system_float_precision() + 1)
+    return abs(float(qty1 or 0) - float(qty2 or 0)) <= tolerance
 
-
-def qty_greater_or_equal(qty1, qty2, tolerance=0.05):
-	"""
-	qty1 >= qty2 karşılaştırması tolerans ile yapar. Floating point hassasiyet sorunları için.
-	0.02 toleransı 2 ondalık basamağa uygun.
-	"""
-	return float(qty1 or 0) >= float(qty2 or 0) - tolerance
-
+def qty_greater_or_equal(qty1, qty2, tolerance=None):
+    if tolerance is None:
+        tolerance = 10 ** (-get_system_float_precision() + 1)
+    return float(qty1 or 0) >= float(qty2 or 0) - tolerance
 
 def safe_qty_compare(qty1, qty2):
-	"""
-	İki miktarı güvenli şekilde karşılaştırır. Normalize edilmiş değerlerle tolerans kullanır.
-	"""
-	norm_qty1 = normalize_qty(qty1)
-	norm_qty2 = normalize_qty(qty2)
-	return qty_greater_or_equal(norm_qty1, norm_qty2)
+    norm_qty1 = normalize_qty(qty1)
+    norm_qty2 = normalize_qty(qty2)
+    return qty_greater_or_equal(norm_qty1, norm_qty2)
 
 
 def get_rezerv_map(item_codes):
@@ -171,6 +170,12 @@ def get_sales_order_raw_materials(sales_order):
 			continue
 		bom_doc = frappe.get_doc("BOM", bom)
 		for rm in bom_doc.items:
+			# Sadece gerçek hammadde olanlar eklensin
+			is_hammadde = frappe.db.get_value(
+				"Item", rm.item_code, ["is_stock_item", "is_purchase_item"], as_dict=True
+			)
+			if not is_hammadde or not (is_hammadde.is_stock_item and is_hammadde.is_purchase_item):
+				continue  # Nihai ürün veya satılamaz/tedarik edilemez ürün, atla
 			all_item_codes.add(rm.item_code)
 			item_bom_map.setdefault(rm.item_code, []).append((item, rm))
 	all_item_codes = list(all_item_codes)
@@ -341,10 +346,46 @@ def get_sales_order_raw_materials(sales_order):
 			kullanilabilir_stok = toplam_stok - toplam_rezerv
 			acik_miktar = max(float(data["qty"] or 0) - kullanilabilir_stok, 0)
 		mr_items = frappe.db.sql(
-			"SELECT mri.parent, mri.qty, mr.transaction_date FROM `tabMaterial Request Item` mri INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name WHERE mri.item_code = %s AND mri.docstatus != 1 AND mr.material_request_type = 'Purchase'",
-			(data["raw_material"],),
+			"""
+            SELECT mri.parent, mri.qty, mr.transaction_date
+            FROM `tabMaterial Request Item` mri
+            INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
+            WHERE mri.item_code = %s
+              AND mri.sales_order = %s
+              AND mr.material_request_type = 'Purchase'
+              AND mr.docstatus IN (0, 1)
+              AND mr.status IN ('Draft', 'Pending', 'Partially Ordered', 'Partially Received', 'Ordered')
+            """,
+			(data["raw_material"], sales_order),
 			as_dict=True,
 		)
+		# Sadece karşılanmamış (tamamlanmamış) talepleri göster
+		filtered_mr_items = []
+		for d in mr_items:
+			received_qty_po = frappe.db.sql(
+				"""
+                SELECT SUM(received_qty)
+                FROM `tabPurchase Order Item`
+                WHERE material_request = %s
+                  AND material_request_item = %s
+                  AND item_code = %s
+                """,
+				(d["parent"], d.get("name", d["parent"]), data["raw_material"])
+			)[0][0] or 0
+			received_qty_pr = frappe.db.sql(
+				"""
+                SELECT SUM(received_qty)
+                FROM `tabPurchase Receipt Item`
+                WHERE material_request = %s
+                  AND material_request_item = %s
+                  AND item_code = %s
+                """,
+				(d["parent"], d.get("name", d["parent"]), data["raw_material"])
+			)[0][0] or 0
+			received_qty = max(float(received_qty_po), float(received_qty_pr))
+			if float(d["qty"]) - received_qty > 0.01:  # 0.01 tolerans
+				filtered_mr_items.append(d)
+		mr_items = filtered_mr_items
 		# Detayları normalize et
 		for d in mr_items:
 			d["qty"] = d.get("qty", "") or ""
@@ -355,10 +396,20 @@ def get_sales_order_raw_materials(sales_order):
 			d["schedule_date"] = d["transaction_date"]
 			d["date"] = d["transaction_date"]
 		po_items = frappe.db.sql(
-			"SELECT poi.parent, poi.qty, poi.schedule_date FROM `tabPurchase Order Item` poi INNER JOIN `tabPurchase Order` po ON poi.parent = po.name WHERE poi.item_code = %s AND poi.docstatus = 1 AND po.docstatus = 1 AND (poi.qty > IFNULL(poi.received_qty, 0))",
+			"""
+            SELECT poi.parent, poi.qty, poi.schedule_date, poi.received_qty
+            FROM `tabPurchase Order Item` poi
+            INNER JOIN `tabPurchase Order` po ON poi.parent = po.name
+            WHERE poi.item_code = %s
+              AND poi.docstatus = 1
+              AND po.docstatus = 1
+              AND (poi.qty > IFNULL(poi.received_qty, 0))
+            """,
 			(data["raw_material"],),
 			as_dict=True,
 		)
+		# Sadece tamamlanmamış (kalan miktar > 0) olanları göster
+		po_items = [d for d in po_items if float(d.get("qty", 0)) > float(d.get("received_qty", 0))]
 		for d in po_items:
 			d["qty"] = d.get("qty", "") or ""
 			d["quantity"] = d["qty"]
@@ -1159,54 +1210,220 @@ def handle_child_sales_order_reserves(doc, method):
 
 @frappe.whitelist()
 def create_material_request_for_shortages(sales_order):
-	if not sales_order:
-		return {"success": False, "message": "Satış Siparişi bulunamadı."}
-	try:
-		raw_materials = get_sales_order_raw_materials(sales_order)
-		shortage_items = []
-		for row in raw_materials:
-			acik_miktar = float(row.get("acik_miktar", 0))
-			if acik_miktar > 0:
-				shortage_items.append(
-					{
-						"item_code": row.get("raw_material"),
-						"qty": acik_miktar,
-						"schedule_date": frappe.utils.nowdate(),
-					}
-				)
-		if not shortage_items:
-			return {
-				"success": False,
-				"message": "Eksik hammadde yok, talep oluşturulmadı.",
-			}
-		mr = frappe.new_doc("Material Request")
-		mr.material_request_type = "Purchase"
-		mr.schedule_date = frappe.utils.nowdate()
-		mr.company = frappe.db.get_value("Sales Order", sales_order, "company")
-		mr.set("items", [])
-		for item in shortage_items:
-			mr.append(
-				"items",
-				{
-					"item_code": item["item_code"],
-					"qty": item["qty"],
-					"schedule_date": item["schedule_date"],
-					"warehouse": None,
-				},
-			)
-		mr.insert(ignore_permissions=True)
-		mr.submit()
-		return {
-			"success": True,
-			"message": "Satınalma Talebi başarıyla oluşturuldu.",
-			"mr_name": mr.name,
-			"created_rows": shortage_items,
-		}
-	except Exception:
-		frappe.log_error(
-			"create_material_request_for_shortages HATA", frappe.get_traceback()
-		)
-		return {"success": False, "message": "Bir hata oluştu. Lütfen tekrar deneyin."}
+    """
+    Bu Siparişe Ait Eksikler İçin Satınalma Talebi Oluştur butonu için:
+    Sadece ilgili satış siparişi için eksik hammaddelerden satınalma talebi oluşturur.
+    Aynı sipariş ve hammadde için açık bir talep varsa tekrar oluşturmaz.
+    """
+    if not sales_order:
+        return {"success": False, "message": "Satış Siparişi bulunamadı."}
+    try:
+        # Satış siparişi için açık veya onaylanmış bir Material Request var mı? (ana belge seviyesinde kontrol)
+        existing_mr = frappe.db.sql("""
+            SELECT mr.name
+            FROM `tabMaterial Request` mr
+            INNER JOIN `tabMaterial Request Item` mri ON mri.parent = mr.name
+            WHERE mri.sales_order = %s
+              AND mr.material_request_type = 'Purchase'
+              AND mr.docstatus IN (0, 1)
+            LIMIT 1
+        """, (sales_order,))
+        if existing_mr:
+            return {
+                "success": False,
+                "message": "Bu satış siparişi için zaten bir malzeme talebi var. Lütfen mevcut talebi kullanın.",
+            }
+        raw_materials = get_sales_order_raw_materials(sales_order)
+        shortage_items = []
+        for row in raw_materials:
+            acik_miktar = float(row.get("acik_miktar", 0))
+            item_code = row.get("raw_material")
+            if normalize_qty(acik_miktar) > 0:
+                # Performanslı kontrol: Bu sipariş ve hammadde için açık bir talep var mı?
+                existing = frappe.db.sql(
+                    """
+                    SELECT mri.name FROM `tabMaterial Request Item` mri
+                    INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
+                    WHERE mri.item_code = %s
+                      AND mri.sales_order = %s
+                      AND mr.material_request_type = 'Purchase'
+                      AND mr.docstatus != 1
+                    LIMIT 1
+                    """,
+                    (item_code, sales_order),
+                )
+                if existing:
+                    continue  # Zaten açık talep var, tekrar oluşturma
+                shortage_items.append(
+                    {
+                        "item_code": item_code,
+                        "qty": acik_miktar,
+                        "schedule_date": frappe.utils.nowdate(),
+                    }
+                )
+        if not shortage_items:
+            return {
+                "success": False,
+                "message": "Bu siparişe ait eksik hammadde için zaten açık bir talep var veya eksik yok.",
+            }
+        mr = frappe.new_doc("Material Request")
+        mr.material_request_type = "Purchase"
+        mr.schedule_date = frappe.utils.nowdate()
+        mr.company = frappe.db.get_value("Sales Order", sales_order, "company")
+        mr.set("items", [])
+        for item in shortage_items:
+            mr.append(
+                "items",
+                {
+                    "item_code": item["item_code"],
+                    "qty": item["qty"],
+                    "schedule_date": item["schedule_date"],
+                    "warehouse": None,
+                    "sales_order": sales_order,  # Satış siparişi ile ilişkilendir
+                },
+            )
+        mr.insert(ignore_permissions=True)
+        mr.submit()
+        return {
+            "success": True,
+            "message": "Bu siparişe ait eksikler için satınalma talebi başarıyla oluşturuldu.",
+            "mr_name": mr.name,
+            "created_rows": shortage_items,
+        }
+    except Exception:
+        frappe.log_error(
+            "create_material_request_for_shortages HATA", frappe.get_traceback()
+        )
+        return {"success": False, "message": "Bir hata oluştu. Lütfen tekrar deneyin."}
+
+
+# Cam ürünü tespit fonksiyonu (sade)
+def is_glass_item(item_code, item_name, item_group=None):
+    return (item_group or "").lower() == "camlar"
+
+@frappe.whitelist()
+def create_material_request_for_all_shortages():
+    """
+    Tüm Siparişlere Ait Eksikler İçin Satınalma Talebi Oluştur butonu için:
+    Performanslı: Tüm satış siparişlerindeki eksik hammaddeleri topluca tespit edip,
+    her bir hammadde için toplam açık miktar kadar tek bir satınalma talebi oluşturur.
+    Cam ürünleri (item_group="Camlar") eklenmez, ama cam ürünlerinin BOM'undaki hammaddeler eklenir.
+    """
+    try:
+        sales_orders = frappe.get_all(
+            "Sales Order",
+            filters={"docstatus": 1},
+            fields=["name"]
+        )
+        if not sales_orders:
+            return {"success": False, "message": "Aktif satış siparişi yok."}
+
+        # 1. Tüm satış siparişlerindeki ürün kodlarını topla
+        all_so_names = [so["name"] for so in sales_orders]
+        so_items = frappe.get_all(
+            "Sales Order Item",
+            filters={"parent": ["in", all_so_names]},
+            fields=["parent", "item_code"]
+        )
+        all_item_codes = set(item["item_code"] for item in so_items)
+
+        # 2. Tüm bu ürünlerin BOM'larını ve BOM'lardaki hammaddeleri topla
+        bom_map = {}
+        bom_items_set = set()
+        for item_code in all_item_codes:
+            bom_name = frappe.db.get_value(
+                "BOM", {"item": item_code, "is_active": 1, "is_default": 1}, "name"
+            )
+            if not bom_name:
+                continue
+            bom_doc = frappe.get_doc("BOM", bom_name)
+            bom_map[item_code] = bom_doc.items
+            for rm in bom_doc.items:
+                bom_items_set.add(rm.item_code)
+
+        # 3. Tüm ilgili item'ların özelliklerini topluca çek
+        all_needed_item_codes = list(all_item_codes | bom_items_set)
+        item_features = {}
+        for item in frappe.get_all(
+            "Item",
+            filters={"item_code": ["in", all_needed_item_codes]},
+            fields=["item_code", "item_name", "item_group", "is_stock_item", "is_purchase_item"]
+        ):
+            item_features[item["item_code"]] = item
+
+        # 4. Cam ürünleri ve gerçek hammaddeleri baştan belirle
+        def is_glass(item_code):
+            return (item_features.get(item_code, {}).get("item_group", "").lower() == "camlar")
+        def is_real_raw(item_code):
+            f = item_features.get(item_code, {})
+            return f.get("is_stock_item") and f.get("is_purchase_item")
+
+        total_shortages = {}
+        # 5. Her satış siparişi için eksik hammaddeleri topla
+        for so in sales_orders:
+            raw_materials = get_sales_order_raw_materials(so["name"])
+            for row in raw_materials:
+                acik_miktar = float(row.get("acik_miktar", 0))
+                item_code = row.get("raw_material")
+                # Cam ürünleri eklenmesin
+                if is_glass(item_code):
+                    # Cam ürününün BOM'undaki hammaddeleri ekle
+                    for rm in bom_map.get(item_code, []):
+                        rm_code = rm.item_code
+                        if not is_real_raw(rm_code):
+                            continue
+                        rm_acik_miktar = float(rm.qty or 0)
+                        if normalize_qty(rm_acik_miktar) > 0:
+                            total_shortages[rm_code] = total_shortages.get(rm_code, 0) + normalize_qty(rm_acik_miktar)
+                    continue  # Cam ürünü ekleme
+                # Sadece gerçek hammadde olanlar eklensin
+                if not is_real_raw(item_code):
+                    continue
+                if is_glass(item_code):
+                    continue
+                if normalize_qty(acik_miktar) > 0:
+                    total_shortages[item_code] = total_shortages.get(item_code, 0) + normalize_qty(acik_miktar)
+
+        if not total_shortages:
+            return {
+                "success": True,
+                "message": "Tüm siparişlere ait eksik hammadde yok, talep oluşturulmadı.",
+                "mr_name": None,
+                "created_rows": {},
+            }
+
+        mr = frappe.new_doc("Material Request")
+        mr.material_request_type = "Purchase"
+        mr.schedule_date = frappe.utils.nowdate()
+        if sales_orders:
+            mr.company = frappe.db.get_value("Sales Order", sales_orders[0]["name"], "company")
+        mr.set("items", [])
+        for item_code, qty in total_shortages.items():
+            mr.append(
+                "items",
+                {
+                    "item_code": item_code,
+                    "qty": qty,
+                    "schedule_date": frappe.utils.nowdate(),
+                    "warehouse": None,
+                },
+            )
+        mr.insert(ignore_permissions=True)
+        mr.submit()
+        return {
+            "success": True,
+            "message": f"Tüm siparişlere ait eksikler için satınalma talebi başarıyla oluşturuldu. {mr.name}",
+            "mr_name": mr.name,
+            "created_rows": total_shortages,
+        }
+    except Exception as e:
+        frappe.log_error("create_material_request_for_all_shortages HATA", frappe.get_traceback())
+        return {
+            "success": False,
+            "message": f"Bir hata oluştu: {str(e)}. Lütfen tekrar deneyin.",
+            "mr_name": None,
+            "created_rows": {},
+        }
 
 
 @frappe.whitelist()
@@ -1246,3 +1463,25 @@ def test_quantity_comparison():
 		)
 
 	return results
+
+
+def remove_reservations_on_work_order_complete(doc, method):
+    """
+    İş emri tamamlandığında (stok hareketi oluşmuyorsa), ilgili satış siparişi ve hammaddeler için rezervleri siler.
+    """
+    if getattr(doc, "status", None) != "Completed":
+        return
+    sales_order = getattr(doc, "sales_order", None)
+    if not sales_order:
+        return
+    for item in getattr(doc, "required_items", []):
+        item_code = item.item_code
+        reserved = frappe.get_all(
+            "Rezerved Raw Materials",
+            filters={"sales_order": sales_order, "item_code": item_code},
+            fields=["name", "quantity"],
+        )
+        for row in reserved:
+            frappe.delete_doc("Rezerved Raw Materials", row["name"], ignore_permissions=True)
+    frappe.db.commit()
+    frappe.msgprint(_("İş emri tamamlandı, rezervler silindi."), indicator="green")

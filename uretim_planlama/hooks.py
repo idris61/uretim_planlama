@@ -38,6 +38,7 @@ doctype_js = {
 	],
 	"Sales Order": "public/js/sales_order/sales_order.js",
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
+	"Delivery Note": "public/js/delivery_note_assembly_accessory_html.js",
 }
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
@@ -57,14 +58,7 @@ doc_events = {
 		],
 		"before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit",
 	},
-	"Delivery Note": {
-		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
-		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel",
-	},
-	"Sales Invoice": {
-		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_delivery_or_invoice",
-		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reserved_raw_materials_on_cancel",
-	},
+	
 	"Profile Stock Ledger": {
 		"after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
 	},

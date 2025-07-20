@@ -616,7 +616,10 @@ function loadRawMaterialsTable(frm) {
 				});
 				html += "</tbody></table></div>";
 				if (showEksikTalepBtn) {
-					html += `<button class="btn btn-dark" id="btn-create-mr-for-shortages" style="margin-top:8px;">Eksikler İçin Satınalma Talebi Oluştur</button>`;
+					html += `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+                        <button class="btn btn-primary" id="btn-create-mr-for-shortages">Bu Siparişe Ait Eksikler İçin Satınalma Talebi Oluştur</button>
+                        <button class="btn btn-danger" id="btn-create-mr-for-all-shortages">Tüm Siparişlere Ait Eksikler İçin Satınalma Talebi Oluştur</button>
+                    </div>`;
 				}
 				html += "</div>";
 				document.getElementById(
@@ -654,6 +657,44 @@ function loadRawMaterialsTable(frm) {
 									}
 								},
 							});
+						};
+					}
+					// Yeni: Tüm siparişler için eksik talep butonu
+					const btnAll = document.getElementById(
+						"btn-create-mr-for-all-shortages"
+					);
+					if (btnAll) {
+						btnAll.onclick = function () {
+							frappe.confirm(
+								"Tüm açık siparişler için eksik hammaddelerden toplu satınalma talebi oluşturulacak. Emin misiniz?",
+								function () {
+									frappe.call({
+										method: "uretim_planlama.sales_order_hooks.raw_materials.create_material_request_for_all_shortages",
+										freeze: true,
+										callback: function (res) {
+											if (res.message && res.message.success) {
+												let message =
+													res.message.message ||
+													"Tüm siparişlere ait eksikler için satınalma talebi oluşturuldu.";
+												frappe.show_alert({
+													message: `${message} <a href='/app/material-request/${res.message.mr_name}' target='_blank'>${res.message.mr_name}</a>`,
+													indicator: "red",
+												});
+												loadRawMaterialsTable(frm);
+											} else {
+												frappe.show_alert({
+													message:
+														res.message &&
+														res.message.message
+															? res.message.message
+															: "Talep oluşturulamadı.",
+													indicator: "orange",
+												});
+											}
+										},
+									});
+								}
+							);
 						};
 					}
 				}

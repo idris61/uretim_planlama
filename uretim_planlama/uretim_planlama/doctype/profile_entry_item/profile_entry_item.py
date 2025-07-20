@@ -6,4 +6,11 @@ from frappe.model.document import Document
 
 
 class ProfileEntryItem(Document):
-	pass
+    def validate(self):
+        # length alanı string ise float'a çevir
+        try:
+            length = float(str(self.length).replace(' m', '').replace(',', '.'))
+        except Exception:
+            length = 0
+        qty = self.received_quantity or 0
+        self.total_length = round(length * qty, 3)
