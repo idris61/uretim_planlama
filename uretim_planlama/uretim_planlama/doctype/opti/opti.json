@@ -16,19 +16,22 @@
    "fieldname": "opti_no",
    "fieldtype": "Data",
    "label": "Opti No",
+   "read_only": 1,
    "unique": 1
   },
   {
    "fieldname": "production_plan",
    "fieldtype": "Link",
    "label": "Production Plan",
-   "options": "Production Plan"
+   "options": "Production Plan",
+   "read_only": 1
   },
   {
    "fieldname": "sales_orders",
    "fieldtype": "Table",
    "label": "Sales Orders",
-   "options": "Opti SO Item"
+   "options": "Opti SO Item",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_wfbi",
@@ -38,13 +41,17 @@
    "default": "0",
    "fieldname": "delivered",
    "fieldtype": "Check",
-   "label": "Delivered"
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Delivered",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
+ "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-18 14:29:37.555581",
+ "modified": "2025-07-20 13:29:49.439533",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Opti",

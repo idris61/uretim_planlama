@@ -5,7 +5,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "opti_no",
+  "opti",
   "sales_order",
   "dealer",
   "end_customer",
@@ -22,13 +22,6 @@
  ],
  "fields": [
   {
-   "fieldname": "opti_no",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "OpTi No",
-   "reqd": 1
-  },
-  {
    "fieldname": "sales_order",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -40,7 +33,8 @@
    "fieldname": "item_list",
    "fieldtype": "Table",
    "label": "Item List",
-   "options": "Accessory Delivery Package Item"
+   "options": "Accessory Delivery Package Item",
+   "read_only": 1
   },
   {
    "fieldname": "delivered_to",
@@ -93,7 +87,8 @@
    "fieldname": "assembly_items",
    "fieldtype": "Table",
    "label": "Assembly Items",
-   "options": "Production Plan Item"
+   "options": "Production Plan Item",
+   "read_only": 1
   },
   {
    "fieldname": "dealer",
@@ -107,11 +102,19 @@
    "fieldtype": "Data",
    "label": "End Customer",
    "read_only": 1
+  },
+  {
+   "fieldname": "opti",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Opti",
+   "options": "Opti",
+   "reqd": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2025-07-15 14:58:27.348572",
+ "modified": "2025-07-20 13:43:25.321750",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Accessory Delivery Package",

@@ -138,4 +138,8 @@
 "UOM","Birim"
 
 "Please select Opti No and Sales Order", "Lütfen Opti No ve Satış Siparişi seçiniz"
-"Opti No [{0}] is already in use", ""
+"Opti [{0}] not found", "Opti [{0}] bulunamadı"
+"Opti No [{0}] is already in use", "Opti No [{0}] zaten kullanımda"
+"Sales Order [{0}] in Opti [{1}] not found", "Opti [{1}] içindeki Satış Siparişi [{0}] bulunamadı"
+"These items are already delivered, please change Opti or Sales Order", "Bu ürünler zaten teslim edildi, lütfen Opti veya Satış Siparişini değiştirin"
+"An error occured", "Bir hata meydana geldi"
