@@ -159,57 +159,22 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             depo: $('#depo-filter').val() || undefined,
             scrap: $('#scrap-filter').is(':checked') ? 1 : undefined
         };
-        // ERPNext toplam stok tablosu
-        if (!args.scrap) {
-            frappe.call({
-                method: 'uretim_planlama.uretim_planlama.api.get_total_stock_summary',
-                args: { profil: args.profil, depo: args.depo },
-                callback: function(r) {
-                    render_erpnext_stok_tablo(r.message || []);
-                }
-            });
-                } else {
-            $('#erpnext-stok-tablo').html('');
-        }
-        // Boy bazında stok tablosu (parça profilleri hariç)
-        if (!args.scrap) {
-            frappe.call({
-                method: 'uretim_planlama.uretim_planlama.api.get_profile_stock_by_length',
-                args: { profil: args.profil, scrap: 0 },
-                callback: function(r) {
-                    render_boy_bazinda_tablo(r.message || []);
-                }
-            });
-        } else {
-            $('#profil-boy-tablo').html('');
-        }
-        // Parça profil kayıtları tablosu
         frappe.call({
-            method: 'uretim_planlama.uretim_planlama.api.get_scrap_profile_entries',
-            args: { profile_code: args.profil },
+            method: 'uretim_planlama.uretim_planlama.api.get_profile_stock_panel',
+            args: args,
             callback: function(r) {
-                render_scrap_profile_tablo(r.message || []);
-            }
-        });
-        // Hammadde rezerv tablosunu önce kaldır, sonra boy tablosunun altına ekle
-        $('#row-hammadde-rezervleri').remove();
-        $('#row-profil-boy').after(`
-            <div class="row mb-4" id="row-hammadde-rezervleri">
-                <div class="col-md-12">
-                    <div class="card" style="background: #fffbe7; border-radius: 12px; box-shadow: 0 2px 8px #ffe082;">
-                        <div class="card-body">
-                            <h4 class="card-title" style="font-weight: bold; color: #bfa100;">Hammadde Rezervleri</h4>
-                            <div id="hammadde-rezervleri-tablo"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `);
-        frappe.call({
-            method: 'uretim_planlama.uretim_planlama.api.get_reserved_raw_materials_for_profile',
-            args: { profil: args.profil },
-            callback: function(r) {
-                render_hammadde_rezervleri_tablo(r.message || []);
+                const data = r.message || {};
+                // Her tabloya özel veri
+                render_erpnext_stok_tablo(data.depo_stoklari || []);
+                render_boy_bazinda_tablo(data.boy_bazinda_stok || []);
+                render_scrap_profile_tablo(data.scrap_profiller || []);
+                render_hammadde_rezervleri_tablo(data.hammadde_rezervleri || []);
+            },
+            error: function() {
+                $('#erpnext-stok-tablo').html('<div style="text-align:center; color:red;">Veri alınamadı</div>');
+                $('#profil-boy-tablo').html('<div style="text-align:center; color:red;">Veri alınamadı</div>');
+                $('#scrap-profile-tablo').html('<div style="text-align:center; color:red;">Veri alınamadı</div>');
+                $('#hammadde-rezervleri-tablo').html('<div style="text-align:center; color:red;">Veri alınamadı</div>');
             }
         });
     }
