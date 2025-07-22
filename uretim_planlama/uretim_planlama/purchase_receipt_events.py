@@ -1,15 +1,12 @@
 import frappe
 
 def on_submit(doc, method=None):
-    # Her bir satırı kontrol et
     for item in doc.items:
-        # Sadece profil ürünleri için (is_profile işaretli ise)
-        if getattr(item, "is_profile", 0):
-            length = str(getattr(item, "profile_length", "")).replace(",", ".")
-            qty = int(getattr(item, "profile_length_qty", 0))
-            if not length or qty < 1:
+        if getattr(item, "custom_is_profile", 0):
+            length = getattr(item, "custom_profile_length_m", None)
+            qty = getattr(item, "custom_profile_length_qty", None)
+            if not length or not qty or float(qty) < 1:
                 continue
-            # Profile Entry oluştur
             profile_entry = frappe.get_doc({
                 "doctype": "Profile Entry",
                 "date": doc.posting_date,
@@ -18,9 +15,9 @@ def on_submit(doc, method=None):
                 "items": [
                     {
                         "item_code": item.item_code,
-                        "length": length,
+                        "lenght": length,  # fieldname düzeltildi
                         "received_quantity": qty,
-                        "total_length": float(length.replace(",", ".")) * qty,
+                        "total_length": float(length) * float(qty),
                         "purchase_receipt": doc.name
                     }
                 ]

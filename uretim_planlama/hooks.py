@@ -25,8 +25,6 @@ fixtures = [
 ]
 
 # Uygulama içi JS/CSS dosyaları
-app_include_js = ["/assets/uretim_planlama/js/purchase_receipt_profile_fields.js"]
-
 app_include_css = ["/assets/uretim_planlama/css/sales_order.css"]
 
 doctype_js = {
@@ -70,6 +68,9 @@ doc_events = {
 	},
 	"Work Order": {
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
+	},
+	"Purchase Receipt": {
+		"on_submit": "uretim_planlama.uretim_planlama.purchase_receipt_events.on_submit"
 	},
 }
 

@@ -9,7 +9,7 @@
  "field_order": [
   "item_code",
   "received_quantity",
-  "length",
+  "lenght",
   "purchase_receipt",
   "total_length"
  ],
@@ -22,15 +22,6 @@
    "in_list_view": 1,
    "label": "Item Code",
    "options": "Item",
-   "reqd": 1
-  },
-  {
-   "fieldname": "length",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Length (m)",
-   "options": "5\n6\n6,5",
    "reqd": 1
   },
   {
@@ -56,14 +47,23 @@
    "fieldtype": "Link",
    "label": "Purchase Receipt",
    "options": "Purchase Receipt"
+  },
+  {
+   "fieldname": "lenght",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Length (m)",
+   "options": "Boy",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-06-25 22:03:39.106920",
- "modified_by": "Administrator",
+ "modified": "2025-07-21 13:03:33.277028",
+ "modified_by": "ozerpan@gmail.com",
  "module": "Uretim Planlama",
  "name": "Profile Entry Item",
  "owner": "Administrator",

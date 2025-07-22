@@ -10,8 +10,8 @@ class ProfileEntry(Document):
 	def on_submit(self):
 		# Giriş onaylandığında stok artır
 		for item in self.items:
-			# length alanı string, ör: '5 m' -> float'a çevir
-			length = float(str(item.length).replace(' m', '').replace(',', '.'))
+			# lenght alanı string, ör: '5 m' -> float'a çevir
+			length = float(str(item.lenght).replace(' m', '').replace(',', '.'))
 			update_profile_stock(
 				profile_type=item.item_code,
 				length=length,
@@ -22,7 +22,7 @@ class ProfileEntry(Document):
 	def on_cancel(self):
 		# Giriş iptal edildiğinde stok azalt (geri al)
 		for item in self.items:
-			length = float(str(item.length).replace(' m', '').replace(',', '.'))
+			length = float(str(item.lenght).replace(' m', '').replace(',', '.'))
 			update_profile_stock(
 				profile_type=item.item_code,
 				length=length,
