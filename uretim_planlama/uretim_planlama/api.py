@@ -1026,13 +1026,25 @@ def get_profile_stock_panel(profil=None, depo=None, boy=None, scrap=None):
 	- depo_stoklari: ERPNext anlık stok (mtül), rezerv, kullanılabilir (mtül)
 	- boy_bazinda_stok: Boy bazında stok (adet, mtül, rezerv)
 	- scrap_profiller: Parça profil kayıtları (açıklama, tarih, vs)
-	- hammadde_rezervleri: Rezerve hammaddeler (profil bazında)
+	- hammadde_rezervleri: Rezerve hammaddeler (profil ve depo bazında, ana depo ise alt depolar dahil)
 	Filtreler: profil, depo, boy, scrap (opsiyonel)
 	"""
-	depo_stoklari = get_total_stock_summary(profil=profil, depo=depo)
-	boy_bazinda_stok = get_profile_stock_by_length(profil=profil, boy=boy, scrap=0)
-	scrap_profiller = get_scrap_profile_entries(profile_code=profil)
-	hammadde_rezervleri = get_reserved_raw_materials_for_profile(profil=profil) or []
+	depo_stoklari = []
+	boy_bazinda_stok = []
+	scrap_profiller = []
+	hammadde_rezervleri = []
+
+	# "Sadece Parça" seçiliyse, sadece parça verilerini çek
+	if scrap:
+		scrap_profiller = get_scrap_profile_entries(profile_code=profil)
+	else:
+		# "Sadece Parça" seçili değilse, tüm ilgili verileri çek
+		depo_stoklari = get_total_stock_summary(profil=profil, depo=depo)
+		boy_bazinda_stok = get_profile_stock_by_length(profil=profil, boy=boy, scrap=0)
+		scrap_profiller = get_scrap_profile_entries(profile_code=profil)
+	# Hammadde rezervleri ürün ve depo filtresine göre gelsin
+	hammadde_rezervleri = get_reserved_raw_materials_for_profile(profil=profil, depo=depo) or []
+
 	return {
 		"depo_stoklari": depo_stoklari,
 		"boy_bazinda_stok": boy_bazinda_stok,
@@ -1360,20 +1372,20 @@ def create_delivery_package(data):
 
 
 @frappe.whitelist()
-def get_reserved_raw_materials_for_profile(profil=None):
+def get_reserved_raw_materials_for_profile(profil=None, depo=None):
 	"""
 	Profil (ürün/mamul veya hammadde) filtresine göre rezerve hammaddeleri döndürür.
+	Rezerved Raw Materials doctype'ında depo bilgisi olmadığı için depo filtresi dikkate alınmaz.
 	"""
 	filters = {}
 	if profil:
-		# Önce doğrudan hammadde olarak arama yap
-		reserved = frappe.get_all(
-			"Rezerved Raw Materials",
-			filters={"item_code": profil},
-			fields=["item_code", "item_name", "quantity", "sales_order"],
-		)
-		if reserved:
-			return reserved
+		filters["item_code"] = profil
+	reserved = frappe.get_all(
+		"Rezerved Raw Materials",
+		filters=filters,
+		fields=["item_code", "item_name", "quantity", "sales_order"],
+	)
+	return reserved
 
 
 @frappe.whitelist()

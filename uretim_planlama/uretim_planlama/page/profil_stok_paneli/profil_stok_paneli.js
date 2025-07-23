@@ -37,18 +37,24 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                 <div class="col-md-12">
                     <div class="card mb-3" style="background: #e3f2fd; border-radius: 12px; box-shadow: 0 2px 8px #b3c6e7;">
                         <div class="card-body">
-                            <h4 class="card-title" style="font-weight: bold; color: #1565c0;">Depo Bazında Toplam Profil Stoku</h4>
-                            <div id="erpnext-stok-tablo"></div>
+                            <div class="d-flex align-items-center justify-content-between card-title" style="cursor:pointer; font-weight: bold; color: #1565c0;">
+                                <span>Depo Bazında Toplam Profil Stoku</span>
+                                <span class="toggle-table" data-target="#erpnext-stok-tablo" style="font-size:1.2em; user-select:none;">&#9660;</span>
+                            </div>
+                            <div id="erpnext-stok-tablo" class="table-body"></div>
                         </div>
                     </div>
                 </div>
-                        </div>
+            </div>
             <div class="row mb-4" id="row-profil-boy">
                 <div class="col-md-12">
                     <div class="card" style="background: #f1f8e9; border-radius: 12px; box-shadow: 0 2px 8px #b6d7a8;">
                         <div class="card-body">
-                            <h4 class="card-title" style="font-weight: bold; color: #388e3c;">Boy Bazında Profil Stok Detayı</h4>
-                            <div id="profil-boy-tablo"></div>
+                            <div class="d-flex align-items-center justify-content-between card-title" style="cursor:pointer; font-weight: bold; color: #388e3c;">
+                                <span>Boy Bazında Profil Stok Detayı</span>
+                                <span class="toggle-table" data-target="#profil-boy-tablo" style="font-size:1.2em; user-select:none;">&#9660;</span>
+                            </div>
+                            <div id="profil-boy-tablo" class="table-body"></div>
                         </div>
                     </div>
                 </div>
@@ -57,8 +63,11 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                 <div class="col-md-12">
                     <div class="card" style="background: #fff3e0; border-radius: 12px; box-shadow: 0 2px 8px #ffd180;">
                         <div class="card-body">
-                            <h4 class="card-title" style="font-weight: bold; color: #e65100;">Parça Profil Kayıtları</h4>
-                            <div id="scrap-profile-tablo"></div>
+                            <div class="d-flex align-items-center justify-content-between card-title" style="cursor:pointer; font-weight: bold; color: #e65100;">
+                                <span>Parça Profil Kayıtları</span>
+                                <span class="toggle-table" data-target="#scrap-profile-tablo" style="font-size:1.2em; user-select:none;">&#9660;</span>
+                            </div>
+                            <div id="scrap-profile-tablo" class="table-body"></div>
                         </div>
                     </div>
                 </div>
@@ -67,14 +76,29 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                 <div class="col-md-12">
                     <div class="card" style="background: #fffbe7; border-radius: 12px; box-shadow: 0 2px 8px #ffe082;">
                         <div class="card-body">
-                            <h4 class="card-title" style="font-weight: bold; color: #bfa100;">Hammadde Rezervleri</h4>
-                            <div id="hammadde-rezervleri-tablo"></div>
+                            <div class="d-flex align-items-center justify-content-between card-title" style="cursor:pointer; font-weight: bold; color: #bfa100;">
+                                <span>Hammadde Rezervleri</span>
+                                <span class="toggle-table" data-target="#hammadde-rezervleri-tablo" style="font-size:1.2em; user-select:none;">&#9660;</span>
+                            </div>
+                            <div id="hammadde-rezervleri-tablo" class="table-body"></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     `);
+
+    // Aç/kapa ikonları için event
+    $(document).on('click', '.toggle-table, .card-title', function(e) {
+        let $target = $(e.target);
+        let $icon = $target.hasClass('toggle-table') ? $target : $target.closest('.card-title').find('.toggle-table');
+        let tableId = $icon.data('target');
+        let $table = $(tableId);
+        $table.slideToggle(180, function() {
+            $icon.html($table.is(':visible') ? '&#9660;' : '&#9654;');
+        });
+        e.stopPropagation();
+    });
 
     // Filtrele butonu event
     $(document).on('click', '#filtrele-btn', function() {
@@ -88,14 +112,13 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
     });
 
     function toggle_tables() {
-        if ($('#scrap-filter').is(':checked')) {
-            $('#row-erpnext-stok').hide();
-            $('#row-profil-boy').hide();
-            $('#row-scrap-profile').show();
-        } else {
-            $('#row-erpnext-stok').show();
-            $('#row-profil-boy').show();
-            $('#row-scrap-profile').show();
+        const is_scrap = $('#scrap-filter').is(':checked');
+        $('#row-erpnext-stok').toggle(!is_scrap);
+        $('#row-profil-boy').toggle(!is_scrap);
+        $('#row-hammadde-rezervleri').toggle(!is_scrap);
+        $('#depo-filter').prop('disabled', is_scrap).trigger('change.select2');
+        if (is_scrap) {
+            $('#depo-filter').val(null).trigger('change.select2');
         }
     }
 
@@ -112,28 +135,41 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         '/assets/uretim_planlama/js/select2.min.js',
         '/assets/uretim_planlama/css/select2.min.css'
     ], function() {
-        $('#profil-filter').select2({width: '100%', placeholder: 'Profil Kodu Seçin', allowClear: true});
+        // Profil kodu select2 AJAX ile dinamik arama
+        $('#profil-filter').select2({
+            width: '100%',
+            placeholder: 'Profil Kodu Seçin',
+            allowClear: true,
+            ajax: {
+                transport: function (params, success, failure) {
+                    frappe.call({
+                        method: 'frappe.client.get_list',
+                        args: {
+                            doctype: 'Item',
+                            fields: ['item_code'],
+                            filters: params.data.q ? [['item_code', 'like', '%' + params.data.q + '%']] : [],
+                            limit_page_length: 20
+                        },
+                        callback: function(r) {
+                            success({
+                                results: (r.message || []).map(function(item) {
+                                    return { id: item.item_code, text: item.item_code };
+                                })
+                            });
+                        },
+                        error: failure
+                    });
+                },
+                delay: 250
+            },
+            minimumInputLength: 1
+        });
+        // Depo select2 sabit kalsın
         $('#depo-filter').select2({width: '100%', placeholder: 'Depo Seçin', allowClear: true});
     });
 
     function fill_filters() {
-        // Profil kodu doldur
-        frappe.call({
-            method: "frappe.client.get_list",
-            args: {
-                doctype: "Item",
-                fields: ["item_code"],
-                limit_page_length: 1000
-            },
-            callback: function(r) {
-                let select = $('#profil-filter');
-                select.empty();
-                select.append('<option value="">Tümü</option>');
-                r.message.forEach(item => {
-                    select.append(`<option value="${item.item_code}">${item.item_code}</option>`);
-                });
-            }
-        });
+        // Profil kodu doldurma kaldırıldı, select2 AJAX ile geliyor
         // Depo doldur
         frappe.call({
             method: "frappe.client.get_list",
@@ -164,6 +200,8 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             args: args,
             callback: function(r) {
                 const data = r.message || {};
+                // Debug: API cevabını konsola yaz
+                console.log('Profil Stok Paneli API cevabı:', data);
                 // Her tabloya özel veri
                 render_erpnext_stok_tablo(data.depo_stoklari || []);
                 render_boy_bazinda_tablo(data.boy_bazinda_stok || []);
@@ -184,20 +222,20 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.toplam_stok_mtul) || 0;
         });
-        let tablo = `<table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
             <thead style="background: #e9ecef; color: #2c3e50; font-weight: bold;">
                 <tr>
-                    <th>#</th>
-                    <th>Depo</th>
-                    <th>Profil</th>
-                    <th>Profil Adı</th>
-                    <th>Toplam Stok (mtül)</th>
+                    <th class="sticky-col sticky-header">#</th>
+                    <th class="sticky-header">Depo</th>
+                    <th class="sticky-header">Profil</th>
+                    <th class="sticky-header">Profil Adı</th>
+                    <th class="sticky-header">Toplam Stok (mtül)</th>
                 </tr>
             </thead>
             <tbody>`;
         data.forEach((row, i) => {
             tablo += `<tr>
-                <td>${i+1}</td>
+                <td class="sticky-col">${i+1}</td>
                 <td>${row.depo}</td>
                 <td>${row.profil}</td>
                 <td>${row.profil_adi}</td>
@@ -205,8 +243,8 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             </tr>`;
         });
         // Genel toplam satırı
-        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td colspan="4" style="text-align:right;">Genel Toplam</td><td>${toplam}</td></tr>`;
-        tablo += '</tbody></table>';
+        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td class="sticky-col"></td><td colspan="3" style="text-align:right;">Genel Toplam</td><td>${toplam}</td></tr>`;
+        tablo += '</tbody></table></div>';
         $('#erpnext-stok-tablo').html(tablo);
     }
 
@@ -215,17 +253,17 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.mtul) || 0;
         });
-        let tablo = `<table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
             <thead style="background: #e9ecef; color: #2c3e50; font-weight: bold;">
                 <tr>
-                    <th>#</th>
-                    <th>Profil</th>
-                    <th>Profil Adı</th>
-                    <th>Boy</th>
-                    <th>Adet</th>
-                    <th>Toplam (mtül)</th>
-                    <th>Rezerv</th>
-                    <th>Güncelleme</th>
+                    <th class="sticky-col sticky-header">#</th>
+                    <th class="sticky-header">Profil</th>
+                    <th class="sticky-header">Profil Adı</th>
+                    <th class="sticky-header">Boy</th>
+                    <th class="sticky-header">Adet</th>
+                    <th class="sticky-header">Toplam (mtül)</th>
+                    <th class="sticky-header">Rezerv</th>
+                    <th class="sticky-header">Güncelleme</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -233,7 +271,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             let tarih = row.guncelleme ? frappe.datetime.str_to_user(row.guncelleme) : '';
             let rezerv = (typeof row.rezerv !== 'undefined') ? row.rezerv : '-';
             tablo += `<tr>
-                <td>${i+1}</td>
+                <td class="sticky-col">${i+1}</td>
                 <td>${row.profil}</td>
                 <td>${row.profil_adi}</td>
                 <td>${row.boy}</td>
@@ -244,8 +282,8 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             </tr>`;
         });
         // Genel toplam satırı
-        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td colspan="5" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td colspan="2"></td></tr>`;
-        tablo += '</tbody></table>';
+        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td class="sticky-col"></td><td colspan="4" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td colspan="2"></td></tr>`;
+        tablo += '</tbody></table></div>';
         $('#profil-boy-tablo').html(tablo);
     }
 
@@ -254,18 +292,18 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.mtul) || 0;
         });
-        let tablo = `<table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
             <thead style="background: #e9ecef; color: #2c3e50; font-weight: bold;">
                 <tr>
-                    <th>#</th>
-                    <th>Profil</th>
-                    <th>Profil Adı</th>
-                    <th>Boy</th>
-                    <th>Adet</th>
-                    <th>Toplam (mtül)</th>
-                    <th>Açıklama</th>
-                    <th>Giriş Tarihi</th>
-                    <th>Güncelleme</th>
+                    <th class="sticky-col sticky-header">#</th>
+                    <th class="sticky-header">Profil</th>
+                    <th class="sticky-header">Profil Adı</th>
+                    <th class="sticky-header">Boy</th>
+                    <th class="sticky-header">Adet</th>
+                    <th class="sticky-header">Toplam (mtül)</th>
+                    <th class="sticky-header">Açıklama</th>
+                    <th class="sticky-header">Giriş Tarihi</th>
+                    <th class="sticky-header">Güncelleme</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -273,7 +311,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             let tarih = row.tarih ? frappe.datetime.str_to_user(row.tarih) : '';
             let guncelleme = row.guncelleme ? frappe.datetime.str_to_user(row.guncelleme) : '';
             tablo += `<tr>
-                <td>${i+1}</td>
+                <td class="sticky-col">${i+1}</td>
                 <td>${row.profil}</td>
                 <td>${row.profil_adi}</td>
                 <td>${row.boy}</td>
@@ -285,8 +323,8 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             </tr>`;
         });
         // Genel toplam satırı
-        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td colspan="5" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td colspan="3"></td></tr>`;
-        tablo += '</tbody></table>';
+        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td class="sticky-col"></td><td colspan="4" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td colspan="3"></td></tr>`;
+        tablo += '</tbody></table></div>';
         $('#scrap-profile-tablo').html(tablo);
     }
 
@@ -295,32 +333,42 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.quantity) || 0;
         });
-        let tablo = `<table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
             <thead style="background: #fffde7; color: #bfa100; font-weight: bold;">
                 <tr>
-                    <th>Hammadde Kodu</th>
-                    <th>Hammadde Adı</th>
-                    <th>Rezerve Miktar (mtül)</th>
-                    <th>Satış Siparişi</th>
+                    <th class="sticky-col sticky-header">Hammadde Kodu</th>
+                    <th class="sticky-header">Hammadde Adı</th>
+                    <th class="sticky-header">Rezerve Miktar (mtül)</th>
+                    <th class="sticky-header">Satış Siparişi</th>
                 </tr>
             </thead>
             <tbody>`;
         if (data.length === 0) {
-            tablo += `<tr><td colspan="4" style="text-align:center;">Kayıt bulunamadı</td></tr>`;
+            tablo += `<tr><td class="sticky-col" colspan="4" style="text-align:center;">Kayıt bulunamadı</td></tr>`;
         } else {
             data.forEach(row => {
                 let salesOrderLink = row.sales_order ? `<a href='/app/sales-order/${encodeURIComponent(row.sales_order)}' target='_blank'>${row.sales_order}</a>` : '';
                 tablo += `<tr>
-                    <td>${row.item_code}</td>
+                    <td class="sticky-col">${row.item_code}</td>
                     <td>${row.item_name || ''}</td>
                     <td>${row.quantity}</td>
                     <td>${salesOrderLink}</td>
                 </tr>`;
             });
             // Genel toplam satırı
-            tablo += `<tr style="font-weight:bold; background:#fff9c4;"><td colspan="2" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td></td></tr>`;
+            tablo += `<tr style="font-weight:bold; background:#fff9c4;"><td class="sticky-col" colspan="2" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td></td></tr>`;
         }
-        tablo += '</tbody></table>';
+        tablo += '</tbody></table></div>';
         $('#hammadde-rezervleri-tablo').html(tablo);
+    }
+
+    // Stil ekle (gerekirse)
+    if (!$('style#profil-stok-paneli-table-responsive').length) {
+        $("<style id='profil-stok-paneli-table-responsive'>"
+        + ".table-responsive{overflow-x:auto;overflow-y:auto;width:100%;max-height:350px;position:relative;}"
+        + ".sticky-header{position:sticky;top:0;z-index:10;background:#f8fafc!important;height:38px;min-height:38px;}"
+        + ".sticky-col{position:sticky;left:0;background:#fff!important;z-index:11;box-shadow:2px 0 2px -1px #eee;}"
+        + ".sticky-col.sticky-header{z-index:20;background:#f8fafc!important;}"
+        + "</style>").appendTo('head');
     }
 }; 
