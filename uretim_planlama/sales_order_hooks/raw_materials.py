@@ -676,9 +676,6 @@ def delete_reserved_raw_materials_on_cancel(doc, method):
 		if getattr(doc, "is_long_term_child", 0) or getattr(
 			doc, "parent_sales_order", None
 		):
-			print(
-				f"[DEBUG] Child sipariş iptalinde rezerve hammaddeler silinmeyecek: {getattr(doc, 'name', None)}"
-			)
 			return
 		# Sadece kendi sales_order'ına ait rezervleri sil
 		reserved = frappe.get_all(
@@ -947,9 +944,6 @@ def use_long_term_reserve_bulk(sales_order, usage_data):
 					)[0][0]
 				)
 			kalan_kullanilabilir = max(parent_rezerv - total_usage, 0)
-			frappe.logger().info(
-				f"[DEBUG] item_code={item_code}, qty={qty}, parent_rezerv={parent_rezerv}, total_usage={total_usage}, kalan_kullanilabilir={kalan_kullanilabilir}"
-			)
 			if not safe_qty_compare(kalan_kullanilabilir, qty):
 				return {
 					"success": False,
@@ -1116,15 +1110,9 @@ def restore_reserved_raw_materials_on_cancel(doc, method):
 
 
 def handle_child_sales_order_reserves(doc, method):
-	print(
-		f"[DEBUG] handle_child_sales_order_reserves ÇAĞRILDI: {getattr(doc, 'name', None)} is_long_term_child={getattr(doc, 'is_long_term_child', None)} parent_sales_order={getattr(doc, 'parent_sales_order', None)}"
-	)
 	if not getattr(doc, "is_long_term_child", 0) or not getattr(
 		doc, "parent_sales_order", None
 	):
-		print(
-			f"[DEBUG] Child kontrolü geçilemedi: is_long_term_child={getattr(doc, 'is_long_term_child', None)}, parent_sales_order={getattr(doc, 'parent_sales_order', None)}"
-		)
 		return
 
 	parent_so = doc.parent_sales_order
@@ -1135,7 +1123,6 @@ def handle_child_sales_order_reserves(doc, method):
 			"BOM", {"item": item.item_code, "is_active": 1, "is_default": 1}, "name"
 		)
 		if not bom:
-			print(f"[DEBUG] Item'ın BOM'u yok: item_code={item.item_code}")
 			continue
 		bom_doc = frappe.get_doc("BOM", bom)
 		for rm in bom_doc.items:
@@ -1152,16 +1139,6 @@ def handle_child_sales_order_reserves(doc, method):
 		)
 		if parent_reserve:
 			mevcut_rezerv = normalize_qty(float(parent_reserve[0]["quantity"]))
-			print("\n[DEBUG] Miktar karşılaştırması:")
-			print(f"  Raw mevcut_rezerv: {float(parent_reserve[0]['quantity'])}")
-			print(f"  Normalized mevcut_rezerv: {mevcut_rezerv}")
-			print(f"  Raw ihtiyac: {ihtiyac_raw}")
-			print(f"  Normalized ihtiyac: {ihtiyac}")
-			print(f"  Difference: {abs(mevcut_rezerv - ihtiyac)}")
-			print(f"  Tolerance check: {qty_greater_or_equal(mevcut_rezerv, ihtiyac)}")
-			print(
-				f"[DEBUG] Hammadde toplu kontrol: hammadde_code={hammadde_code}, parent_rezerv={mevcut_rezerv}, toplam_ihtiyac={ihtiyac}"
-			)
 			if safe_qty_compare(mevcut_rezerv, ihtiyac):
 				# 3. Usage ve düşüm işlemini tek seferde yap
 				reserve_doc = frappe.get_doc(
@@ -1172,12 +1149,6 @@ def handle_child_sales_order_reserves(doc, method):
 					reserve_doc.delete(ignore_permissions=True)
 				else:
 					reserve_doc.save(ignore_permissions=True)
-				print(
-					f"[DEBUG] Parent rezerv güncellendi: {parent_reserve[0]['name']}, kalan={reserve_doc.quantity}"
-				)
-				print(
-					f"[DEBUG] USAGE KAYDI OLUŞTURULUYOR: child_so={doc.name}, hammadde_code={hammadde_code}, qty={ihtiyac}, parent_so={parent_so}"
-				)
 				upsert_long_term_reserve_usage(
 					sales_order=doc.name,
 					item_code=hammadde_code,
@@ -1186,25 +1157,16 @@ def handle_child_sales_order_reserves(doc, method):
 					parent_sales_order=parent_so,
 				)
 			else:
-				print(
-					f"[DEBUG] Yetersiz rezerv: parent_so={parent_so}, hammadde_code={hammadde_code}, mevcut_rezerv={mevcut_rezerv}, toplam_ihtiyac={ihtiyac}"
-				)
 				frappe.throw(
 					_(
 						f"Ana siparişte {hammadde_code} için yeterli uzun vadeli rezerv yok! (Gereken: {ihtiyac}, Mevcut: {mevcut_rezerv}, Fark: {abs(mevcut_rezerv - ihtiyac):.4f})"
 					)
 				)
 		else:
-			print(
-				f"[DEBUG] Yetersiz rezerv: parent_so={parent_so}, hammadde_code={hammadde_code}, mevcut_rezerv=YOK"
-			)
 			frappe.throw(
 				_(f"Ana siparişte {hammadde_code} için yeterli uzun vadeli rezerv yok!")
 			)
 	frappe.db.commit()
-	print(
-		f"[DEBUG] handle_child_sales_order_reserves TAMAMLANDI: {getattr(doc, 'name', None)}"
-	)
 	frappe.msgprint(_("Satış siparişi için rezervler güncellendi."), indicator="green")
 
 
