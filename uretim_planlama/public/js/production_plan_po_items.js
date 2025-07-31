@@ -89,11 +89,11 @@ function attachRowSelectionHandler(frm) {
         updateSelectedTotalMtul(frm);
     });
     
-    attachQtyChangeListeners(); // planned_qty listenerlarını ekle
+    attachQtyChangeListeners(frm); // planned_qty listenerlarını ekle
 
     // Debounce the render handler
     grid.after_render = frappe.utils.debounce(() => {
-         attachQtyChangeListeners(); // Render sonrası listenerları tekrar eklemeyi dene
+         attachQtyChangeListeners(frm); // Render sonrası listenerları tekrar eklemeyi dene
          updateSelectedTotalMtul(frm); // Render sonrası paneli güncelle
     }, 100); // 100ms debounce gecikmesi
     
@@ -101,7 +101,7 @@ function attachRowSelectionHandler(frm) {
 
 }
 
-const attachQtyChangeListeners = () => {
+const attachQtyChangeListeners = (frm) => {
     const grid = frm.fields_dict['po_items']?.grid; // Optional chaining ekledim
     if (!grid || !grid.grid_rows) {
         return;

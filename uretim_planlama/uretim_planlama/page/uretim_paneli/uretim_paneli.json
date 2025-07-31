@@ -1,0 +1,22 @@
+{
+ "content": null,
+ "creation": "2025-07-27 12:32:57.944880",
+ "docstatus": 0,
+ "doctype": "Page",
+ "engine": "Jinja",
+ "idx": 0,
+ "modified": "2025-07-27 12:32:57.944880",
+ "modified_by": "Administrator",
+ "module": "Uretim Planlama",
+ "name": "uretim-paneli",
+ "owner": "Administrator",
+ "page_name": "uretim-paneli",
+ "roles": [],
+ "route": "/uretim-paneli",
+ "script": null,
+ "source": "apps/uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_paneli/uretim_paneli.html",
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "\u00dcretim Planlama Paneli"
+}

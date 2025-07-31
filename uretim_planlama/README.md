@@ -1,6 +1,13 @@
 # Accessory Delivery Package (Aksesuar Teslimat Paketi)
 
-Bu modül, depo personelinin üretim planına (OpTi No) veya satış siparişine göre ilgili malzemeleri görüp, teslimat paketi oluşturmasını sağlar.
+## Amaç & Akış Özeti
+Bu modül, üretim veya satış siparişi bazlı olarak depo personelinin ilgili hammaddeleri ya da aksesuarları kolayca görüp teslimat işlemleri yapmasını sağlar. Sipariş veya üretim planı onaylandığında otomatik rezerve edilen hammaddeler, iş emri tamamlandığında veya stok hareketlerinde güncellenir/silinir. Kod geliştirmeleri clean code prensipleriyle ve ERPNext'ın temel yapısına sadık kalınarak yürütülür.
+
+**Kısaca iş akışı:**
+1. Satış/Sipariş onayında: Sipariş için gerekli hammaddeler BOM'dan belirlenir, her birine rezerv kaydı oluşturulur.
+2. İş emri veya üretim tamamlanınca: Harcanan hammaddeler miktarınca rezerv kayıtlarından düşülür, kalan sıfır/negatif rezervler arka planda temizlenir.
+3. Tüm işlemler veritabanı gerçek miktarlarıyla (float/decimal olarak) yapılır, yuvarlama veya tolerans uygulanmaz.
+
 
 ## Özellikler
 - OpTi No veya Sales Order ile sorgulama

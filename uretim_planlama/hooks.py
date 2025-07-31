@@ -27,6 +27,11 @@ fixtures = [
 # Uygulama içi JS/CSS dosyaları
 app_include_css = ["/assets/uretim_planlama/css/sales_order.css"]
 
+# Sayfa konfigürasyonu
+page_js = {
+    "uretim-paneli": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_paneli/uretim_paneli.js"
+}
+
 doctype_js = {
 	"Production Plan": [
 		"public/js/production_plan_chart.js",
@@ -85,3 +90,5 @@ modules = {
 		"label": "Üretim Planlama",
 	}
 }
+
+
