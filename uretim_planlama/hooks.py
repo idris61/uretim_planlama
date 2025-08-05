@@ -29,7 +29,8 @@ app_include_css = ["/assets/uretim_planlama/css/sales_order.css"]
 
 # Sayfa konfigürasyonu
 page_js = {
-    "uretim-paneli": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_paneli/uretim_paneli.js"
+    "uretim-paneli": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_paneli/uretim_paneli.js",
+    "uretim_planlama_takip": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_planlama_takip/uretim_planlama_takip.js"
 }
 
 doctype_js = {
