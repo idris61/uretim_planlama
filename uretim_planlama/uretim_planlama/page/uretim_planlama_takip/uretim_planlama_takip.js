@@ -726,10 +726,93 @@ frappe.pages['uretim_planlama_takip'].on_page_load = function(wrapper) {
     startAutoUpdate();
 };
 
+// Utility functions - Performance optimized
+const utils = {
+    // Güvenli HTML escape
+    escapeHtml: (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
+    // Debounce function
+    debounce: (func, wait) => {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    // Format date safely - Cached for performance
+    formatDate: (() => {
+        const cache = new Map();
+        return (dateStr) => {
+            if (!dateStr) return '-';
+            if (cache.has(dateStr)) return cache.get(dateStr);
+            
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return dateStr;
+                const formatted = date.toLocaleDateString('tr-TR');
+                cache.set(dateStr, formatted);
+                return formatted;
+            } catch (e) {
+                return dateStr;
+            }
+        };
+    })(),
+
+    // Safe number formatting
+    formatNumber: (num, decimals = 1) => {
+        if (num === null || num === undefined || num === '') return '0';
+        const parsed = parseFloat(num);
+        return isNaN(parsed) ? '0' : parsed.toFixed(decimals);
+    },
+
+    // Row class utility for modern coloring
+    getRowClass: (pvcCount, camCount, isCompleted = false) => {
+        if (isCompleted) return 'completed-row';
+        if (pvcCount > 0 && camCount > 0) return 'mixed-row';
+        if (pvcCount > 0) return 'pvc-row';
+        if (camCount > 0) return 'cam-row';
+        return 'default-row';
+    },
+
+    // Urgent delivery check - Cached
+    isUrgentDelivery: (() => {
+        const cache = new Map();
+        return (deliveryDate) => {
+            if (!deliveryDate) return false;
+            if (cache.has(deliveryDate)) return cache.get(deliveryDate);
+            
+            try {
+                const delivery = new Date(deliveryDate);
+                const today = new Date();
+                const isUrgent = delivery < today;
+                cache.set(deliveryDate, isUrgent);
+                return isUrgent;
+            } catch {
+                return false;
+            }
+        };
+    })(),
+
+    // Text truncation utility
+    truncateText: (text, maxLength = 20, suffix = '...') => {
+        if (!text || text.length <= maxLength) return text;
+        return text.substring(0, maxLength - suffix.length) + suffix;
+    }
+};
+
 // Global değişkenler
 let allPlannedData = [];
 let showCompletedItems = false;
-let lastUpdate = 0;
 let updateInterval = null;
 let debounceTimer = null;
 
@@ -739,52 +822,57 @@ let lastCacheUpdate = 0;
 const CACHE_DURATION = 30000; // 30 saniye
 const DATA_LOAD_TIMEOUT = 10000; // 10 saniye timeout
 
-// Modal performans optimizasyonları
-let activeModals = new Set();
-let modalCache = new Map();
-const MODAL_CACHE_DURATION = 60000; // 1 dakika
-
-// Modal yönetimi fonksiyonları
-function closeAllModals() {
+// Enhanced Modal Manager with better performance and error handling
+const modalManager = {
+    activeModals: new Set(),
+    modalCache: new Map(),
+    CACHE_DURATION: 60000, // 1 minute
+    
+    closeAllModals() {
     $('.modal').modal('hide');
     setTimeout(() => {
         $('.modal').remove();
-        activeModals.clear();
+            this.activeModals.clear();
     }, 300);
-}
+    },
 
-function closeOtherModals(currentModalId) {
+    closeOtherModals(currentModalId) {
     $('.modal').not(`#${currentModalId}`).modal('hide');
     setTimeout(() => {
         $('.modal').not(`#${currentModalId}`).remove();
     }, 300);
-}
+    },
 
-function createModal(modalId, title, size = 'modal-lg') {
+    createModal(modalId, title, size = 'modal-lg', headerColor = '#dc3545') {
     console.log('Creating modal with ID:', modalId);
     
-    // Sadece eski modalları kapat, yeni modal'ı etkileme
-    closeOtherModals(modalId);
+        // Close other modals first
+        this.closeOtherModals(modalId);
     
     const modalHtml = `
         <div class="modal fade" id="${modalId}" tabindex="-1" data-backdrop="static" data-keyboard="false">
             <div class="modal-dialog ${size}">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="fa fa-spinner fa-spin mr-2"></i>${title}
+                    <div class="modal-content" style="background: white; border: none; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.1);">
+                        <div class="modal-header" style="background: ${headerColor}; color: white; border: none; border-radius: 12px 12px 0 0;">
+                            <h5 class="modal-title" style="font-weight: 600;">
+                                <i class="fa fa-spinner fa-spin mr-2"></i>${utils.escapeHtml(title)}
                         </h5>
-                        <button type="button" class="close text-white" data-dismiss="modal">
-                            <span>&times;</span>
+                            <button type="button" class="close text-white" data-dismiss="modal" style="opacity: 1;">
+                                <span style="font-size: 1.5rem;">&times;</span>
                         </button>
                     </div>
-                                                    <div class="modal-body" style="max-height: 70vh; overflow-y: scroll;">
+                        <div class="modal-body" style="max-height: 70vh; overflow-y: auto; background: white; color: #333; padding: 20px;">
                         <div id="modal-content-${modalId}" class="modal-content-inner">
                             <div class="text-center p-4">
                                 <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
                                 <p class="mt-2 text-muted">Yükleniyor...</p>
                             </div>
                         </div>
+                    </div>
+                        <div class="modal-footer" style="background: #f8f9fa; border: none; border-radius: 0 0 12px 12px;">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                <i class="fa fa-times mr-1"></i>Kapat
+                            </button>
                     </div>
                 </div>
             </div>
@@ -800,62 +888,84 @@ function createModal(modalId, title, size = 'modal-lg') {
             return null;
         }
         
-        modal.on('hidden.bs.modal', function() {
-            $(this).remove();
-            activeModals.delete(modalId);
-        });
-        
-        activeModals.add(modalId);
+            // Enhanced modal event handlers
+            modal.on('hidden.bs.modal', () => {
+                $(modal).remove();
+                this.activeModals.delete(modalId);
+            });
+            
+            modal.on('shown.bs.modal', () => {
+                // Focus management for accessibility
+                const firstInput = modal.find('input, button, select, textarea').first();
+                if (firstInput.length) {
+                    firstInput.focus();
+                }
+            });
+            
+            this.activeModals.add(modalId);
         modal.modal('show');
         
-        // Modal'ın DOM'da olduğunu kontrol et
-        setTimeout(() => {
-            const modalExists = $(`#${modalId}`).length > 0;
-            const contentElement = $(`#modal-content-${modalId}`);
-            console.log('Modal exists in DOM:', modalExists);
-            console.log('Content element exists:', contentElement.length > 0);
-        }, 100);
-        
         console.log('Modal created successfully:', modalId);
-        
         return modal;
+            
     } catch (error) {
         console.error('Error creating modal:', error);
+            errorHandler.show('Modal oluşturulurken hata oluştu: ' + error.message);
         return null;
     }
+    },
+    
+    updateModalTitle(modalId, newTitle, icon = 'fa-info-circle') {
+        const modal = $(`#${modalId}`);
+        if (modal.length) {
+            modal.find('.modal-title').html(`<i class="fa ${icon} mr-2"></i>${utils.escapeHtml(newTitle)}`);
+        }
+    },
+    
+    updateModalContent(modalId, content) {
+        const contentDiv = $(`#modal-content-${modalId}`);
+        if (contentDiv.length) {
+            contentDiv.html(content);
+        }
+    },
+    
+    showModalLoading(modalId, message = 'Yükleniyor...') {
+        const contentDiv = $(`#modal-content-${modalId}`);
+        if (contentDiv.length) {
+            contentDiv.html(`
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+                    <p class="mt-2 text-muted">${utils.escapeHtml(message)}</p>
+                </div>
+            `);
+        }
+    }
+};
+
+// Global references for backward compatibility
+let activeModals = modalManager.activeModals;
+let modalCache = modalManager.modalCache;
+const MODAL_CACHE_DURATION = 60000; // 1 dakika
+
+// Backward compatibility functions
+function closeAllModals() {
+    modalManager.closeAllModals();
+}
+
+function closeOtherModals(currentModalId) {
+    modalManager.closeOtherModals(currentModalId);
+}
+
+function createModal(modalId, title, size = 'modal-lg') {
+    return modalManager.createModal(modalId, title, size);
 }
 
 function createPageStructure(container) {
     container.html(`
         <div class="container-fluid">
-            <!-- Header Section -->
-            <div class="row mb-3">
-                <div class="col-12">
-                    <div class="d-flex align-items-center">
-                        <button type="button" id="refreshBtn" class="btn btn-dark btn-sm mr-3">
-                            <i class="fa fa-refresh"></i> Verileri Yenile
-                        </button>
-                        <button type="button" id="clearCacheBtn" class="btn btn-warning btn-sm mr-3">
-                            <i class="fa fa-trash"></i> Cache Temizle
-                        </button>
-                        <span class="text-muted" id="lastUpdate">Son güncelleme: --:--:-- (0 kayıt)</span>
-                    </div>
-                </div>
-            </div>
+
             
-            <!-- Özet Kartları -->
-            <div id="summary-cards" class="row mb-4">
-                <!-- Üretim Plan Verileri -->
-                <div class="col-12 mb-3">
-                    <h6 class="text-muted mb-2"><i class="fa fa-industry mr-1"></i>Üretim Plan Verileri</h6>
-                    <div class="row" id="production-cards"></div>
-                </div>
-                <!-- Satış Sipariş Verileri -->
-                <div class="col-12">
-                    <h6 class="text-muted mb-2"><i class="fa fa-shopping-cart mr-1"></i>Satış Sipariş Verileri</h6>
-                    <div class="row" id="order-cards"></div>
-                </div>
-            </div>
+
             
             <!-- Ana Tablo - Sadece Planlanan Siparişler -->
             <div id="planned-table-section" class="card">
@@ -987,64 +1097,93 @@ function bindEvents() {
         });
     }
     
-    // Yenile butonu
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => loadProductionData());
-    }
+
     
-    // Cache temizleme butonu
-    const clearCacheBtn = document.getElementById('clearCacheBtn');
-    if (clearCacheBtn) {
-        clearCacheBtn.addEventListener('click', () => clearCache());
-    }
+
 }
 
+// Enhanced API service with better error handling
+const apiService = {
+    async call(method, args = {}, retries = 3) {
+        const attempt = async (attemptNumber) => {
+            try {
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Request timeout'));
+                    }, DATA_LOAD_TIMEOUT);
+
+                    frappe.call({
+                        method: method,
+                        args: args,
+                        callback: (response) => {
+                            clearTimeout(timeout);
+                            if (response.exc) {
+                                reject(new Error(response.exc));
+                            } else {
+                                resolve(response.message || response);
+                            }
+                        },
+                        error: (error) => {
+                            clearTimeout(timeout);
+                            reject(new Error(error));
+                        }
+                    });
+                });
+            } catch (error) {
+                if (attemptNumber < retries) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attemptNumber));
+                    return attempt(attemptNumber + 1);
+                }
+                throw error;
+            }
+        };
+        
+        return attempt(1);
+    },
+
+    async getProductionData(filters = {}) {
+        try {
+            const data = await this.call(
+                'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_production_planning_data',
+                { filters: JSON.stringify(filters) }
+            );
+            
+            if (!data) throw new Error('Boş veri döndü');
+            
+            return {
+                planned: Array.isArray(data) ? data : (data.planned || [])
+            };
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    }
+};
+
+// Enhanced loadProductionData function
 function loadProductionData() {
     const now = Date.now();
-    if (now - lastUpdate < 1000) {
-        return;
-    }
     
     // Cache kontrolü
     const cacheKey = JSON.stringify(getFilters());
     const cachedData = dataCache.get(cacheKey);
     if (cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
         allPlannedData = cachedData.data;
-        updateSummary();
         renderPlannedTable();
         updateCompletedToggle();
         return;
     }
     
     showLoading();
-    lastUpdate = now;
     
     const filters = getFilters();
     
-    // Timeout ile API çağrısı
-    const apiCall = frappe.call({
-        method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_production_planning_data',
-        args: { filters: JSON.stringify(filters) },
-        timeout: DATA_LOAD_TIMEOUT,
-        callback: function(r) {
-            hideLoading();
+    // Enhanced API call with async/await
+    (async () => {
+        try {
+            const result = await apiService.getProductionData(filters);
             
-            if (r.exc) {
-                console.error('❌ API hatası:', r.exc);
-                showError('Veri yüklenirken hata: ' + r.exc);
-                return;
-            }
-            
-            const data = r.message;
-            
-            if (data.error) {
-                console.error('❌ Veri hatası:', data.error);
-                showError(data.error);
-                return;
-            }
-            
-            allPlannedData = data.planned || [];
+            allPlannedData = result.planned || [];
             
             // Cache'e kaydet
             dataCache.set(cacheKey, {
@@ -1052,23 +1191,16 @@ function loadProductionData() {
                 timestamp: now
             });
             
-            updateSummary();
             renderPlannedTable();
             updateCompletedToggle();
-        },
-        error: function(err) {
+            
+        } catch (error) {
+            console.error('❌ Veri yükleme hatası:', error);
+            showError('Veri yüklenirken hata oluştu: ' + error.message);
+        } finally {
             hideLoading();
-            showError('Bağlantı hatası: ' + err);
         }
-    });
-
-    // Timeout kontrolü
-    setTimeout(() => {
-        if ($('#loadingSpinner').is(':visible')) {
-            hideLoading();
-            showError('Veri yükleme zaman aşımı. Lütfen tekrar deneyin.');
-        }
-    }, DATA_LOAD_TIMEOUT + 1000);
+    })();
 }
 
 function getFilters() {
@@ -1121,7 +1253,7 @@ function renderPlannedTable() {
     
     if (!allPlannedData || allPlannedData.length === 0) {
         tbody.innerHTML = `
-            <tr><td colspan="14" class="text-center text-muted">
+            <tr><td colspan="13" class="text-center text-muted">
                 <i class="fa fa-info-circle mr-2"></i>Henüz planlama bulunmuyor
             </td></tr>
         `;
@@ -1137,13 +1269,9 @@ function renderPlannedTable() {
         filteredData = allPlannedData.filter(item => item.plan_status !== 'Completed');
     }
     
-    // Performans için sadece ilk 200 kayıt
-    if (filteredData.length > 200) {
-        filteredData = filteredData.slice(0, 200);
-        console.warn('⚠️ Performans için sadece ilk 200 kayıt gösteriliyor');
-    }
+
     
-    // Opti numarasına göre gruplandır
+    // Opti numarasına göre gruplandır - Enhanced version
     const optiGroups = {};
     filteredData.forEach(order => {
         const optiNo = order.opti_no;
@@ -1162,13 +1290,32 @@ function renderPlannedTable() {
                 planlanan_baslangic_tarihi: order.planlanan_baslangic_tarihi,
                 seri: order.seri,
                 renk: order.renk,
-                plan_status: order.plan_status
+                plan_status: order.plan_status,
+                // Multiple values support
+                bayi_list: new Set(),
+                musteri_list: new Set(),
+                seri_list: new Set(),
+                renk_list: new Set()
             };
         }
         optiGroups[optiNo].sales_orders.push(order.sales_order);
         optiGroups[optiNo].total_pvc += order.pvc_count || 0;
         optiGroups[optiNo].total_cam += order.cam_count || 0;
         optiGroups[optiNo].total_mtul += order.toplam_mtul_m2 || 0;
+        
+        // Collect multiple values
+        if (order.bayi) optiGroups[optiNo].bayi_list.add(order.bayi);
+        if (order.musteri) optiGroups[optiNo].musteri_list.add(order.musteri);
+        if (order.seri) optiGroups[optiNo].seri_list.add(order.seri);
+        if (order.renk) optiGroups[optiNo].renk_list.add(order.renk);
+    });
+    
+    // Convert Sets to Arrays
+    Object.values(optiGroups).forEach(group => {
+        group.bayi_list = Array.from(group.bayi_list);
+        group.musteri_list = Array.from(group.musteri_list);
+        group.seri_list = Array.from(group.seri_list);
+        group.renk_list = Array.from(group.renk_list);
     });
     
     // Sıralama: Tamamlananlar üstte, sonra planlama tarihine göre
@@ -1206,279 +1353,88 @@ function renderPlannedTable() {
 
 function createOptiRowElement(optiGroup) {
     const row = document.createElement('tr');
-    const rowClass = getRowClass(optiGroup.total_pvc || 0, optiGroup.total_cam || 0);
-    const isUrgent = isUrgentDelivery(optiGroup.bitis_tarihi);
-    const urgentClass = isUrgent ? 'urgent-delivery' : '';
+    const pvcCount = optiGroup.total_pvc || 0;
+    const camCount = optiGroup.total_cam || 0;
     const isCompleted = optiGroup.plan_status === 'Completed';
+    const rowClass = utils.getRowClass(pvcCount, camCount, isCompleted);
+    const isUrgent = utils.isUrgentDelivery(optiGroup.bitis_tarihi);
+    const urgentClass = isUrgent ? 'urgent-delivery' : '';
     
-    // Tamamlanan satırlar için completed-row class'ını öncelikli yap
-    if (isCompleted) {
-        row.className = `completed-row opti-row ${urgentClass}`;
-    } else {
-        row.className = `${rowClass} ${urgentClass} opti-row`;
-    }
+    row.className = `${rowClass} ${urgentClass} opti-row cursor-pointer`;
     row.dataset.opti = optiGroup.opti_no;
     
-    // Müşteri adını kısalt
-    const musteriText = optiGroup.musteri || '-';
-    const truncatedMusteri = musteriText.length > 25 ? musteriText.substring(0, 22) + '...' : musteriText;
+    // Multiple values display
+    const bayiText = optiGroup.bayi_list.join(', ') || '-';
+    const musteriText = optiGroup.musteri_list.join(', ') || '-';
+    const seriText = optiGroup.seri_list.join(', ') || '-';
+    const renkText = optiGroup.renk_list.join(', ') || '-';
+    
+    // Truncate for display
+    const truncatedBayi = utils.truncateText(bayiText, 15);
+    const truncatedMusteri = utils.truncateText(musteriText, 25);
+    const truncatedSeri = utils.truncateText(seriText, 15);
+    const truncatedRenk = utils.truncateText(renkText, 15);
     
     // Sipariş numaralarını birleştir
     const siparisText = optiGroup.sales_orders.join(', ');
-    const truncatedSiparis = siparisText.length > 20 ? siparisText.substring(0, 17) + '...' : siparisText;
+    const truncatedSiparis = utils.truncateText(siparisText, 20);
     
     row.innerHTML = `
         <td class="text-center">
-            <span class="badge badge-info">${optiGroup.hafta || '-'}</span>
+            <span class="badge badge-info">${utils.escapeHtml(optiGroup.hafta || '-')}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-primary">${optiGroup.opti_no}</span>
+            <span class="badge badge-primary">${utils.escapeHtml(optiGroup.opti_no)}</span>
         </td>
-        <td title="${siparisText}">
-            <span class="font-weight-bold text-primary">${truncatedSiparis}</span>
+        <td title="${utils.escapeHtml(siparisText)}">
+            <span class="font-weight-bold text-primary">${utils.escapeHtml(truncatedSiparis)}</span>
         </td>
-        <td title="${optiGroup.bayi || '-'}">${(optiGroup.bayi || '-').length > 15 ? (optiGroup.bayi || '-').substring(0, 12) + '...' : (optiGroup.bayi || '-')}</td>
-        <td title="${musteriText}">${truncatedMusteri}</td>
+        <td title="${utils.escapeHtml(bayiText)}">${utils.escapeHtml(truncatedBayi)}</td>
+        <td title="${utils.escapeHtml(musteriText)}">${utils.escapeHtml(truncatedMusteri)}</td>
         <td class="text-center">
-            <span class="badge badge-warning">${formatDate(optiGroup.siparis_tarihi)}</span>
-        </td>
-        <td class="text-center">
-            <span class="badge badge-danger">${formatDate(optiGroup.bitis_tarihi)}</span>
+            <span class="badge badge-warning">${utils.formatDate(optiGroup.siparis_tarihi)}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-danger">${optiGroup.total_pvc || 0}</span>
+            <span class="badge badge-danger">${utils.formatDate(optiGroup.bitis_tarihi)}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-primary">${optiGroup.total_cam || 0}</span>
+            <span class="badge badge-danger">${pvcCount}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-success">${(optiGroup.total_mtul || 0).toFixed(2)}</span>
+            <span class="badge badge-primary">${camCount}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-warning">${formatDate(optiGroup.planlanan_baslangic_tarihi)}</span>
+            <span class="badge badge-success">${utils.formatNumber(optiGroup.total_mtul)}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-info">${optiGroup.seri || '-'}</span>
+            <span class="badge badge-warning">${utils.formatDate(optiGroup.planlanan_baslangic_tarihi)}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-warning">${optiGroup.renk || '-'}</span>
+            <span class="badge badge-info">${utils.escapeHtml(truncatedSeri)}</span>
+        </td>
+        <td class="text-center">
+            <span class="badge badge-warning">${utils.escapeHtml(truncatedRenk)}</span>
         </td>
     `;
     
     return row;
 }
 
-function getRowClass(pvcCount, camCount) {
-    if (pvcCount > 0 && camCount > 0) return 'mixed-row';
-    if (pvcCount > 0) return 'pvc-row';
-    if (camCount > 0) return 'cam-row';
-    return 'default-row';
-}
+// Removed - now using utils.getRowClass
 
-function getStatusBadge(status) {
-    const statusMap = {
-        'Completed': 'success',
-        'In Process': 'warning',
-        'Not Started': 'secondary',
-        'Stopped': 'danger',
-        'Closed': 'info'
-    };
-    
-    const badgeClass = statusMap[status] || 'secondary';
-    const statusText = getStatusText(status);
-    
-    return `<span class="badge badge-${badgeClass}">${statusText}</span>`;
-}
+// Removed duplicates - using utils.getStatusBadge and getWorkOrderStatusBadge instead
 
-function getStatusText(status) {
-    const statusTextMap = {
-        'Completed': 'Tamamlandı',
-        'In Process': 'Devam Ediyor',
-        'Not Started': 'Başlamadı',
-        'Stopped': 'Durduruldu',
-        'Closed': 'Kapatıldı'
-    };
-    
-    return statusTextMap[status] || status;
-}
+// Removed - now using utils.isUrgentDelivery
 
-function getStatusClass(status) {
-    const statusClassMap = {
-        'Completed': 'success',
-        'In Process': 'warning',
-        'Not Started': 'secondary',
-        'Stopped': 'danger',
-        'Closed': 'info'
-    };
-    
-    return statusClassMap[status] || 'secondary';
-}
 
-function getStatusBadge(status) {
-    const statusMap = {
-        'Completed': 'success',
-        'In Process': 'warning',
-        'Not Started': 'secondary'
-    };
-    
-    const badgeClass = statusMap[status] || 'secondary';
-    const statusText = getStatusText(status);
-    
-    return `<span class="badge badge-${badgeClass}">${statusText}</span>`;
-}
 
-function getStatusText(status) {
-    const statusTextMap = {
-        'Completed': 'Tamamlandı',
-        'In Process': 'Devam Ediyor',
-        'Not Started': 'Başlamadı'
-    };
-    
-    return statusTextMap[status] || status;
-}
 
-function isUrgentDelivery(deliveryDate) {
-    if (!deliveryDate) return false;
-    
-    try {
-        const delivery = new Date(deliveryDate);
-        const today = new Date();
-        return delivery < today;
-    } catch {
-        return false;
-    }
-}
 
-function updateSummary() {
-    const productionCards = document.getElementById('production-cards');
-    const orderCards = document.getElementById('order-cards');
-    if (!productionCards || !orderCards || !allPlannedData) return;
-    
-    // Opti numarasına göre gruplandır
-    const optiGroups = {};
-    allPlannedData.forEach(order => {
-        const optiNo = order.opti_no;
-        if (!optiGroups[optiNo]) {
-            optiGroups[optiNo] = {
-                opti_no: optiNo,
-                plan_status: order.plan_status,
-                orders: []
-            };
-        }
-        optiGroups[optiNo].orders.push(order);
-    });
-    
-    const totalOpti = Object.keys(optiGroups).length;
-    const totalSiparis = allPlannedData.length;
-    const completedOpti = Object.values(optiGroups).filter(opti => opti.plan_status === 'Completed').length;
-    const ongoingOpti = totalOpti - completedOpti;
-    const completedSiparis = allPlannedData.filter(item => item.plan_status === 'Completed').length;
-    const ongoingSiparis = totalSiparis - completedSiparis;
-    
-    // Üretim Plan Kartları
-    productionCards.innerHTML = `
-        <div class="col-md-4 mb-2">
-            <div class="card summary-card" style="background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); color: white;">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="fa fa-industry mr-2" style="font-size: 1.2rem;"></i>
-                        <div>
-                            <h5 class="mb-0" style="font-size: 0.9rem;">Planlanan Üretim</h5>
-                            <h4 class="mb-0" style="font-size: 1.4rem;">${totalOpti}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-2">
-            <div class="card summary-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="fa fa-check-circle mr-2" style="font-size: 1.2rem;"></i>
-                        <div>
-                            <h5 class="mb-0" style="font-size: 0.9rem;">Tamamlanan Üretim</h5>
-                            <h4 class="mb-0" style="font-size: 1.4rem;">${completedOpti}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-2">
-            <div class="card summary-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white;">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="fa fa-clock-o mr-2" style="font-size: 1.2rem;"></i>
-                        <div>
-                            <h5 class="mb-0" style="font-size: 0.9rem;">Devam Eden Üretim</h5>
-                            <h4 class="mb-0" style="font-size: 1.4rem;">${ongoingOpti}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Satış Sipariş Kartları
-    orderCards.innerHTML = `
-        <div class="col-md-4 mb-2">
-            <div class="card summary-card" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); color: white;">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="fa fa-shopping-cart mr-2" style="font-size: 1.2rem;"></i>
-                        <div>
-                            <h5 class="mb-0" style="font-size: 0.9rem;">Planlanan Sipariş</h5>
-                            <h4 class="mb-0" style="font-size: 1.4rem;">${totalSiparis}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-2">
-            <div class="card summary-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="fa fa-check-circle mr-2" style="font-size: 1.2rem;"></i>
-                        <div>
-                            <h5 class="mb-0" style="font-size: 0.9rem;">Tamamlanan Sipariş</h5>
-                            <h4 class="mb-0" style="font-size: 1.4rem;">${completedSiparis}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-2">
-            <div class="card summary-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white;">
-                <div class="card-body text-center p-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="fa fa-clock-o mr-2" style="font-size: 1.2rem;"></i>
-                        <div>
-                            <h5 class="mb-0" style="font-size: 0.9rem;">Devam Eden Sipariş</h5>
-                            <h4 class="mb-0" style="font-size: 1.4rem;">${ongoingSiparis}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Planlanan sayısını güncelle (üretim planı sayısı)
-    const planlananCount = document.getElementById('planlanan-count');
-    if (planlananCount) {
-        planlananCount.textContent = totalOpti;
-    }
-    
-    // Son güncelleme zamanını güncelle
-    const lastUpdate = document.getElementById('lastUpdate');
-    if (lastUpdate) {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('tr-TR', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-        });
-        lastUpdate.textContent = `Son güncelleme: ${timeStr} (${totalOpti} kayıt)`;
-    }
-}
+
+
+
+
+
 
 function updateCompletedToggle() {
     const completedCountElement = document.getElementById('completedCount');
@@ -1500,25 +1456,46 @@ function updateCompletedToggle() {
     }
 }
 
-function debouncedApplyFilters() {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-    
+// Enhanced debounced filters with performance optimization
+const debouncedApplyFilters = utils.debounce(() => {
         loadProductionData();
     }, 300);
-}
 
+// Enhanced auto-update with better conditions
 function startAutoUpdate() {
     if (updateInterval) {
         clearInterval(updateInterval);
     }
     
     updateInterval = setInterval(() => {
-        if (!document.hidden && !document.querySelector('.modal.show')) {
+        // Only update if page is visible and no modals are open
+        if (!document.hidden && 
+            !document.querySelector('.modal.show') && 
+            !document.querySelector('.swal2-container')) {
         
+            // Add small delay to prevent concurrent updates
+            setTimeout(() => {
+                if (!document.hidden) {
             loadProductionData();
+                }
+            }, Math.random() * 1000); // Random delay 0-1 second
         }
     }, 30000); // 30 saniyede bir güncelle
+    
+    // Pause updates when page becomes hidden
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        } else {
+            // Restart auto-update when page becomes visible
+            startAutoUpdate();
+            // Immediate update when page becomes visible
+            setTimeout(() => loadProductionData(), 1000);
+        }
+    });
 }
 
 function clearFilters() {
@@ -1551,14 +1528,26 @@ function clearFilters() {
     loadProductionData();
 }
 
+// Enhanced table event binding with better performance
 function bindTableEvents() {
-    document.querySelectorAll('#plannedTableBody tr[data-opti]').forEach(row => {
-        row.addEventListener('click', (e) => {
-            if (!e.target.closest('button') && !e.target.closest('a')) {
+    const tbody = document.getElementById('plannedTableBody');
+    if (!tbody) return;
+    
+    // Remove existing event listeners to prevent duplicates
+    tbody.removeEventListener('click', handleTableClick);
+    
+    // Use event delegation for better performance
+    tbody.addEventListener('click', handleTableClick);
+}
+
+// Table click handler
+function handleTableClick(e) {
+    const row = e.target.closest('tr[data-opti]');
+    if (row && !e.target.closest('button') && !e.target.closest('a')) {
+        e.preventDefault();
+        e.stopPropagation();
                 showOptiDetails(row.dataset.opti);
             }
-        });
-    });
 }
 
 function showLoading() {
@@ -1569,24 +1558,36 @@ function hideLoading() {
     // Loading overlay'i gizli yap - kullanıcı fark etmesin
 }
 
-function showError(message, title = 'Hata') {
-    console.error('❌ Hata:', message);
-    
-    // Toast notification göster
+// Enhanced error handling with better UX
+const errorHandler = {
+    show: (message, title = 'Hata', type = 'error') => {
+        console.error('❌ Error:', message);
+        
+        try {
+            if (frappe && frappe.show_alert) {
     frappe.show_alert({
         message: message,
-        indicator: 'red'
+                    indicator: type === 'error' ? 'red' : 'yellow'
     }, 5);
+            }
+            
+            // Show detailed modal for critical errors
+            if (type === 'error' && (message.includes('API') || message.includes('network') || message.includes('timeout'))) {
+                errorHandler.showDetailedModal(message, title);
+            }
+        } catch (error) {
+            console.error('Error showing message:', error);
+        }
+    },
     
-    // Detaylı hata modal'ı
-    if (message.includes('API') || message.includes('network')) {
+    showDetailedModal: (message, title) => {
         const modal = $(`
             <div class="modal fade" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header bg-danger text-white">
                             <h5 class="modal-title">
-                                <i class="fa fa-exclamation-triangle mr-2"></i>${title}
+                                <i class="fa fa-exclamation-triangle mr-2"></i>${utils.escapeHtml(title)}
                             </h5>
                             <button type="button" class="close text-white" data-dismiss="modal">
                                 <span>&times;</span>
@@ -1596,14 +1597,11 @@ function showError(message, title = 'Hata') {
                             <div class="alert alert-danger">
                                 <i class="fa fa-exclamation-circle mr-2"></i>
                                 <strong>Hata Detayı:</strong><br>
-                                ${message}
+                                ${utils.escapeHtml(message)}
                             </div>
                             <div class="mt-3">
                                 <button class="btn btn-primary" onclick="loadProductionData()">
                                     <i class="fa fa-refresh mr-2"></i>Tekrar Dene
-                                </button>
-                                <button class="btn btn-secondary ml-2" onclick="clearCache()">
-                                    <i class="fa fa-trash mr-2"></i>Cache Temizle
                                 </button>
                             </div>
                         </div>
@@ -1613,66 +1611,97 @@ function showError(message, title = 'Hata') {
         `);
         
         modal.modal('show');
+        
+        // Auto close after 10 seconds
+        setTimeout(() => {
+            modal.modal('hide');
+        }, 10000);
     }
+};
+
+// Backward compatibility
+function showError(message, title = 'Hata') {
+    errorHandler.show(message, title, 'error');
 }
 
-// Cache temizleme
-function clearCache() {
-    dataCache.clear();
-    modalCache.clear();
-    lastCacheUpdate = 0;
-    activeModals.clear();
-    closeAllModals();
-    
-    frappe.show_alert('Tüm cache temizlendi', 'green');
-}
+
 
 // Modal fonksiyonları
+// Enhanced Opti Details Modal with modern design
 function showOptiDetails(optiNo) {
-    const modal = $(`
-        <div class="modal fade" tabindex="-1">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">
-                            <i class="fa fa-cogs mr-2"></i>Opti ${optiNo} - Sipariş Detayları
-                        </h5>
-                        <button type="button" class="close text-white" data-dismiss="modal">
-                            <span>&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body p-0">
-                        <div id="opti-details-content">
-                            <div class="text-center p-4">
-                                <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `);
+    if (!optiNo) {
+        errorHandler.show('Geçersiz Opti numarası');
+        return;
+    }
     
-    modal.modal('show');
+    const modalId = 'opti-details-' + Date.now();
+    const cacheKey = `opti-details-${optiNo}`;
     
-    frappe.call({
-        method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_opti_details_for_takip',
-        args: { opti_no: optiNo },
-        callback: function(r) {
-                    if (r.exc) {
-                showError('Opti detayları yüklenirken hata: ' + r.exc);
+    // Check cache first
+    const cachedData = modalCache.get(cacheKey);
+    if (cachedData && (Date.now() - cachedData.timestamp) < MODAL_CACHE_DURATION) {
+        const modal = modalManager.createModal(
+            modalId, 
+            `Opti ${optiNo} - Sipariş Detayları`,
+            'modal-lg',
+            '#dc3545'
+        );
+        if (modal) {
+            setTimeout(() => {
+                updateOptiDetailsModal(cachedData.data, modalId);
+            }, 100);
+        }
                         return;
                     }
                     
-            const data = r.message;
-            if (data.error) {
-                showError(data.error);
-                return;
+    const modal = modalManager.createModal(
+        modalId, 
+        `Opti ${optiNo} - Sipariş Detayları`,
+        'modal-lg',
+        '#dc3545'
+    );
+    
+    if (!modal) return;
+    
+    // Enhanced API call with better error handling
+    (async () => {
+        try {
+            const data = await apiService.call(
+                'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_opti_details_for_takip',
+                { opti_no: optiNo }
+            );
+            
+            if (!data) {
+                throw new Error('Opti detayları alınamadı');
             }
             
-            updateOptiDetailsModal(data);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Cache the data
+            modalCache.set(cacheKey, {
+                data: data,
+                timestamp: Date.now()
+            });
+            
+            updateOptiDetailsModal(data, modalId);
+            
+        } catch (error) {
+            console.error('Opti details error:', error);
+            modalManager.updateModalContent(modalId, `
+                <div class="alert alert-danger">
+                    <i class="fa fa-exclamation-triangle mr-2"></i>
+                    <strong>Hata:</strong> ${utils.escapeHtml(error.message)}
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-primary" onclick="showOptiDetails('${optiNo}')">
+                        <i class="fa fa-refresh mr-2"></i>Tekrar Dene
+                    </button>
+                </div>
+            `);
         }
-    });
+    })();
 }
 
 function showOrderDetails(salesOrder) {
@@ -1721,213 +1750,177 @@ function showOrderDetails(salesOrder) {
     });
 }
 
+// Enhanced Work Orders Modal with modern design
 function showWorkOrders(salesOrder) {
+    if (!salesOrder) {
+        errorHandler.show('Geçersiz sipariş numarası');
+        return;
+    }
+    
     console.log('showWorkOrders called with salesOrder:', salesOrder);
     
     const modalId = 'work-orders-' + Date.now();
     const cacheKey = `work-orders-${salesOrder}`;
     
-    // Cache kontrolü
+    // Check cache first
     const cachedData = modalCache.get(cacheKey);
     if (cachedData && (Date.now() - cachedData.timestamp) < MODAL_CACHE_DURATION) {
         console.log('Using cached data for work orders');
-        const modal = createModal(modalId, `İş Emirleri Detayları`, 'modal-lg');
+        const modal = modalManager.createModal(
+            modalId, 
+            `İş Emirleri - ${salesOrder}`,
+            'modal-lg',
+            '#28a745'
+        );
         if (modal) {
-            // Modal content element'inin varlığını kontrol et
-            const contentElement = $(`#modal-content-${modalId}`);
-            if (contentElement.length) {
                             setTimeout(() => {
                 updateWorkOrdersModal(cachedData.data, modalId, salesOrder);
             }, 100);
-            } else {
-                console.error('Modal content element not found in cache mode');
-            }
         }
         return;
     }
     
-            const modal = createModal(modalId, `İş Emirleri Detayları`, 'modal-lg');
+    const modal = modalManager.createModal(
+        modalId, 
+        `İş Emirleri - ${salesOrder}`,
+        'modal-lg',
+        '#28a745'
+    );
+    
     if (!modal) {
-        showError('Modal oluşturulamadı');
+        errorHandler.show('Modal oluşturulamadı');
         return;
     }
     
-    // Modal content element'inin varlığını kontrol et
-    const contentElement = $(`#modal-content-${modalId}`);
-    if (!contentElement.length) {
-        console.error('Modal content element not found after creation');
-        showError('Modal içeriği oluşturulamadı');
-        return;
-    }
-    
-    // API çağrısı
-    frappe.call({
-        method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_work_orders_for_takip',
-        args: { sales_order: salesOrder },
-        timeout: 30,
-        callback: function(r) {
-            console.log('API Response:', r);
-            console.log('API Response message:', r.message);
-            console.log('API Response type:', typeof r.message);
+    // Enhanced API call
+    (async () => {
+        try {
+            modalManager.showModalLoading(modalId, 'İş emirleri yükleniyor...');
             
-            if (r.exc) {
-                console.error('API Error:', r.exc);
-                showError('İş emirleri yüklenirken hata: ' + r.exc);
-                modal.modal('hide');
-                return;
-            }
+            const data = await apiService.call(
+                'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_work_orders_for_takip',
+                { sales_order: salesOrder }
+            );
             
-            const data = r.message;
             console.log('Work Orders Data:', data);
-            console.log('Data length:', data ? data.length : 'undefined');
-            console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
             
             if (!data) {
-                showError('İş emirleri verisi alınamadı');
-                modal.modal('hide');
-                return;
+                throw new Error('İş emirleri verisi alınamadı');
             }
             
             if (data.error) {
-                showError(data.error);
-                modal.modal('hide');
-                return;
+                throw new Error(data.error);
             }
             
-            // Cache'e kaydet
+            // Cache the data
             modalCache.set(cacheKey, {
                 data: data,
                 timestamp: Date.now()
             });
             
             updateWorkOrdersModal(data, modalId, salesOrder);
-        },
-        error: function(err) {
-            console.error('Network Error:', err);
-            showError('Bağlantı hatası: ' + err);
-            modal.modal('hide');
+            
+        } catch (error) {
+            console.error('Work Orders Error:', error);
+            modalManager.updateModalContent(modalId, `
+                <div class="alert alert-danger">
+                    <i class="fa fa-exclamation-triangle mr-2"></i>
+                    <strong>Hata:</strong> ${utils.escapeHtml(error.message)}
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-primary" onclick="showWorkOrders('${salesOrder}')">
+                        <i class="fa fa-refresh mr-2"></i>Tekrar Dene
+                    </button>
+                </div>
+            `);
         }
-    });
+    })();
 }
 
-function updateOptiDetailsModal(data) {
-    const content = $('#opti-details-content');
+// Enhanced Opti Details Modal Update with modern design
+function updateOptiDetailsModal(data, modalId) {
+    if (!data || !data.orders) {
+        modalManager.updateModalContent(modalId, `
+            <div class="alert alert-warning">
+                <i class="fa fa-exclamation-triangle mr-2"></i>
+                Opti detayları bulunamadı
+            </div>
+        `);
+        return;
+    }
     
-    let html = `
-        <div class="alert alert-info">
-            <i class="fa fa-info-circle mr-2"></i>
-            <strong>Opti ${data.opti_no}</strong> - Toplam ${data.orders.length} sipariş planlandı
-        </div>
-        
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <div class="card bg-danger text-white">
-                    <div class="card-body text-center">
-                        <h3 class="mb-0">${data.summary.total_pvc}</h3>
-                        <small>Toplam Profil</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-info text-white">
-                    <div class="card-body text-center">
-                        <h3 class="mb-0">${data.summary.total_cam}</h3>
-                        <small>Toplam Cam</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-success text-white">
-                    <div class="card-body text-center">
-                        <h3 class="mb-0">${data.summary.total_mtul.toFixed(2)}</h3>
-                        <small>Toplam MTÜL/m²</small>
-                    </div>
-                </div>
+    // Update modal title with success icon
+    modalManager.updateModalTitle(modalId, `Opti ${data.opti_no} - Sipariş Detayları`, 'fa-cogs');
+    
+    // Calculate totals if not provided
+    const totals = data.summary || calculateOptiTotals(data.orders);
+    
+    const html = `
+        <!-- Info Banner -->
+        <div class="alert alert-info d-flex align-items-center mb-4">
+            <i class="fa fa-info-circle mr-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="mb-0"><strong>Opti ${utils.escapeHtml(data.opti_no)}</strong></h6>
+                <small>Toplam ${data.orders.length} sipariş planlandı</small>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-header bg-light">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; border-radius: 12px;">
+                        <i class="fa fa-cube mb-2" style="font-size: 2rem; opacity: 0.8;"></i>
+                        <h3 class="mb-1">${totals.total_pvc || 0}</h3>
+                        <small style="font-weight: 500;">Toplam Profil</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; border-radius: 12px;">
+                        <i class="fa fa-square mb-2" style="font-size: 2rem; opacity: 0.8;"></i>
+                        <h3 class="mb-1">${totals.total_cam || 0}</h3>
+                        <small style="font-weight: 500;">Toplam Cam</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; border-radius: 12px;">
+                        <i class="fa fa-calculator mb-2" style="font-size: 2rem; opacity: 0.8;"></i>
+                        <h3 class="mb-1">${utils.formatNumber(totals.total_mtul || 0, 2)}</h3>
+                        <small style="font-weight: 500;">Toplam MTÜL/m²</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Orders Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; border-radius: 12px 12px 0 0;">
+                <h6 class="mb-0">
                 <i class="fa fa-list mr-2"></i>Sipariş Detayları
+                </h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead class="bg-info text-white">
+                        <thead style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white;">
                             <tr>
-                                <th>Sipariş No</th>
-                                <th>Bayi</th>
-                                <th>Müşteri</th>
-                                <th>Seri</th>
-                                <th>Renk</th>
-                                <th>Adet</th>
-                                <th>MTÜL/m²</th>
-                                <th>Durum & Açıklama</th>
-                                <th>İşlemler</th>
+                                <th style="border: none; padding: 8px 6px; width: 12%;">Sipariş No</th>
+                                <th style="border: none; padding: 8px 6px; width: 12%;">Bayi</th>
+                                <th style="border: none; padding: 8px 6px; width: 12%;">Müşteri</th>
+                                <th style="border: none; padding: 8px 6px; width: 10%;">Seri</th>
+                                <th style="border: none; padding: 8px 6px; width: 10%;">Renk</th>
+                                <th style="border: none; padding: 8px 6px; width: 8%;">Adet</th>
+                                <th style="border: none; padding: 8px 6px; width: 10%;">MTÜL/m²</th>
+                                <th style="border: none; padding: 8px 6px; width: 16%;">Durum & Açıklama</th>
+                                <th style="border: none; padding: 8px 6px; width: 10%;">İşlemler</th>
                             </tr>
                         </thead>
-                        <tbody>
-    `;
-    
-    data.orders.forEach(order => {
-        const orderDate = formatDate(order.siparis_tarihi);
-        const statusText = getStatusText(order.uretim_plani_durumu);
-        const statusClass = getStatusClass(order.uretim_plani_durumu);
-        const description = order.siparis_aciklama || 'Açıklama yok';
-        
-        // Acil durumu kontrol et
-        const isUrgent = order.is_urgent || order.urgent || false;
-        const urgencyBadge = isUrgent ? 
-            '<span class="badge badge-danger mr-1"><i class="fa fa-exclamation-triangle"></i> ACİL</span>' : 
-            '<span class="badge badge-secondary mr-1"><i class="fa fa-check-circle"></i> NORMAL</span>';
-        
-        html += `
-            <tr>
-                <td>
-                    <div class="d-flex flex-column">
-                        <span class="badge badge-info mb-1">${order.sales_order}</span>
-                        <small class="text-muted">${orderDate}</small>
-                    </div>
-                </td>
-                <td class="text-muted">${order.bayi || '-'}</td>
-                <td class="text-muted">${order.musteri}</td>
-                <td>
-                    <span class="badge badge-info">${order.seri || '-'}</span>
-                </td>
-                <td>
-                    <span class="badge badge-warning">${order.renk || '-'}</span>
-                </td>
-                <td>
-                    ${order.pvc_qty > 0 ? `<span class="badge badge-danger d-block mb-1">${order.pvc_qty} Profil</span>` : ''}
-                    ${order.cam_qty > 0 ? `<span class="badge badge-primary d-block">${order.cam_qty} Cam</span>` : ''}
-                </td>
-                <td>
-                    <span class="badge badge-success">${order.total_mtul.toFixed(2)}</span>
-                </td>
-                <td>
-                    <div class="d-flex flex-column">
-                        <div class="mb-1">
-                            ${urgencyBadge}
-                            <span class="badge badge-${statusClass}">✔ ${statusText}</span>
-                        </div>
-                        <small class="text-muted">${description}</small>
-                    </div>
-                </td>
-                <td>
-                    <div class="d-flex flex-column">
-                        <a href="/app/sales-order/${order.sales_order}" target="_blank" class="btn btn-sm btn-outline-primary mb-1">
-                            <i class="fa fa-external-link mr-1"></i>Sipariş
-                        </a>
-                        <button class="btn btn-sm btn-outline-success" onclick="showWorkOrders('${order.sales_order}')">
-                            <i class="fa fa-bars mr-1"></i>İş Emirleri
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-    
-    html += `
+                        <tbody style="background: white;">
+                            ${generateOptiOrderRows(data.orders)}
                         </tbody>
                     </table>
                 </div>
@@ -1935,176 +1928,398 @@ function updateOptiDetailsModal(data) {
         </div>
     `;
     
-    content.html(html);
+    modalManager.updateModalContent(modalId, html);
 }
 
+// Helper function to calculate opti totals
+function calculateOptiTotals(orders) {
+    return orders.reduce((totals, order) => {
+        totals.total_pvc += parseInt(order.pvc_qty || order.pvc_count || 0);
+        totals.total_cam += parseInt(order.cam_qty || order.cam_count || 0);
+        totals.total_mtul += parseFloat(order.total_mtul || order.toplam_mtul_m2 || 0);
+        return totals;
+    }, { total_pvc: 0, total_cam: 0, total_mtul: 0 });
+}
+
+// Helper function to generate order rows
+function generateOptiOrderRows(orders) {
+    return orders.map(order => {
+        const orderDate = utils.formatDate(order.siparis_tarihi);
+        const description = order.siparis_aciklama || order.remarks || 'Açıklama yok';
+        const isUrgent = order.is_urgent || order.urgent || false;
+        const urgencyBadge = isUrgent ? 
+            '<span class="badge badge-danger mr-1"><i class="fa fa-exclamation-triangle"></i> ACİL</span>' : 
+            '<span class="badge badge-success mr-1"><i class="fa fa-check-circle"></i> NORMAL</span>';
+        
+        const pvcCount = parseInt(order.pvc_qty || order.pvc_count || 0);
+        const camCount = parseInt(order.cam_qty || order.cam_count || 0);
+        const mtul = parseFloat(order.total_mtul || order.toplam_mtul_m2 || 0);
+        
+        return `
+            <tr style="transition: all 0.2s ease;">
+                <td style="padding: 8px 6px;">
+                    <div class="d-flex flex-column">
+                        <span class="badge badge-info mb-1" style="font-size: 0.7rem;">${utils.escapeHtml(order.sales_order || '-')}</span>
+                        <small class="text-muted" style="font-size: 0.65rem;">${orderDate}</small>
+                    </div>
+                </td>
+                <td style="padding: 8px 6px; font-size: 0.8rem;">${utils.truncateText(order.bayi || '-', 15)}</td>
+                <td style="padding: 8px 6px; font-size: 0.8rem;">${utils.truncateText(order.musteri || '-', 15)}</td>
+                <td style="padding: 8px 6px;">
+                    <span class="badge badge-info" style="font-size: 0.7rem;">${utils.escapeHtml(order.seri || '-')}</span>
+                </td>
+                <td style="padding: 8px 6px;">
+                    <span class="badge badge-warning" style="font-size: 0.7rem;">${utils.escapeHtml(order.renk || '-')}</span>
+                </td>
+                <td style="padding: 8px 6px;">
+                    ${pvcCount > 0 ? `<span class="badge badge-danger d-block mb-1" style="font-size: 0.65rem;">${pvcCount} P</span>` : ''}
+                    ${camCount > 0 ? `<span class="badge badge-primary d-block" style="font-size: 0.65rem;">${camCount} C</span>` : ''}
+                    ${pvcCount === 0 && camCount === 0 ? '<span class="badge badge-secondary" style="font-size: 0.65rem;">-</span>' : ''}
+                </td>
+                <td style="padding: 8px 6px;">
+                    <span class="badge badge-success" style="font-size: 0.7rem;">${utils.formatNumber(mtul, 2)}</span>
+                </td>
+                <td style="padding: 8px 6px;">
+                    <div class="mb-1">${urgencyBadge}</div>
+                    <small class="text-muted" style="font-size: 0.65rem;">${utils.truncateText(description, 25)}</small>
+                </td>
+                <td style="padding: 8px 6px;">
+                    <div class="btn-group-vertical" style="width: 100%;">
+                        <a href="/app/sales-order/${order.sales_order}" target="_blank" 
+                           class="btn btn-sm btn-outline-primary mb-1" style="font-size: 0.65rem; padding: 2px 4px;">
+                            <i class="fa fa-external-link"></i>
+                        </a>
+                        <button class="btn btn-sm btn-outline-success" 
+                                onclick="showWorkOrders('${order.sales_order}')" style="font-size: 0.65rem; padding: 2px 4px;">
+                            <i class="fa fa-cogs"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Enhanced Order Details Modal Update
 function updateOrderDetailsModal(data, modalId) {
-    const content = $(`#modal-content-${modalId}`);
+    if (!data) {
+        modalManager.updateModalContent(modalId, `
+            <div class="alert alert-warning">
+                <i class="fa fa-exclamation-triangle mr-2"></i>
+                Sipariş detayları bulunamadı
+                </div>
+        `);
+        return;
+    }
     
-    // Satış siparişinin acil durumunu kontrol et
-    const isUrgent = data.acil || false;
-    const urgencyStatus = isUrgent ? 
+    const isUrgent = data.acil || data.is_urgent || false;
+    const urgencyBadge = isUrgent ? 
         '<span class="badge badge-danger"><i class="fa fa-exclamation-triangle mr-1"></i>ACİL</span>' : 
-        '<span class="badge badge-secondary"><i class="fa fa-check-circle mr-1"></i>NORMAL</span>';
+        '<span class="badge badge-success"><i class="fa fa-check-circle mr-1"></i>NORMAL</span>';
     
-    let html = `
+    const html = `
+        <!-- Order Info Header -->
+        <div class="alert alert-info d-flex align-items-center mb-4">
+            <i class="fa fa-shopping-cart mr-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <h6 class="mb-0"><strong>Sipariş: ${utils.escapeHtml(data.sales_order || '-')}</strong></h6>
+                <small>Sipariş detay bilgileri</small>
+            </div>
+        </div>
+        
         <div class="row">
+            <!-- Order Information -->
             <div class="col-md-6">
-                <h6><i class="fa fa-shopping-cart mr-2"></i>Sipariş Bilgileri</h6>
-                <table class="table table-sm table-bordered">
-                    <tr><td><strong>Sipariş No:</strong></td><td><span class="badge badge-primary">${data.sales_order}</span></td></tr>
-                    <tr><td><strong>Bayi:</strong></td><td>${data.bayi || '-'}</td></tr>
-                    <tr><td><strong>Müşteri:</strong></td><td>${data.musteri || '-'}</td></tr>
-                    <tr><td><strong>Sipariş Tarihi:</strong></td><td>${formatDate(data.siparis_tarihi)}</td></tr>
-                    <tr><td><strong>Teslim Tarihi:</strong></td><td>${formatDate(data.bitis_tarihi)}</td></tr>
-                    <tr><td><strong>Öncelik:</strong></td><td>${urgencyStatus}</td></tr>
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-header" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white;">
+                        <h6 class="mb-0">
+                            <i class="fa fa-shopping-cart mr-2"></i>Sipariş Bilgileri
+                        </h6>
+            </div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Sipariş No:</strong></td>
+                                    <td><span class="badge badge-primary">${utils.escapeHtml(data.sales_order || '-')}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Bayi:</strong></td>
+                                    <td>${utils.escapeHtml(data.bayi || '-')}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Müşteri:</strong></td>
+                                    <td>${utils.escapeHtml(data.musteri || '-')}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Sipariş Tarihi:</strong></td>
+                                    <td><span class="badge badge-warning">${utils.formatDate(data.siparis_tarihi)}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Teslim Tarihi:</strong></td>
+                                    <td><span class="badge badge-danger">${utils.formatDate(data.bitis_tarihi)}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Öncelik:</strong></td>
+                                    <td>${urgencyBadge}</td>
+                                </tr>
+                            </tbody>
                 </table>
             </div>
+        </div>
+                </div>
+            
+            <!-- Production Information -->
             <div class="col-md-6">
-                <h6><i class="fa fa-cogs mr-2"></i>Üretim Bilgileri</h6>
-                <table class="table table-sm table-bordered">
-                    <tr><td><strong>Opti No:</strong></td><td><span class="badge badge-warning">${data.opti_no || '-'}</span></td></tr>
-                    <tr><td><strong>Seri:</strong></td><td>${data.seri || '-'}</td></tr>
-                    <tr><td><strong>Renk:</strong></td><td>${data.renk || '-'}</td></tr>
-                    <tr><td><strong>PVC:</strong></td><td><span class="badge badge-danger">${data.pvc_count || 0}</span></td></tr>
-                    <tr><td><strong>Cam:</strong></td><td><span class="badge badge-primary">${data.cam_count || 0}</span></td></tr>
-                    <tr><td><strong>Toplam MTÜL:</strong></td><td><span class="badge badge-success">${(data.toplam_mtul || 0).toFixed(2)}</span></td></tr>
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">
+                            <h6 class="mb-0">
+                            <i class="fa fa-cogs mr-2"></i>Üretim Bilgileri
+                            </h6>
+                        </div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Opti No:</strong></td>
+                                    <td><span class="badge badge-warning">${utils.escapeHtml(data.opti_no || '-')}</span></td>
+                                        </tr>
+                                <tr>
+                                    <td><strong>Seri:</strong></td>
+                                    <td><span class="badge badge-info">${utils.escapeHtml(data.seri || '-')}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Renk:</strong></td>
+                                    <td><span class="badge badge-warning">${utils.escapeHtml(data.renk || '-')}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PVC Adet:</strong></td>
+                                    <td><span class="badge badge-danger">${data.pvc_count || 0}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Cam Adet:</strong></td>
+                                    <td><span class="badge badge-primary">${data.cam_count || 0}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Toplam MTÜL:</strong></td>
+                                    <td><span class="badge badge-success">${utils.formatNumber(data.toplam_mtul || 0, 2)}</span></td>
+                                        </tr>
+                                    </tbody>
                 </table>
+                    </div>
+                            </div>
             </div>
         </div>
         
         ${data.aciklama ? `
-        <div class="row mt-3">
+        <!-- Description Section -->
+        <div class="row">
             <div class="col-12">
-                <h6><i class="fa fa-comment mr-2"></i>Açıklama</h6>
-                <div class="alert alert-info">
-                    ${data.aciklama}
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white;">
+                        <h6 class="mb-0">
+                            <i class="fa fa-comment mr-2"></i>Açıklama
+                            </h6>
+                        </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-0">
+                            ${utils.escapeHtml(data.aciklama)}
+                            </div>
+                    </div>
                 </div>
             </div>
         </div>
         ` : ''}
-    `;
-    
-    content.html(html);
-}
-
-function updateWorkOrdersModal(data, modalId, salesOrder) {
-    console.log('Updating Work Orders Modal with data:', data);
-    
-    // Modal content element'ini bul
-    let content = $(`#modal-content-${modalId}`);
-    if (!content.length) {
-        content = $(`#${modalId}`).find('.modal-content-inner');
-    }
-    
-    if (!content.length) {
-        console.error('Modal content element not found');
-        return;
-    }
-    
-    let html = `
-        <div class="mb-3">
-            <h6 class="text-muted">
-                <i class="fa fa-shopping-cart mr-2"></i>Sipariş No: ${salesOrder}
-            </h6>
-        </div>
-    `;
-    
-    if (data && Array.isArray(data) && data.length > 0) {
-        data.forEach((wo, index) => {
-            const statusText = getStatusText(wo.status);
-            const statusClass = getStatusClass(wo.status);
-            
-            html += `
-                <div class="work-order-section mb-4">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0;">
-                            <h6 class="mb-0">
-                                <i class="fa fa-cogs mr-2"></i>İş Emri: ${wo.name}
-                            </h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0">
-                                    <thead style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-                                        <tr>
-                                            <th style="border: none;">İş Emri</th>
-                                            <th style="border: none;">Durum</th>
-                                            <th style="border: none;">Miktar</th>
-                                            <th style="border: none;">Üretilen</th>
-                                            <th style="border: none;">Planlanan Başlangıç</th>
-                                            <th style="border: none;">Planlanan Bitiş</th>
-                                            <th style="border: none;">Fiili Başlangıç</th>
-                                            <th style="border: none;">Fiili Bitiş</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td>
-                                                <a href="/app/work-order/${wo.name}" target="_blank" class="font-weight-bold text-primary">
-                                                    ${wo.name}
-                                                </a>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-${statusClass}" style="font-size: 0.8rem;">${statusText}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-info" style="font-size: 0.8rem;">${wo.qty || 0}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-success" style="font-size: 0.8rem;">${wo.produced_qty || 0}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(wo.planned_start_date)}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(wo.planned_end_date)}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(wo.actual_start_date)}</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(wo.actual_end_date)}</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="operations-section mt-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-info mb-0">
-                                <i class="fa fa-list mr-2"></i>Operasyonlar:
-                            </h6>
-                            <button class="btn btn-sm btn-outline-info" onclick="toggleOperations('${wo.name}')" id="toggle-btn-${wo.name}">
-                                <i class="fa fa-chevron-down" id="chevron-${wo.name}"></i> Göster
-                            </button>
-                        </div>
-                        <div class="operations-container" id="operations-content-${wo.name}" style="display: none;">
-                            <div class="text-center p-3">
-                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                <span class="ml-2">Operasyonlar yükleniyor...</span>
-                            </div>
+        
+        <!-- Action Buttons -->
+        <div class="row mt-3">
+            <div class="col-12 text-center">
+                <div class="btn-group" role="group">
+                    <a href="/app/sales-order/${data.sales_order}" target="_blank" class="btn btn-primary">
+                        <i class="fa fa-external-link mr-2"></i>Siparişi Aç
+                    </a>
+                    <button class="btn btn-success" onclick="showWorkOrders('${data.sales_order}')">
+                        <i class="fa fa-cogs mr-2"></i>İş Emirlerini Gör
+                    </button>
                         </div>
                     </div>
                 </div>
             `;
             
+    modalManager.updateModalContent(modalId, html);
+}
 
-        });
-    } else {
-        html = '<div class="alert alert-info text-center">İş emri bulunamadı</div>';
+// Enhanced Work Orders Modal Update with modern design
+function updateWorkOrdersModal(data, modalId, salesOrder) {
+    console.log('Updating Work Orders Modal with data:', data);
+    
+    // Update modal title
+    modalManager.updateModalTitle(modalId, `İş Emirleri - ${salesOrder}`, 'fa-cogs');
+    
+    if (!data || (!Array.isArray(data) && !data.work_orders)) {
+        modalManager.updateModalContent(modalId, `
+            <div class="alert alert-info text-center">
+                <i class="fa fa-info-circle mr-2"></i>
+                Bu sipariş için iş emri bulunamadı
+            </div>
+        `);
+        return;
     }
     
-    try {
-        content.html(html);
-        console.log('Work Orders Modal updated successfully');
-    } catch (error) {
-        console.error('Error updating Work Orders Modal:', error);
-        content.html('<div class="alert alert-danger">Modal güncellenirken hata oluştu</div>');
+    const workOrders = Array.isArray(data) ? data : (data.work_orders || []);
+    
+    if (workOrders.length === 0) {
+        modalManager.updateModalContent(modalId, `
+            <div class="alert alert-warning text-center">
+                <i class="fa fa-exclamation-triangle mr-2"></i>
+                Bu sipariş için henüz iş emri oluşturulmamış
+        </div>
+        `);
+        return;
     }
+    
+    const html = `
+        <div style="padding: 0;">
+            ${workOrders.map((wo, index) => {
+                const statusBadge = getWorkOrderStatusBadge(wo.status);
+                const progress = calculateWorkOrderProgress(wo);
+                
+                return `
+                    <div class="card shadow-sm mb-3" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                        <!-- Work Order Header -->
+                        <div class="card-header d-flex justify-content-between align-items-center" 
+                             style="background: linear-gradient(135deg, #6f42c1 0%, #8b5cf6 100%); color: white; padding: 12px 20px; border-radius: 8px 8px 0 0;">
+                            <div class="d-flex align-items-center">
+                                <i class="fa fa-cog mr-2"></i>
+                                <span style="font-weight: 600; font-size: 0.95rem;">İş Emri: ${utils.escapeHtml(wo.name || `WO-${index + 1}`)}</span>
+                        </div>
+                            <button class="btn btn-light btn-sm" style="padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; background-color: rgba(255,255,255,0.9); color: #6f42c1; border: none;"
+                                    onclick="toggleOperations('${wo.name}')" 
+                                    id="toggle-btn-${wo.name}">
+                                ${statusBadge.label}
+                            </button>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div style="padding: 0 20px; margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <small style="color: #6c757d; font-size: 0.8rem;">İlerleme Durumu</small>
+                                <small style="color: #6c757d; font-size: 0.8rem;">${progress.percentage.toFixed(1)}%</small>
+                            </div>
+                            <div class="progress" style="height: 6px; border-radius: 3px; background-color: #f1f3f4;">
+                                <div class="progress-bar ${progress.colorClass}" 
+                                     style="width: ${progress.percentage}%; border-radius: 3px;" 
+                                     role="progressbar">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Work Order Details Table -->
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background-color: #f8f9fa;">
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Durum</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Miktar</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Üretilen</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Plan Başlangıç</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Plan Bitiş</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Fiili Başlangıç</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Fiili Bitiş</th>
+                                        <th style="padding: 8px 12px; text-align: left; font-size: 0.8rem; color: #6c757d; border-bottom: 1px solid #dee2e6;">Operasyonlar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span class="badge" style="background-color: ${statusBadge.class === 'success' ? '#10b981' : statusBadge.class === 'warning' ? '#f59e0b' : statusBadge.class === 'danger' ? '#ef4444' : '#6b7280'}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;">
+                                                ${statusBadge.label}
+                                            </span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span style="color: #374151; font-weight: 500;">${wo.qty || 0}</span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span style="color: #10b981; font-weight: 500;">${wo.produced_qty || 0}</span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span style="color: #6b7280; font-size: 0.85rem;">${utils.formatDate(wo.planned_start_date) || '-'}</span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span style="color: #6b7280; font-size: 0.85rem;">${utils.formatDate(wo.planned_end_date) || '-'}</span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span style="color: #3b82f6; font-size: 0.85rem;">${utils.formatDate(wo.actual_start_date) || '-'}</span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <span style="color: #3b82f6; font-size: 0.85rem;">${utils.formatDate(wo.actual_end_date) || '-'}</span>
+                                            </td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #f1f3f4;">
+                                            <button class="btn" style="background-color: #f3f4f6; border: 1px solid #d1d5db; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: #374151;"
+                                                    onclick="toggleOperations('${wo.name}')" 
+                                                    id="operations-btn-${wo.name}">
+                                                <i class="fa fa-chevron-down" id="chevron-${wo.name}"></i> Operasyonlar
+                                            </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                    </div>
+                    
+                        <!-- Operations Section -->
+                        <div class="operations-section" id="operations-section-${wo.name}">
+                        <div class="operations-container" id="operations-content-${wo.name}" style="display: none;">
+                                <div class="text-center p-3" style="background-color: #f8f9fa;">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                    <span class="ml-2" style="color: #6b7280; font-size: 0.9rem;">Operasyonlar yükleniyor...</span>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                `;
+            }).join('')}
+                </div>
+            `;
+            
+        modalManager.updateModalContent(modalId, html);
+    console.log('Work Orders Modal updated successfully');
+}
+
+
+
+// Helper function to get work order status badge
+function getWorkOrderStatusBadge(status) {
+    const statusMap = {
+        'Draft': { label: 'Taslak', class: 'secondary' },
+        'Not Started': { label: 'Başlamadı', class: 'warning' },
+        'In Process': { label: 'İşlemde', class: 'primary' },
+        'Completed': { label: 'Tamamlandı', class: 'success' },
+        'Stopped': { label: 'Durduruldu', class: 'danger' },
+        'Closed': { label: 'Kapatıldı', class: 'secondary' }
+    };
+    
+    return statusMap[status] || { label: status || 'Bilinmiyor', class: 'secondary' };
+}
+
+// Helper function to calculate work order progress
+function calculateWorkOrderProgress(wo) {
+    const qty = parseFloat(wo.qty || 0);
+    const producedQty = parseFloat(wo.produced_qty || 0);
+    
+    if (qty === 0) {
+        return { percentage: 0, colorClass: 'bg-secondary' };
+    }
+    
+    const percentage = (producedQty / qty) * 100;
+    let colorClass = 'bg-info';
+    
+    if (percentage >= 100) colorClass = 'bg-success';
+    else if (percentage >= 75) colorClass = 'bg-primary';
+    else if (percentage >= 50) colorClass = 'bg-warning';
+    else if (percentage >= 25) colorClass = 'bg-info';
+    else colorClass = 'bg-danger';
+    
+    return { percentage: Math.min(percentage, 100), colorClass };
 }
 
 function showWorkOrderOperations(workOrderName) {
@@ -2114,14 +2329,14 @@ function showWorkOrderOperations(workOrderName) {
     // Cache kontrolü
     const cachedData = modalCache.get(cacheKey);
     if (cachedData && (Date.now() - cachedData.timestamp) < MODAL_CACHE_DURATION) {
-        const modal = createModal(modalId, `İş Emri: ${workOrderName} - Operasyon Detayları`, 'modal-xl');
+        const modal = createModal(modalId, `İş Emri: ${workOrderName} - Operasyon Detayları`, 'modal-lg');
         setTimeout(() => {
             updateWorkOrderOperationsModal(cachedData.data, workOrderName, modalId);
         }, 100);
         return;
     }
     
-    const modal = createModal(modalId, `İş Emri: ${workOrderName} - Operasyon Detayları`, 'modal-xl');
+    const modal = createModal(modalId, `İş Emri: ${workOrderName} - Operasyon Detayları`, 'modal-lg');
     
     // API çağrısı
     frappe.call({
@@ -2155,116 +2370,169 @@ function showWorkOrderOperations(workOrderName) {
 
 
 
+// Enhanced operations toggle with better UX
 function toggleOperations(workOrderName) {
     const operationsContainer = $(`#operations-content-${workOrderName}`);
     const toggleBtn = $(`#toggle-btn-${workOrderName}`);
     const chevron = $(`#chevron-${workOrderName}`);
     
+    if (!operationsContainer.length) {
+        console.error('Operations container not found:', workOrderName);
+        return;
+    }
+    
     if (operationsContainer.is(':visible')) {
-        // Operasyonları gizle
-        operationsContainer.hide();
+        // Hide operations with smooth animation
+        operationsContainer.slideUp(300);
         chevron.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-        toggleBtn.html('<i class="fa fa-chevron-down" id="chevron-' + workOrderName + '"></i> Göster');
+        toggleBtn.attr('title', 'Operasyonları göster');
     } else {
-        // Operasyonları göster
-        operationsContainer.show();
+        // Show operations with smooth animation
+        operationsContainer.slideDown(300);
         chevron.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-        toggleBtn.html('<i class="fa fa-chevron-up" id="chevron-' + workOrderName + '"></i> Gizle');
+        toggleBtn.attr('title', 'Operasyonları gizle');
         
-        // Eğer operasyonlar daha önce yüklenmemişse yükle
+        // Load operations if not already loaded
         if (operationsContainer.find('.operations-table').length === 0) {
             loadWorkOrderOperations(workOrderName, operationsContainer);
         }
     }
 }
 
+// Enhanced work order operations loading
 function loadWorkOrderOperations(workOrderName, container) {
-    // API çağrısı
-    frappe.call({
-        method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_work_order_operations_for_takip',
-        args: { work_order_name: workOrderName },
-        timeout: 15,
-        callback: function(r) {
-            console.log('Operasyon API Response:', r);
-            console.log('Operasyon API Message:', r.message);
-            
-            if (r.exc) {
-                console.error('Operasyon API Error:', r.exc);
-                container.html('<div class="alert alert-danger p-3">Operasyon detayları yüklenirken hata: ' + r.exc + '</div>');
+    if (!workOrderName || !container) {
+        console.error('Invalid parameters for loadWorkOrderOperations');
                 return;
             }
             
-            const data = r.message;
-            console.log('Operasyon Data:', data);
+    // Show loading state
+    container.html(`
+        <div class="text-center p-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="ml-2">Operasyonlar yükleniyor...</span>
+        </div>
+    `);
+    
+    // Enhanced API call with better error handling
+    (async () => {
+        try {
+            const data = await apiService.call(
+                'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_work_order_operations_for_takip',
+                { work_order_name: workOrderName }
+            );
+            
+            console.log('Operations data loaded:', data);
             
             if (!data) {
-                console.error('Operasyon data is null/undefined');
-                container.html('<div class="alert alert-danger p-3">Operasyon verisi alınamadı</div>');
-                return;
+                throw new Error('Operasyon verisi alınamadı');
             }
             
             if (data.error) {
-                console.error('Operasyon data error:', data.error);
-                container.html('<div class="alert alert-danger p-3">' + data.error + '</div>');
-                return;
+                throw new Error(data.error);
             }
             
-            console.log('Operasyonlar başarıyla yüklendi:', data.operations);
             updateWorkOrderOperationsContent(data, container);
-        },
-        error: function(err) {
-            container.html('<div class="alert alert-danger p-3">Bağlantı hatası: ' + err + '</div>');
+            
+        } catch (error) {
+            console.error('Operations loading error:', error);
+            container.html(`
+                <div class="alert alert-danger p-3">
+                    <i class="fa fa-exclamation-triangle mr-2"></i>
+                    <strong>Hata:</strong> ${utils.escapeHtml(error.message)}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-primary" 
+                                onclick="loadWorkOrderOperations('${workOrderName}', $('#operations-content-${workOrderName}'))">
+                            <i class="fa fa-refresh mr-1"></i>Tekrar Dene
+                        </button>
+                    </div>
+                </div>
+            `);
         }
-    });
+    })();
 }
 
+// Enhanced operations content update with modern design
 function updateWorkOrderOperationsContent(data, container) {
     const operations = data.operations || [];
     
-    let html = `
-        <div class="operations-table">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0">
-                    <thead style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
-                        <tr>
-                            <th style="border: none;">Operasyon</th>
-                            <th style="border: none;">İş İstasyonu</th>
-                            <th style="border: none;">Durum</th>
-                            <th style="border: none;">Tamamlanan</th>
-                            <th style="border: none;">Planlanan Başlangıç</th>
-                            <th style="border: none;">Planlanan Bitiş</th>
-                            <th style="border: none;">Fiili Başlangıç</th>
-                            <th style="border: none;">Fiili Bitiş</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-    `;
-    
-    if (operations && operations.length > 0) {
-        operations.forEach((op, index) => {
-            const statusText = getStatusText(op.status);
-            const statusClass = getStatusClass(op.status);
-            
-            html += `
-                <tr>
-                    <td><strong class="text-primary">${op.operation || '-'}</strong></td>
-                    <td><span class="badge badge-info" style="font-size: 0.8rem;">${op.workstation || '-'}</span></td>
-                    <td><span class="badge badge-${statusClass}" style="font-size: 0.8rem;">${statusText}</span></td>
-                    <td><span class="badge badge-success" style="font-size: 0.8rem;">${op.completed_qty || 0}</span></td>
-                    <td><span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(op.planned_start_time)}</span></td>
-                    <td><span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(op.planned_end_time)}</span></td>
-                    <td><span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(op.actual_start_time)}</span></td>
-                    <td><span class="badge badge-warning" style="font-size: 0.8rem;">${formatDate(op.actual_end_time)}</span></td>
-                </tr>
-            `;
-        });
-    } else {
-        html += '<tr><td colspan="8" class="text-center text-muted">Operasyon bulunamadı</td></tr>';
+    if (!operations || operations.length === 0) {
+        container.html(`
+            <div class="alert alert-info text-center">
+                <i class="fa fa-info-circle mr-2"></i>
+                Bu iş emri için operasyon bulunamadı
+            </div>
+        `);
+        return;
     }
     
-    html += `
+    const html = `
+        <div class="operations-table mt-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 8px 8px 0 0;">
+                    <h6 class="mb-0">
+                        <i class="fa fa-list mr-2"></i>Operasyon Detayları (${operations.length} adet)
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                            <thead style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                                <tr>
+                                    <th style="border: none; padding: 8px 6px; width: 20%;">Operasyon</th>
+                                    <th style="border: none; padding: 8px 6px; width: 12%;">Durum</th>
+                                    <th style="border: none; padding: 8px 6px; width: 10%;">Tamamlanan</th>
+                                    <th style="border: none; padding: 8px 6px; width: 14%;">Plan. Başlangıç</th>
+                                    <th style="border: none; padding: 8px 6px; width: 14%;">Plan. Bitiş</th>
+                                    <th style="border: none; padding: 8px 6px; width: 15%;">Fiili Başlangıç</th>
+                                    <th style="border: none; padding: 8px 6px; width: 15%;">Fiili Bitiş</th>
+                        </tr>
+                    </thead>
+                            <tbody style="background: white;">
+                                ${operations.map((op, index) => {
+                                    const statusBadge = getWorkOrderStatusBadge(op.status);
+                                    const completedQty = parseFloat(op.completed_qty || 0);
+                                    const totalQty = parseFloat(op.qty || 0);
+                                    const progress = totalQty > 0 ? (completedQty / totalQty) * 100 : 0;
+                                    
+                                    return `
+                                        <tr style="transition: all 0.2s ease;">
+                                            <td style="padding: 8px 6px;">
+                                                <strong class="text-primary" style="font-size: 0.85rem;">${utils.escapeHtml(op.operation || '-')}</strong>
+                                            </td>
+                                            <td style="padding: 8px 6px;">
+                                                <span class="badge badge-${statusBadge.class}" style="font-size: 0.7rem;">${statusBadge.label}</span>
+                                            </td>
+                                            <td style="padding: 8px 6px;">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge badge-success" style="font-size: 0.7rem;">${completedQty}</span>
+                                                    ${totalQty > 0 ? `
+                                                        <div class="progress ml-1" style="width: 40px; height: 6px;">
+                                                            <div class="progress-bar ${progress >= 100 ? 'bg-success' : progress >= 50 ? 'bg-warning' : 'bg-info'}" 
+                                                                 style="width: ${Math.min(progress, 100)}%"></div>
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            </td>
+                                            <td style="padding: 8px 6px;">
+                                                <span class="badge badge-outline-warning" style="font-size: 0.65rem;">${utils.formatDate(op.planned_start_time)}</span>
+                                            </td>
+                                            <td style="padding: 8px 6px;">
+                                                <span class="badge badge-outline-warning" style="font-size: 0.65rem;">${utils.formatDate(op.planned_end_time)}</span>
+                                            </td>
+                                            <td style="padding: 8px 6px;">
+                                                <span class="badge badge-outline-info" style="font-size: 0.65rem;">${utils.formatDate(op.actual_start_time)}</span>
+                                            </td>
+                                            <td style="padding: 8px 6px;">
+                                                <span class="badge badge-outline-info" style="font-size: 0.65rem;">${utils.formatDate(op.actual_end_time)}</span>
+                                            </td>
+                </tr>
+            `;
+                                }).join('')}
                     </tbody>
                 </table>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -2301,7 +2569,7 @@ function showWorkOrderStatus(workOrderName, currentStatus) {
                         </div>
                         <div class="form-group">
                             <label><strong>Mevcut Durum:</strong></label>
-                            <span class="badge badge-${getStatusClass(currentStatus)}">${statusOptions[currentStatus] || currentStatus}</span>
+                            <span class="badge badge-${getWorkOrderStatusBadge(currentStatus).class}">${statusOptions[currentStatus] || currentStatus}</span>
                         </div>
                         <div class="form-group">
                             <label><strong>Yeni Durum:</strong></label>
@@ -2401,7 +2669,7 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
                         </div>
                     </td>
                     <td>
-                        <span class="badge badge-${getStatusClass(workOrder.status)}">${getStatusText(workOrder.status)}</span>
+                        <span class="badge badge-${getWorkOrderStatusBadge(workOrder.status).class}">${getWorkOrderStatusBadge(workOrder.status).label}</span>
                     </td>
                     <td>
                         <span class="badge badge-info">${workOrder.qty || 0}</span>
@@ -2410,10 +2678,10 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
                         <span class="badge badge-success">${workOrder.produced_qty || 0}</span>
                     </td>
                     <td>
-                        <span class="badge badge-warning">${formatDate(workOrder.planned_start_date)}</span>
+                        <span class="badge badge-warning">${utils.formatDate(workOrder.planned_start_date)}</span>
                     </td>
                     <td>
-                        <span class="badge badge-warning">${formatDate(workOrder.planned_end_date)}</span>
+                        <span class="badge badge-warning">${utils.formatDate(workOrder.planned_end_date)}</span>
                     </td>
                 </tr>
                         </tbody>
@@ -2433,7 +2701,6 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
                         <thead class="bg-primary text-white">
                             <tr>
                                 <th>Operasyon</th>
-                                <th>İş İstasyonu</th>
                                 <th>Durum</th>
                                 <th>Tamamlanan</th>
                                 <th>Planlanan Başlangıç</th>
@@ -2447,16 +2714,12 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
     
     if (operations && operations.length > 0) {
         operations.forEach((op, index) => {
-            const statusText = getStatusText(op.status);
-            const statusClass = getStatusClass(op.status);
+            const statusBadge = getWorkOrderStatusBadge(op.status);
             
             html += `
                 <tr>
                     <td>
                         <strong>${op.operation || '-'}</strong>
-                    </td>
-                    <td>
-                        <span class="badge badge-info">${op.workstation || '-'}</span>
                     </td>
                     <td>
                         <span class="badge badge-${statusClass}">${statusText}</span>
@@ -2465,16 +2728,16 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
                         <span class="badge badge-success">${op.completed_qty || 0}</span>
                     </td>
                     <td>
-                        <span class="badge badge-warning">${formatDate(op.planned_start_time)}</span>
+                        <span class="badge badge-warning">${utils.formatDate(op.planned_start_time)}</span>
                     </td>
                     <td>
-                        <span class="badge badge-warning">${formatDate(op.planned_end_time)}</span>
+                        <span class="badge badge-warning">${utils.formatDate(op.planned_end_time)}</span>
                     </td>
                     <td>
-                        <span class="badge badge-warning">${formatDate(op.actual_start_time)}</span>
+                        <span class="badge badge-warning">${utils.formatDate(op.actual_start_time)}</span>
                     </td>
                     <td>
-                        <span class="badge badge-warning">${formatDate(op.actual_end_time)}</span>
+                        <span class="badge badge-warning">${utils.formatDate(op.actual_end_time)}</span>
                     </td>
                 </tr>
             `;
@@ -2494,30 +2757,9 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
     content.html(html);
 }
 
-function formatDate(dateStr) {
-    if (!dateStr) return '-';
-    try {
-        return new Date(dateStr).toLocaleDateString('tr-TR');
-    } catch {
-        return dateStr;
-    }
-} 
+// Removed - now using utils.formatDate 
 
-function formatDateTime(dateTimeStr) {
-    if (!dateTimeStr) return '-';
-    try {
-        const date = new Date(dateTimeStr);
-        return date.toLocaleString('tr-TR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    } catch {
-        return dateTimeStr;
-    }
-} 
+// Removed duplicate - using utils.formatDate instead 
 
 // Yeni modal fonksiyonları
 function showProductionPlan(planName) {
@@ -2625,11 +2867,11 @@ function updateProductionPlanModal(data) {
                 <h6><i class="fa fa-info-circle mr-2"></i>Plan Bilgileri</h6>
                 <table class="table table-sm table-bordered">
                     <tr><td><strong>Plan Adı:</strong></td><td><span class="badge badge-primary">${data.name}</span></td></tr>
-                    <tr><td><strong>Durum:</strong></td><td>${getStatusBadge(data.status)}</td></tr>
-                    <tr><td><strong>Planlanan Başlangıç:</strong></td><td>${formatDate(data.planned_start_date)}</td></tr>
-                    <tr><td><strong>Planlanan Bitiş:</strong></td><td>${formatDate(data.planned_end_date)}</td></tr>
-                    <tr><td><strong>Gerçek Başlangıç:</strong></td><td>${formatDate(data.actual_start_date)}</td></tr>
-                    <tr><td><strong>Gerçek Bitiş:</strong></td><td>${formatDate(data.actual_end_date)}</td></tr>
+                    <tr><td><strong>Durum:</strong></td><td><span class="badge badge-${getWorkOrderStatusBadge(data.status).class}">${getWorkOrderStatusBadge(data.status).label}</span></td></tr>
+                    <tr><td><strong>Planlanan Başlangıç:</strong></td><td>${utils.formatDate(data.planned_start_date)}</td></tr>
+                    <tr><td><strong>Planlanan Bitiş:</strong></td><td>${utils.formatDate(data.planned_end_date)}</td></tr>
+                    <tr><td><strong>Gerçek Başlangıç:</strong></td><td>${utils.formatDate(data.actual_start_date)}</td></tr>
+                    <tr><td><strong>Gerçek Bitiş:</strong></td><td>${utils.formatDate(data.actual_end_date)}</td></tr>
                 </table>
             </div>
             <div class="col-md-6">

@@ -1,44 +1,133 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2025, idris and contributors
+# For license information, please see license.txt
+
 """
 Üretim Planlama Takip Paneli - Backend API
 ERPNext v15 + Frappe
 
 Bu dosya üretim planlama takip panelinin backend API fonksiyonlarını içerir.
 Tamamen bağımsız çalışır, api.py ile karışmaz.
+OPTIMIZE EDİLMİŞ VERSİYON - Modern Python patterns
 """
 
+# Standard library imports
+import json
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Union
+
+# Frappe imports
 import frappe
 from frappe import _
-from datetime import datetime, timedelta
-import json
+from frappe.utils import get_datetime, getdate, add_days
 
+
+# Constants - Performance ve consistency için
+CONSTANTS = {
+    'STATUS_MAP': {
+        "In Process": "Devam ediyor",
+        "Completed": "Tamamlandı", 
+        "Not Started": "Açık",
+        "Açık": "Açık",
+        "Devam ediyor": "Devam ediyor",
+        "Tamamlandı": "Tamamlandı",
+        "İptal Edildi": "İptal Edildi",
+        "Stopped": "Durduruldu",
+        "Closed": "Kapatıldı"
+    },
+    'DEFAULT_LIMIT': 500,
+    'CACHE_DURATION': 30000,  # 30 saniye
+    'MAX_RETRIES': 3,
+    'DEFAULT_MTUL_CAM': 1.745,
+    'DEFAULT_MTUL_PVC': 11.35,
+    'MAX_QUERY_LIMIT': 1000
+}
+
+def validate_filters(filters: Dict) -> Dict:
+    """Filter validation ve sanitization"""
+    validated = {}
+    if filters.get("limit"):
+        validated["limit"] = min(int(filters["limit"]), CONSTANTS['MAX_QUERY_LIMIT'])
+    else:
+        validated["limit"] = CONSTANTS['DEFAULT_LIMIT']
+    
+    # String filtreleri sanitize et
+    string_filters = ['optiNo', 'siparisNo', 'bayi', 'musteri', 'seri', 'renk', 'uretimTipi', 'durum']
+    for filter_name in string_filters:
+        if filters.get(filter_name):
+            validated[filter_name] = str(filters[filter_name]).strip()
+    
+    # Boolean filtreleri
+    if 'showCompleted' in filters:
+        validated['showCompleted'] = bool(filters['showCompleted'])
+    else:
+        validated['showCompleted'] = True
+    
+    return validated
+
+def apply_common_filters(where_conditions: List[str], params: List, filters: Dict, table_prefix: str = "so") -> None:
+    """Ortak filter logic'i - DRY prensibi"""
+    
+    if filters.get("siparisNo"):
+        where_conditions.append(f"{table_prefix}.name LIKE %s")
+        params.append(f"%{filters['siparisNo']}%")
+    
+    if filters.get("bayi"):
+        where_conditions.append(f"{table_prefix}.customer LIKE %s")
+        params.append(f"%{filters['bayi']}%")
+    
+    if filters.get("musteri"):
+        where_conditions.append(f"{table_prefix}.custom_end_customer LIKE %s")
+        params.append(f"%{filters['musteri']}%")
+    
+    if filters.get("seri"):
+        where_conditions.append("i.custom_serial LIKE %s")
+        params.append(f"%{filters['seri']}%")
+    
+    if filters.get("renk"):
+        where_conditions.append("i.custom_color LIKE %s")
+        params.append(f"%{filters['renk']}%")
 
 @frappe.whitelist()
-def get_production_planning_data(filters=None):
+def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
     Üretim planlama verilerini getirir.
     Sadece planlanan siparişler için optimize edilmiş.
+    Modern validation ve error handling ile.
     """
     try:
-        if filters:
-            filters = json.loads(filters) if isinstance(filters, str) else filters
-        else:
-            filters = {}
+        # Modern parameter handling
+        filters = json.loads(filters) if isinstance(filters, str) else (filters or {})
+        filters = validate_filters(filters)
         
-        # Filtreleri al
-        opti_no_filter = filters.get('optiNo', '')
-        siparis_no_filter = filters.get('siparisNo', '')
-        bayi_filter = filters.get('bayi', '')
-        musteri_filter = filters.get('musteri', '')
-        seri_filter = filters.get('seri', '')
-        renk_filter = filters.get('renk', '')
-        uretim_tipi = filters.get('uretimTipi', 'tumu')
-        durum_filter = filters.get('durum', 'tumu')
-        show_completed = filters.get('showCompleted', True)
+        # Optimize edilmiş veri çekme
+        planned_data = get_optimized_planned_data(filters)
         
-        # Optimize edilmiş ana sorgu - sadece gerekli alanlar
+        return {
+            "planned": planned_data,
+            "total_planned": len(planned_data)
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Üretim Takip Paneli Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
+        return {
+            "planned": [],
+            "error": str(e),
+            "total_planned": 0
+        }
+
+def get_optimized_planned_data(filters: Dict) -> List[Dict]:
+    """
+    Optimize edilmiş planlanan veri çekme fonksiyonu
+    """
+    try:
+        limit = filters.get("limit", CONSTANTS['DEFAULT_LIMIT'])
+        
+        # Optimize edilmiş ana sorgu - performans artırımı
         planned_query = """
             SELECT 
                 pp.custom_opti_no as opti_no,
+                pp.status as plan_status,
                 ppi.sales_order,
                 ppi.item_code,
                 ppi.planned_qty as adet,
@@ -54,7 +143,7 @@ def get_production_planning_data(filters=None):
                 pp.creation as planlanan_baslangic_tarihi,
                 CASE 
                     WHEN i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar'
-                    THEN ppi.planned_qty * COALESCE(ppi.custom_mtul_per_piece, 1.745)
+                    THEN ppi.planned_qty * COALESCE(ppi.custom_mtul_per_piece, %s)
                     ELSE ppi.planned_qty * COALESCE(i.custom_total_main_profiles_mtul, 0)
                 END as toplam_mtul_m2,
                 CASE 
@@ -65,7 +154,8 @@ def get_production_planning_data(filters=None):
                     WHEN i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar'
                     THEN ppi.planned_qty
                     ELSE 0
-                END as cam_count
+                END as cam_count,
+                so.custom_remarks as siparis_aciklama
             FROM `tabProduction Plan` pp
             INNER JOIN `tabProduction Plan Item` ppi ON pp.name = ppi.parent
             INNER JOIN `tabSales Order` so ON ppi.sales_order = so.name
@@ -76,35 +166,20 @@ def get_production_planning_data(filters=None):
             AND i.item_group != 'All Item Groups'
         """
         
-        # Filtreleri ekle
+        # Filtreleri ekle - DRY principle
         where_conditions = []
-        params = []
+        params = [CONSTANTS['DEFAULT_MTUL_CAM']]  # MTÜL parametresi
         
-        if opti_no_filter:
+        # Opti no filtresi
+        if filters.get("optiNo"):
             where_conditions.append("pp.custom_opti_no LIKE %s")
-            params.append(f"%{opti_no_filter}%")
+            params.append(f"%{filters['optiNo']}%")
         
-        if siparis_no_filter:
-            where_conditions.append("so.name LIKE %s")
-            params.append(f"%{siparis_no_filter}%")
-        
-        if bayi_filter:
-            where_conditions.append("so.customer LIKE %s")
-            params.append(f"%{bayi_filter}%")
-        
-        if musteri_filter:
-            where_conditions.append("so.custom_end_customer LIKE %s")
-            params.append(f"%{musteri_filter}%")
-        
-        if seri_filter:
-            where_conditions.append("i.custom_serial LIKE %s")
-            params.append(f"%{seri_filter}%")
-        
-        if renk_filter:
-            where_conditions.append("i.custom_color LIKE %s")
-            params.append(f"%{renk_filter}%")
+        # Ortak filtreleri uygula
+        apply_common_filters(where_conditions, params, filters)
         
         # Üretim tipi filtresi
+        uretim_tipi = filters.get('uretimTipi', 'tumu')
         if uretim_tipi == 'pvc':
             where_conditions.append("i.item_group = 'PVC'")
         elif uretim_tipi == 'cam':
@@ -113,6 +188,7 @@ def get_production_planning_data(filters=None):
             where_conditions.append("(i.item_group = 'PVC' OR i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar')")
         
         # Durum filtresi
+        durum_filter = filters.get('durum', 'tumu')
         if durum_filter == 'tamamlandi':
             where_conditions.append("pp.status = 'Completed'")
         elif durum_filter == 'devam_ediyor':
@@ -121,37 +197,59 @@ def get_production_planning_data(filters=None):
             where_conditions.append("pp.status = 'Not Started'")
         
         # Tamamlananları göster/gizle
-        if not show_completed:
+        if not filters.get('showCompleted', True):
             where_conditions.append("pp.status != 'Completed'")
         
         # WHERE koşullarını ekle
         if where_conditions:
             planned_query += " AND " + " AND ".join(where_conditions)
         
-        # Limit ekle ve optimize edilmiş sıralama
-        planned_query += " ORDER BY so.transaction_date DESC, pp.custom_opti_no LIMIT 500"
+        # Optimize edilmiş sıralama ve limit
+        planned_query += f" ORDER BY so.delivery_date ASC, pp.custom_opti_no LIMIT {limit}"
         
         # Sorguyu çalıştır
         planned_data = frappe.db.sql(planned_query, params, as_dict=True)
         
-        return {
-            "planned": planned_data,
-            "total_planned": len(planned_data)
-        }
+        # Verileri formatla
+        return format_planned_data_for_takip(planned_data)
         
     except Exception as e:
-        frappe.log_error(f"Üretim Takip Paneli Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
-        return {
-            "planned": [],
-            "error": str(e)
-        }
+        frappe.log_error(f"get_optimized_planned_data hatası: {str(e)}", "Uretim Planlama Takip Paneli")
+        return []
+def format_planned_data_for_takip(planned_data: List[Dict]) -> List[Dict]:
+    """
+    Planlanan verileri takip paneli için formatla
+    """
+    if not planned_data:
+        return []
+    
+    # Veri formatlaması ve ek işlemler
+    for item in planned_data:
+        # Tarih formatlaması
+        if item.get('siparis_tarihi'):
+            item['siparis_tarihi'] = item['siparis_tarihi'].strftime('%Y-%m-%d') if hasattr(item['siparis_tarihi'], 'strftime') else str(item['siparis_tarihi'])
+        if item.get('bitis_tarihi'):
+            item['bitis_tarihi'] = item['bitis_tarihi'].strftime('%Y-%m-%d') if hasattr(item['bitis_tarihi'], 'strftime') else str(item['bitis_tarihi'])
+        if item.get('planlanan_baslangic_tarihi'):
+            item['planlanan_baslangic_tarihi'] = item['planlanan_baslangic_tarihi'].strftime('%Y-%m-%d') if hasattr(item['planlanan_baslangic_tarihi'], 'strftime') else str(item['planlanan_baslangic_tarihi'])
+        
+        # Boolean değerleri
+        item['acil'] = bool(item.get('acil', 0))
+        
+        # Status badge
+        item['status_badge'] = get_status_badge_for_takip(item.get('plan_status', 'Not Started'))
+        
+        # MTÜL formatlaması
+        item['toplam_mtul_m2'] = round(float(item.get('toplam_mtul_m2', 0) or 0), 2)
+    
+    return planned_data
 
 
 @frappe.whitelist()
-def get_opti_details_for_takip(opti_no):
+def get_opti_details_for_takip(opti_no: str) -> Dict[str, Any]:
     """
     Opti numarasına göre detaylı bilgileri getirir.
-    Modern ve optimize edilmiş.
+    Modern ve optimize edilmiş - N+1 Query problemi çözüldü.
     """
     try:
         # Opti numarasına göre üretim planlarını getir
@@ -262,7 +360,7 @@ def get_opti_details_for_takip(opti_no):
 
 
 @frappe.whitelist()
-def get_sales_order_details_for_takip(sales_order):
+def get_sales_order_details_for_takip(sales_order: str) -> Dict[str, Any]:
     """
     Satış siparişi detaylarını getirir.
     """
@@ -324,7 +422,7 @@ def get_sales_order_details_for_takip(sales_order):
 
 
 @frappe.whitelist()
-def get_work_orders_for_takip(sales_order):
+def get_work_orders_for_takip(sales_order: str) -> Union[List[Dict], Dict[str, str]]:
     """
     Satış siparişi için iş emirlerini getirir.
     """
@@ -349,6 +447,18 @@ def get_work_orders_for_takip(sales_order):
             order_by="creation desc"
         )
         
+        # Her iş emri için ek bilgileri ekle
+        for wo in work_orders:
+            # Progress hesaplama - inline olarak
+            produced_qty = float(wo.get("produced_qty", 0) or 0)
+            planned_qty = float(wo.get("qty", 0) or 0)
+            if planned_qty > 0:
+                wo["progress_percentage"] = round((produced_qty / planned_qty) * 100, 2)
+            else:
+                wo["progress_percentage"] = 0
+                
+            wo["status_badge"] = get_status_badge_for_takip(wo.get("status", ""))
+        
         return work_orders
             
     except Exception as e:
@@ -357,67 +467,61 @@ def get_work_orders_for_takip(sales_order):
 
 
 @frappe.whitelist()
-def get_autocomplete_data_for_takip(field, search):
+def get_autocomplete_data_for_takip(field: str, search: str) -> List[str]:
     """
-    Autocomplete için veri getirir.
+    Autocomplete için optimize edilmiş veri getirme
     """
     try:
-        if field == "opti_no":
-            # Opti numaralarını getir
-            data = frappe.db.sql("""
+        search_term = f"%{search}%"
+        
+        field_queries = {
+            'opti_no': """
                 SELECT DISTINCT custom_opti_no 
                 FROM `tabProduction Plan` 
                 WHERE custom_opti_no LIKE %s 
                 AND docstatus = 1
+                ORDER BY custom_opti_no
                 LIMIT 10
-            """, f"%{search}%", as_list=True)
-            return [row[0] for row in data]
-        
-        elif field == "bayi":
-            # Bayileri getir
-            data = frappe.db.sql("""
+            """,
+            'bayi': """
                 SELECT DISTINCT customer 
                 FROM `tabSales Order` 
                 WHERE customer LIKE %s 
                 AND docstatus = 1
+                ORDER BY customer
                 LIMIT 10
-            """, f"%{search}%", as_list=True)
-            return [row[0] for row in data]
-        
-        elif field == "musteri":
-            # Müşterileri getir
-            data = frappe.db.sql("""
+            """,
+            'musteri': """
                 SELECT DISTINCT custom_end_customer 
                 FROM `tabSales Order` 
                 WHERE custom_end_customer LIKE %s 
                 AND docstatus = 1
+                ORDER BY custom_end_customer
                 LIMIT 10
-            """, f"%{search}%", as_list=True)
-            return [row[0] for row in data]
-        
-        elif field == "seri":
-            # Serileri getir
-            data = frappe.db.sql("""
+            """,
+            'seri': """
                 SELECT DISTINCT custom_serial 
                 FROM `tabItem` 
                 WHERE custom_serial LIKE %s 
                 AND item_group IN ('PVC', 'Camlar')
+                ORDER BY custom_serial
                 LIMIT 10
-            """, f"%{search}%", as_list=True)
-            return [row[0] for row in data]
-        
-        elif field == "renk":
-            # Renkleri getir
-            data = frappe.db.sql("""
+            """,
+            'renk': """
                 SELECT DISTINCT custom_color 
                 FROM `tabItem` 
                 WHERE custom_color LIKE %s 
                 AND item_group IN ('PVC', 'Camlar')
+                ORDER BY custom_color
                 LIMIT 10
-            """, f"%{search}%", as_list=True)
-            return [row[0] for row in data]
+            """
+        }
         
-        return []
+        if field not in field_queries:
+            return []
+            
+        result = frappe.db.sql(field_queries[field], [search_term], as_list=True)
+        return [row[0] for row in result if row[0]]
         
     except Exception as e:
         frappe.log_error(f"Autocomplete Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
@@ -425,7 +529,7 @@ def get_autocomplete_data_for_takip(field, search):
 
 
 @frappe.whitelist()
-def get_work_order_operations_for_takip(work_order_name):
+def get_work_order_operations_for_takip(work_order_name: str) -> Dict[str, Any]:
     """
     İş emri operasyonlarını detaylı olarak getirir.
     """
@@ -484,8 +588,9 @@ def get_work_order_operations_for_takip(work_order_name):
             else:
                 op["progress_percentage"] = 0
             
-            # Durum badge'i oluştur
+            # Durum badge'i oluştur - Modern format
             op["status_badge"] = get_status_badge_for_takip(op.status)
+            op["qty"] = work_order_qty
             
             # Tarih formatlarını düzenle
             op["planned_start_formatted"] = format_datetime_for_takip(op.planned_start_time)
@@ -518,7 +623,7 @@ def get_work_order_operations_for_takip(work_order_name):
 
 
 @frappe.whitelist()
-def get_production_plan_details(plan_name):
+def get_production_plan_details(plan_name: str) -> Dict[str, Any]:
     """
     Üretim planı detaylarını getirir.
     """
@@ -564,7 +669,7 @@ def get_production_plan_details(plan_name):
 
 
 @frappe.whitelist()
-def get_item_details_for_takip(item_code):
+def get_item_details_for_takip(item_code: str) -> Dict[str, Any]:
     """
     Ürün detaylarını getirir.
     """
@@ -595,54 +700,61 @@ def get_item_details_for_takip(item_code):
         return {"error": str(e)}
 
 
-# Yardımcı fonksiyonlar
-def format_date_for_takip(date_str):
+# Enhanced Helper Functions - Modern yaklaşım
+def get_completion_percentage(produced_qty: float, planned_qty: float) -> float:
+    """Tamamlanma yüzdesini hesaplar"""
+    if not planned_qty or planned_qty == 0:
+        return 0
+    return round((float(produced_qty) / float(planned_qty)) * 100, 2)
+
+def get_status_badge_for_takip(status: str) -> Dict[str, str]:
+    """Status badge bilgilerini döndürür - Modern yaklaşım"""
+    status_map = {
+        "Completed": {"class": "success", "label": "Tamamlandı"},
+        "In Process": {"class": "warning", "label": "Devam Ediyor"}, 
+        "Not Started": {"class": "secondary", "label": "Başlanmadı"},
+        "Stopped": {"class": "danger", "label": "Durduruldu"},
+        "Closed": {"class": "info", "label": "Kapatıldı"},
+        "Draft": {"class": "light", "label": "Taslak"}
+    }
+    
+    return status_map.get(status, {"class": "secondary", "label": status})
+
+def format_date_for_takip(date_str: Any) -> Optional[str]:
     """
-    Tarih formatını düzenler.
+    Tarih formatını düzenler - Type safe
     """
     if not date_str:
         return None
     
     try:
         if isinstance(date_str, str):
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-        else:
-            date_obj = date_str
+            # Farklı tarih formatlarını destekle
+            for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+                try:
+                    date_obj = datetime.strptime(date_str, fmt)
+                    return date_obj.strftime("%d.%m.%Y")
+                except ValueError:
+                    continue
+        elif hasattr(date_str, 'strftime'):
+            return date_str.strftime("%d.%m.%Y")
         
-        return date_obj.strftime("%d.%m.%Y")
-    except:
+        return str(date_str)
+    except Exception:
         return str(date_str)
 
-
-def calculate_mtul_for_takip(qty, mtul_per_piece):
+def calculate_mtul_for_takip(qty: Union[int, float], mtul_per_piece: Union[int, float]) -> float:
     """
-    MTÜL hesaplama fonksiyonu.
+    MTÜL hesaplama fonksiyonu - Type safe
     """
     try:
-        return float(qty) * float(mtul_per_piece)
-    except:
+        return round(float(qty) * float(mtul_per_piece), 2)
+    except (ValueError, TypeError):
         return 0.0
 
-
-def get_status_badge_for_takip(status):
+def check_urgent_delivery_for_takip(delivery_date: Any) -> bool:
     """
-    Durum badge'i oluşturur.
-    """
-    status_map = {
-        "Completed": "success",
-        "In Process": "warning", 
-        "Not Started": "secondary",
-        "Stopped": "danger",
-        "Closed": "info"
-    }
-    
-    badge_class = status_map.get(status, "secondary")
-    return f'<span class="badge badge-{badge_class}">{status}</span>'
-
-
-def check_urgent_delivery_for_takip(delivery_date):
-    """
-    Acil teslimat kontrolü.
+    Acil teslimat kontrolü - Enhanced
     """
     if not delivery_date:
         return False
@@ -650,35 +762,60 @@ def check_urgent_delivery_for_takip(delivery_date):
     try:
         if isinstance(delivery_date, str):
             delivery = datetime.strptime(delivery_date, "%Y-%m-%d")
-        else:
+        elif hasattr(delivery_date, 'date'):
             delivery = delivery_date
+        else:
+            return False
         
         today = datetime.now()
-        return delivery.date() < today.date()
-    except:
+        # 3 gün içinde teslim edilecekse acil say
+        return (delivery.date() - today.date()).days <= 3
+    except Exception:
         return False 
 
-
-def format_datetime_for_takip(datetime_str):
+def format_datetime_for_takip(datetime_str: Any) -> Optional[str]:
     """
-    Datetime formatını düzenler.
+    Datetime formatını düzenler - Enhanced
     """
     if not datetime_str:
         return None
     
     try:
         if isinstance(datetime_str, str):
-            datetime_obj = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
-        else:
-            datetime_obj = datetime_str
+            # Farklı datetime formatlarını destekle
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d"):
+                try:
+                    datetime_obj = datetime.strptime(datetime_str, fmt)
+                    return datetime_obj.strftime("%d.%m.%Y %H:%M")
+                except ValueError:
+                    continue
+        elif hasattr(datetime_str, 'strftime'):
+            return datetime_str.strftime("%d.%m.%Y %H:%M")
         
-        return datetime_obj.strftime("%d.%m.%Y %H:%M")
-    except:
         return str(datetime_str)
+    except Exception:
+        return str(datetime_str)
+
+def calculate_progress_data_for_takip(items: List[Dict]) -> Dict[str, Any]:
+    """
+    İlerleme verilerini hesaplar - Toplu hesaplama
+    """
+    total_planned = sum(float(item.get('planned_qty', 0) or 0) for item in items)
+    total_produced = sum(float(item.get('produced_qty', 0) or 0) for item in items)
+    
+    progress_percentage = round((total_produced / total_planned * 100) if total_planned > 0 else 0, 1)
+    
+    return {
+        "total_planned": total_planned,
+        "total_produced": total_produced,
+        "progress_percentage": progress_percentage,
+        "is_completed": progress_percentage >= 100,
+        "remaining_qty": max(0, total_planned - total_produced)
+    }
 
 
 @frappe.whitelist()
-def update_work_order_status(work_order_name, new_status):
+def update_work_order_status(work_order_name: str, new_status: str) -> Dict[str, Any]:
     """
     İş emri durumunu günceller.
     """
@@ -689,20 +826,33 @@ def update_work_order_status(work_order_name, new_status):
         # Durumu güncelle
         work_order.status = new_status
         
+        # Durumu güncelle
+        work_order.status = new_status
+        
         # Açıklama ekle
-        work_order.custom_remarks = f"Durum {work_order.status} olarak güncellendi - {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M')
+        work_order.custom_remarks = f"Durum {new_status} olarak güncellendi - {timestamp}"
         
         # Kaydet
         work_order.save()
         
+        # Log kaydı
+        frappe.logger().info(f"İş Emri durumu güncellendi: {work_order_name} -> {new_status}")
+        
         return {
             "success": True,
-            "message": f"İş emri durumu başarıyla güncellendi: {new_status}"
+            "message": f"İş emri durumu başarıyla güncellendi: {new_status}",
+            "work_order": work_order_name,
+            "new_status": new_status,
+            "updated_at": timestamp
         }
         
     except Exception as e:
-        frappe.log_error(f"İş Emri Durum Güncelleme Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
+        error_msg = f"İş Emri Durum Güncelleme Hatası: {str(e)}"
+        frappe.log_error(error_msg, "Uretim Planlama Takip Paneli")
         return {
             "success": False,
-            "error": str(e)
+            "error": str(e),
+            "work_order": work_order_name,
+            "attempted_status": new_status
         } 

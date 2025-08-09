@@ -1376,6 +1376,12 @@ class UretimPlanlamaPaneli {
 								<div class="filter-input-item">
 									<input id="planlanmamis-musteri-filter" class="form-control" placeholder="Müşteri...">
 								</div>
+								<div class="filter-input-item">
+									<input id="planlanmamis-seri-filter" class="form-control" placeholder="Seri...">
+								</div>
+								<div class="filter-input-item">
+									<input id="planlanmamis-renk-filter" class="form-control" placeholder="Renk...">
+								</div>
 
 								<div class="filter-input-item">
 									<select id="planlanmamis-acil-filter" class="form-control">
@@ -1383,12 +1389,6 @@ class UretimPlanlamaPaneli {
 										<option value="ACİL">ACİL</option>
 										<option value="NORMAL">NORMAL</option>
 									</select>
-								</div>
-								<div class="filter-input-item">
-									<input id="planlanmamis-seri-filter" class="form-control" placeholder="Seri...">
-								</div>
-								<div class="filter-input-item">
-									<input id="planlanmamis-renk-filter" class="form-control" placeholder="Renk...">
 								</div>
 								<div class="filter-input-item">
 									<select id="planlanmamis-tip-filter" class="form-control">
@@ -1617,7 +1617,7 @@ class UretimPlanlamaPaneli {
 
 	clearPlanlanmamisFilters() {
 		// Array ile tüm filtreleri temizle
-		['siparis', 'bayi', 'musteri', 'acil', 'tip', 'seri', 'renk'].forEach(filter => {
+		['siparis', 'bayi', 'musteri', 'seri', 'renk', 'acil', 'tip'].forEach(filter => {
 			const element = document.getElementById(`planlanmamis-${filter}-filter`);
 			if (element) {
 				element.value = '';
