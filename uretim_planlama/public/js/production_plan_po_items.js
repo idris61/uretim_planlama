@@ -114,10 +114,25 @@ const attachQtyChangeListeners = (frm) => {
 
 // Sadece tek bir satır için listener eklemeyi deneyen yardımcı fonksiyon
 const attachQtyChangeListenersForRow = (frm, row, retryCount = 0) => {
+     // Güvenli field erişimi
      const plannedQtyField = row?.fields_dict?.planned_qty;
      const rowName = row.doc.name || row.name;
      const maxRetries = 15; // Maksimum deneme sayısı artırıldı
      const retryDelay = 100; // Denemeler arası gecikme (ms)
+
+     // Field'ın varlığını kontrol et
+     if (!plannedQtyField) {
+         console.log(`planned_qty field bulunamadı for row: ${rowName}, retry: ${retryCount}`);
+         
+         if (retryCount < maxRetries) {
+             setTimeout(() => {
+                 attachQtyChangeListenersForRow(frm, row, retryCount + 1);
+             }, retryDelay);
+         } else {
+             console.warn(`planned_qty field ${maxRetries} denemeden sonra bulunamadı: ${rowName}`);
+         }
+         return;
+     }
 
      if (plannedQtyField?.wrapper) {
          // Event delegation kullan

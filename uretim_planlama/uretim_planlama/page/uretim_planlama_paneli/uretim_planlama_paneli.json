@@ -1,0 +1,28 @@
+{
+ "creation": "2024-01-01 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2024-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Uretim Planlama",
+ "name": "uretim_planlama_paneli",
+ "owner": "Administrator",
+ "page_name": "uretim_planlama_paneli",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Manufacturing Manager"
+  },
+  {
+   "role": "Manufacturing User"
+  }
+ ],
+ "script": null,
+ "standard": "No",
+ "style": null,
+ "system_page": 0,
+ "title": "Üretim Planlama Paneli"
+}

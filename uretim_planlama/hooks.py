@@ -12,6 +12,7 @@ app_license = "MIT"
 fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Page", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Workflow"},
 	# {"dt": "Workflow State"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
@@ -30,7 +31,8 @@ app_include_css = ["/assets/uretim_planlama/css/sales_order.css"]
 # Sayfa konfigürasyonu
 page_js = {
     "uretim-paneli": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_paneli/uretim_paneli.js",
-    "uretim_planlama_takip": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_planlama_takip/uretim_planlama_takip.js"
+    "uretim_planlama_takip": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_planlama_takip/uretim_planlama_takip.js",
+    "uretim_planlama_paneli": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_planlama_paneli/uretim_planlama_paneli.js"
 }
 
 doctype_js = {
