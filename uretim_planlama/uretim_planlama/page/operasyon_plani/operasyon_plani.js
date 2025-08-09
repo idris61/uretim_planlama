@@ -123,20 +123,17 @@ function initializePage(wrapper) {
 
 		active.forEach(ws => {
 			const wrapper = $('<div style="margin-bottom: 30px;"></div>');
-			// İş istasyonu ve operasyon adını doğru göster
-			const workstationName = ws.name || '-';
+			// Operasyon adını doğru göster
 			let operationName = '-';
 			if (ws.operations && ws.operations.length === 1) {
 				operationName = ws.operations[0];
 			} else if (ws.operations && ws.operations.length > 1) {
 				operationName = ws.operations.join(', ');
 			}
-			// Sarı kutu (infoBox)
+			// Sarı kutu (infoBox) - sadece operasyon bilgisi
 			const infoBox = $(`
 				<div style="margin-bottom: 8px; display: flex; justify-content: flex-start;">
 					<div style="background: linear-gradient(90deg, #fffde4 0%, #ffe680 100%); border-radius: 10px; padding: 10px 28px; display: flex; flex-direction: row; align-items: center; box-shadow: 0 2px 8px #ffe68044; border: 1px solid #ffe680;">
-						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>İş İstasyonu:</span>
-						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold; margin-right:18px;'>${workstationName}</span>
 						<span style='font-size:13px; color:#888; margin-right:8px; font-weight:bold;'>Operasyon:</span>
 						<span style='font-size:15px; color:#c62828; font-style:italic; font-weight:bold;'>${operationName}</span>
 					</div>
