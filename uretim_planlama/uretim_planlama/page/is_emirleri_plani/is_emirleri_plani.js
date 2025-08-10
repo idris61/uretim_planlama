@@ -485,14 +485,13 @@ function showWorkOrderDetails(job) {
 					<table style="width:100%; border-collapse:collapse; font-size:12px;">
 						<thead>
 							<tr style="background:#f5f5f5; font-weight:bold;">
-								<th style="padding:4px 2px; width:12%;">Operasyon</th>
-								<th style="padding:4px 2px; width:18%;">İş İstasyonu</th>
-								<th style="padding:4px 2px; width:10%;">Durum</th>
-								<th style="padding:4px 2px; width:7%; text-align:center;">Üret.</th>
-								<th style="padding:4px 2px; width:13%;">Plan. Başl.</th>
-								<th style="padding:4px 2px; width:13%;">Plan. Bitiş</th>
-								<th style="padding:4px 2px; width:13%;">Fiili Başl.</th>
-								<th style="padding:4px 2px; width:13%;">Fiili Bitiş</th>
+								<th style="padding:4px 2px; width:15%;">Operasyon</th>
+								<th style="padding:4px 2px; width:12%;">Durum</th>
+								<th style="padding:4px 2px; width:8%; text-align:center;">Üret.</th>
+								<th style="padding:4px 2px; width:16%;">Plan. Başl.</th>
+								<th style="padding:4px 2px; width:16%;">Plan. Bitiş</th>
+								<th style="padding:4px 2px; width:16%;">Fiili Başl.</th>
+								<th style="padding:4px 2px; width:16%;">Fiili Bitiş</th>
 							</tr>
 						</thead>
 						<tbody>`;
@@ -504,7 +503,6 @@ function showWorkOrderDetails(job) {
 					const opBadge = uretim_planlama.status_colors.getOperationStatusBadge(status);
 					html += `<tr style="border-bottom:1px solid #eee;">
 						<td style="padding:3px 2px;">${op.operation || "<span style='color:#bbb;font-style:italic;'>-</span>"}</td>
-						<td style="padding:3px 2px;">${op.workstation || "<span style='color:#bbb;font-style:italic;'>-</span>"}</td>
 						<td style="padding:3px 2px; text-align:center;"><span style="background:${opBadge.bg}; color:${opBadge.color}; border-radius:7px; font-size:11px; font-weight:600; padding:2px 8px; display:inline-block; min-width:60px; text-align:center;">${opBadge.label}</span></td>
 						<td style="padding:3px 2px; text-align:center;">${op.completed_qty ?? "<span style='color:#bbb;font-style:italic;'>-</span>"}</td>
 						<td style="padding:3px 2px;">${formatDate(op.planned_start_time)}</td>

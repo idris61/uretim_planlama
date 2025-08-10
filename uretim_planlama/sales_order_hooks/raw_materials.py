@@ -5,50 +5,35 @@ import frappe
 from frappe import _
 
 
-# --- Sistem float precision'u dinamik çekme fonksiyonu ---
-def get_system_float_precision():
-    try:
-        return int(frappe.db.get_single_value("System Settings", "float_precision") or 4)
-    except Exception:
-        return 4
+# FLOAT/PRECISION/TOLERANCE ile ilgili tüm fonksiyonlar kaldırıldı. Artık miktar işlemlerinde gelen qty olduğu gibi kullanılacaktır.
 
-# --- Miktar normalize fonksiyonu (güncel) ---
-def normalize_qty(qty, ndigits=None):
-    """
-    Tüm miktar işlemlerinde kullanılacak normalize fonksiyonu.
-    Sistem ayarındaki float precision kadar yuvarlar.
-    """
-    if ndigits is None:
-        ndigits = get_system_float_precision()
-    try:
-        result = round(float(qty or 0), ndigits)
-        if abs(result) < 10 ** (-ndigits):
-            return 0.0
-        return result
-    except Exception:
+# Utility functions for quantity handling - Gerçek değerlerle çalışır, yuvarlama yapmaz
+def get_real_qty(qty):
+    """Get real quantity value without any rounding or precision changes"""
+    if qty is None:
         return 0.0
+    return float(qty)
 
-# --- Karşılaştırma fonksiyonları (güncel) ---
-def qty_equals(qty1, qty2, tolerance=None):
-    if tolerance is None:
-        tolerance = 10 ** (-get_system_float_precision() + 1)
-    return abs(float(qty1 or 0) - float(qty2 or 0)) <= tolerance
+def qty_equals(qty1, qty2):
+    """Check if two quantities are exactly equal"""
+    return get_real_qty(qty1) == get_real_qty(qty2)
 
-def qty_greater_or_equal(qty1, qty2, tolerance=None):
-    if tolerance is None:
-        tolerance = 10 ** (-get_system_float_precision() + 1)
-    return float(qty1 or 0) >= float(qty2 or 0) - tolerance
+def qty_greater_or_equal(qty1, qty2):
+    """Check if qty1 is greater than or equal to qty2"""
+    return get_real_qty(qty1) >= get_real_qty(qty2)
 
 def safe_qty_compare(qty1, qty2):
-    norm_qty1 = normalize_qty(qty1)
-    norm_qty2 = normalize_qty(qty2)
-    return qty_greater_or_equal(norm_qty1, norm_qty2)
+    """Safely compare two quantities, returns True if qty1 >= qty2"""
+    return qty_greater_or_equal(qty1, qty2)
 
 
 def get_rezerv_map(item_codes):
 	"""
 	Verilen item_codes için tüm sales_order ve item_code kombinasyonlarında toplam rezerv miktarını döndürür.
 	"""
+	if not item_codes:
+		return {}
+	
 	rezerv_rows = frappe.db.sql(
 		"""
         SELECT sales_order, item_code, SUM(quantity) as quantity
@@ -61,7 +46,7 @@ def get_rezerv_map(item_codes):
 	)
 	rezerv_map = {}
 	for row in rezerv_rows:
-		rezerv_map[(row.sales_order, row.item_code)] = normalize_qty(row.quantity)
+		rezerv_map[(row.sales_order, row.item_code)] = get_real_qty(row.quantity)
 	return rezerv_map
 
 
@@ -69,6 +54,9 @@ def get_usage_map(item_codes):
 	"""
 	Verilen item_codes için tüm sales_order ve item_code kombinasyonlarında toplam kullanılan uzun vadeli rezerv miktarını döndürür.
 	"""
+	if not item_codes:
+		return {}
+	
 	usage_rows = frappe.db.sql(
 		"""
         SELECT sales_order, parent_sales_order, item_code, SUM(used_qty) as used_qty
@@ -81,16 +69,16 @@ def get_usage_map(item_codes):
 	)
 	usage_map = {}
 	for row in usage_rows:
-		usage_map[(row.sales_order, row.item_code)] = normalize_qty(row.used_qty)
+		usage_map[(row.sales_order, row.item_code)] = get_real_qty(row.used_qty)
 		if row.parent_sales_order:
 			usage_map[(row.parent_sales_order, row.item_code)] = usage_map.get(
 				(row.parent_sales_order, row.item_code), 0
-			) + normalize_qty(row.used_qty)
+			) + get_real_qty(row.used_qty)
 		# Bağımsız usage kayıtları için (None, item_code) anahtarları da ekle
 		if not row.sales_order:
 			usage_map[(None, row.item_code)] = usage_map.get(
 				(None, row.item_code), 0
-			) + normalize_qty(row.used_qty)
+			) + get_real_qty(row.used_qty)
 	return usage_map
 
 
@@ -98,6 +86,9 @@ def get_stock_maps(item_codes):
 	"""
 	Verilen item_codes için toplam stok ve depo bazında stok miktarlarını döndürür.
 	"""
+	if not item_codes:
+		return {}, {}
+	
 	bin_rows = frappe.db.get_all(
 		"Bin",
 		filters={"item_code": ["in", item_codes]},
@@ -106,9 +97,9 @@ def get_stock_maps(item_codes):
 	stock_map = {}
 	stock_by_warehouse_map = {}
 	for row in bin_rows:
-		stock_map[row.item_code] = normalize_qty(row.actual_qty)
+		stock_map[row.item_code] = get_real_qty(row.actual_qty)
 		stock_by_warehouse_map.setdefault(row.item_code, {})[row.warehouse] = (
-			normalize_qty(row.actual_qty)
+			get_real_qty(row.actual_qty)
 		)
 	return stock_map, stock_by_warehouse_map
 
@@ -117,6 +108,9 @@ def get_item_names(item_codes):
 	"""
 	Verilen item_codes için ürün isimlerini döndürür.
 	"""
+	if not item_codes:
+		return {}
+	
 	item_names = {}
 	for item in frappe.get_all(
 		"Item",
@@ -131,15 +125,17 @@ def get_reserve_warehouse_stock_map(item_codes, reserve_warehouse):
 	"""
 	Verilen item_codes için rezerv depodaki stok miktarlarını döndürür.
 	"""
+	if not item_codes or not reserve_warehouse:
+		return {}
+	
 	reserve_warehouse_stock_map = {}
-	if reserve_warehouse:
-		reserve_bin_rows = frappe.db.get_all(
-			"Bin",
-			filters={"item_code": ["in", item_codes], "warehouse": reserve_warehouse},
-			fields=["item_code", "actual_qty"],
-		)
-		for row in reserve_bin_rows:
-			reserve_warehouse_stock_map[row.item_code] = normalize_qty(row.actual_qty)
+	reserve_bin_rows = frappe.db.get_all(
+		"Bin",
+		filters={"item_code": ["in", item_codes], "warehouse": reserve_warehouse},
+		fields=["item_code", "actual_qty"],
+	)
+	for row in reserve_bin_rows:
+		reserve_warehouse_stock_map[row.item_code] = get_real_qty(row.actual_qty)
 	return reserve_warehouse_stock_map
 
 
@@ -180,8 +176,12 @@ def get_sales_order_raw_materials(sales_order):
 			item_bom_map.setdefault(rm.item_code, []).append((item, rm))
 	all_item_codes = list(all_item_codes)
 
+	# Eğer hiç hammadde bulunamadıysa boş liste döndür
+	if not all_item_codes:
+		return []
+
 	# 2. Toplu olarak rezerv, usage, stok, isim, depo verilerini çek (yardımcı fonksiyonlarla)
-	# --- item_code'ları normalize et ---
+	# Item code'ları normalize et
 	all_item_codes = [str(code).strip() for code in all_item_codes]
 	rezerv_map = get_rezerv_map(all_item_codes)
 	usage_map = get_usage_map(all_item_codes)
@@ -197,7 +197,7 @@ def get_sales_order_raw_materials(sales_order):
 		all_item_codes, reserve_warehouse
 	)
 
-	# --- YENİ: Her item için sistemdeki toplam rezerv ve uzun vadeli rezervi çek ---
+	# Her item için sistemdeki toplam rezerv ve uzun vadeli rezervi çek
 	# Tüm aktif/onaylanmış siparişler için toplam rezerv (aktif rezerv)
 	total_rezerv_rows = frappe.db.sql(
 		"""
@@ -208,10 +208,10 @@ def get_sales_order_raw_materials(sales_order):
 		as_dict=True,
 	)
 	total_rezerv_map = {
-		row.item_code: normalize_qty(row.total_quantity) for row in total_rezerv_rows
+		row.item_code: get_real_qty(row.total_quantity) for row in total_rezerv_rows
 	}
 
-	# --- YENİ: Kullanılmış rezervleri (usage) da topla ---
+	# Kullanılmış rezervleri (usage) da topla
 	total_usage_rows = frappe.db.sql(
 		"""
         SELECT item_code, SUM(used_qty) as total_used
@@ -221,10 +221,10 @@ def get_sales_order_raw_materials(sales_order):
 		as_dict=True,
 	)
 	total_usage_map = {
-		row.item_code: normalize_qty(row.total_used) for row in total_usage_rows
+		row.item_code: get_real_qty(row.total_used) for row in total_usage_rows
 	}
 
-	# --- YENİ: Tüm aktif/onaylanmış uzun vadeli siparişler için toplam uzun vadeli rezerv ---
+	# Tüm aktif/onaylanmış uzun vadeli siparişler için toplam uzun vadeli rezerv
 	today = frappe.utils.nowdate()
 	thirty_days_later = (
 		datetime.strptime(today, "%Y-%m-%d") + timedelta(days=30)
@@ -241,10 +241,10 @@ def get_sales_order_raw_materials(sales_order):
 		as_dict=True,
 	)
 	total_long_term_map = {
-		row.item_code: normalize_qty(row.total_long_term) for row in total_long_term_rows
+		row.item_code: get_real_qty(row.total_long_term) for row in total_long_term_rows
 	}
 
-	# --- Ana döngü ---
+	# Ana döngü
 	for item_code, item_pairs in item_bom_map.items():
 		item_code = str(item_code).strip()  # normalize
 		# Parent/child ve uzun vadeli rezerv ayrımı
@@ -263,7 +263,7 @@ def get_sales_order_raw_materials(sales_order):
 				(None, item_code), 0
 			)
 			long_term_reserve_qty = rezerv_map.get(long_term_key, 0)
-		# --- toplam rezerv detayları ---
+		# Toplam rezerv detayları
 		total_reserved_details = frappe.db.sql(
 			"""
             SELECT rrm.sales_order, so.customer, IFNULL(so.custom_end_customer, '') as custom_end_customer, so.delivery_date, rrm.quantity,
@@ -276,7 +276,7 @@ def get_sales_order_raw_materials(sales_order):
 			as_dict=True,
 		)
 
-		# --- YENİ: Child siparişlere aktarılan rezerv detaylarını ekle ---
+		# Child siparişlere aktarılan rezerv detaylarını ekle
 		child_usage_details = frappe.db.sql(
 			"""
             SELECT ltru.sales_order as child_sales_order, ltru.parent_sales_order, ltru.used_qty as quantity,
@@ -305,7 +305,7 @@ def get_sales_order_raw_materials(sales_order):
 			stock_by_warehouse = stock_by_warehouse_map.get(item_code, {})
 			item_name = item_names.get(item_code, "")
 			reserve_warehouse_stock = reserve_warehouse_stock_map.get(item_code, 0)
-			# --- YENİ: toplam rezerv ve toplam uzun vadeli rezerv ---
+			# Toplam rezerv ve toplam uzun vadeli rezerv
 			aktif_rezerv = total_rezerv_map.get(item_code, 0)
 			kullanilmis_rezerv = total_usage_map.get(item_code, 0)
 			toplam_rezerv = aktif_rezerv
@@ -320,9 +320,9 @@ def get_sales_order_raw_materials(sales_order):
 				"reserve_warehouse": reserve_warehouse,
 				"reserve_warehouse_stock": reserve_warehouse_stock,
 				"so_items": set(),
-				"long_term_reserve_qty": float(long_term_reserve_qty),
-				"used_from_long_term_reserve": float(used_from_long_term_reserve),
-				# --- yeni toplamlar ---
+						"long_term_reserve_qty": get_real_qty(long_term_reserve_qty),
+		"used_from_long_term_reserve": get_real_qty(used_from_long_term_reserve),
+				# Yeni toplamlar
 				"total_reserved_qty": toplam_rezerv,
 				"total_long_term_reserve_qty": toplam_uzun_vadeli_rezerv,
 				"total_reserved_details": total_reserved_details,
@@ -335,16 +335,16 @@ def get_sales_order_raw_materials(sales_order):
 	result = []
 	is_submitted = so.docstatus == 1
 	for data in raw_materials.values():
-		toplam_stok = float(data["stock"] or 0)
-		toplam_rezerv = float(
+		toplam_stok = get_real_qty(data["stock"] or 0)
+		toplam_rezerv = get_real_qty(
 			data["total_reserved_qty"] or 0
 		)  # sistemdeki tüm rezervlerin toplamı
 		if is_long_term_child and parent_sales_order:
-			acik_miktar = float(data["qty"] or 0)
+			acik_miktar = get_real_qty(data["qty"] or 0)
 			kullanilabilir_stok = 0
 		else:
 			kullanilabilir_stok = toplam_stok - toplam_rezerv
-			acik_miktar = max(float(data["qty"] or 0) - kullanilabilir_stok, 0)
+			acik_miktar = max(get_real_qty(data["qty"] or 0) - kullanilabilir_stok, 0)
 		mr_items = frappe.db.sql(
 			"""
             SELECT mri.parent, mri.qty, mr.transaction_date
@@ -382,8 +382,8 @@ def get_sales_order_raw_materials(sales_order):
                 """,
 				(d["parent"], d.get("name", d["parent"]), data["raw_material"])
 			)[0][0] or 0
-			received_qty = max(float(received_qty_po), float(received_qty_pr))
-			if float(d["qty"]) - received_qty > 0.01:  # 0.01 tolerans
+			received_qty = max(get_real_qty(received_qty_po), get_real_qty(received_qty_pr))
+			if get_real_qty(d["qty"]) - received_qty > 0:
 				filtered_mr_items.append(d)
 		mr_items = filtered_mr_items
 		# Detayları normalize et
@@ -409,7 +409,7 @@ def get_sales_order_raw_materials(sales_order):
 			as_dict=True,
 		)
 		# Sadece tamamlanmamış (kalan miktar > 0) olanları göster
-		po_items = [d for d in po_items if float(d.get("qty", 0)) > float(d.get("received_qty", 0))]
+		po_items = [d for d in po_items if get_real_qty(d.get("qty", 0)) > get_real_qty(d.get("received_qty", 0))]
 		for d in po_items:
 			d["qty"] = d.get("qty", "") or ""
 			d["quantity"] = d["qty"]
@@ -459,7 +459,7 @@ def get_sales_order_raw_materials(sales_order):
 				"used_from_long_term_reserve": data["used_from_long_term_reserve"],
 				"long_term_details": long_term_details,
 				"used_long_term_details": used_long_term_details,
-				# --- yeni toplamlar ---
+				# Yeni toplamlar
 				"total_reserved_qty": data["total_reserved_qty"],
 				"total_long_term_reserve_qty": data["total_long_term_reserve_qty"],
 				"total_reserved_details": data["total_reserved_details"],
@@ -468,7 +468,7 @@ def get_sales_order_raw_materials(sales_order):
 				"parent_sales_order": parent_sales_order,
 			}
 		)
-	return sorted(result, key=lambda x: float(x.get("acik_miktar", 0)), reverse=True)
+	return sorted(result, key=lambda x: get_real_qty(x.get("acik_miktar", 0)), reverse=True)
 
 
 @frappe.whitelist()
@@ -484,7 +484,7 @@ def get_long_term_reserve_qty(item_code):
 		)[0][0]
 		or 0
 	)
-	return normalize_qty(qty)
+	return get_real_qty(qty)
 
 
 def get_long_term_reserve_details(item_code):
@@ -540,29 +540,35 @@ def get_used_long_term_reserve_details(item_code):
 
 
 def update_or_delete_reserved_raw_material(row_name, consume_qty):
-	"""
-	Rezerved Raw Materials kaydını verilen miktar kadar azaltır, sıfırlanırsa siler.
-	"""
-	consume_qty = normalize_qty(consume_qty)
-	rm_doc = frappe.get_doc("Rezerved Raw Materials", row_name)
-	rm_doc.quantity = normalize_qty(rm_doc.quantity - consume_qty)
-	if normalize_qty(rm_doc.quantity) <= 0:
-		rm_doc.delete(ignore_permissions=True)
-	else:
-		rm_doc.save(ignore_permissions=True)
+    """
+    Rezerved Raw Materials kaydını verilen miktar kadar azaltır, sıfırlanırsa siler. Ek olarak, hata durumunda otomatik log atar.
+    """
+    try:
+        rm_doc = frappe.get_doc("Rezerved Raw Materials", row_name)
+        rm_doc.quantity = get_real_qty(rm_doc.quantity) - get_real_qty(consume_qty)
+        if rm_doc.quantity <= 0:
+            rm_doc.delete(ignore_permissions=True)
+            frappe.logger().info(f"Rezerv {row_name} sifirlandi ve silindi. Kalan miktar: {rm_doc.quantity}")
+        else:
+            rm_doc.save(ignore_permissions=True)
+    except Exception as e:
+        frappe.log_error(f"update_or_delete_reserved_raw_material ERROR: {e}", frappe.get_traceback())
 
 
 def update_or_delete_long_term_reserve_usage(usage_name, consume_qty):
-	"""
-	Long Term Reserve Usage kaydını verilen miktar kadar azaltır, sıfırlanırsa siler.
-	"""
-	consume_qty = normalize_qty(consume_qty)
-	usage_doc = frappe.get_doc("Long Term Reserve Usage", usage_name)
-	usage_doc.used_qty = normalize_qty(usage_doc.used_qty - consume_qty)
-	if normalize_qty(usage_doc.used_qty) <= 0:
-		usage_doc.delete(ignore_permissions=True)
-	else:
-		usage_doc.save(ignore_permissions=True)
+    """
+    Long Term Reserve Usage kaydını verilen miktar kadar azaltır, sıfırlanırsa siler. Ek olarak hata durumunda log atar.
+    """
+    try:
+        usage_doc = frappe.get_doc("Long Term Reserve Usage", usage_name)
+        usage_doc.used_qty = get_real_qty(usage_doc.used_qty) - get_real_qty(consume_qty)
+        if usage_doc.used_qty <= 0:
+            usage_doc.delete(ignore_permissions=True)
+            frappe.logger().info(f"Usage {usage_name} sifirlandi ve silindi. Kalan miktar: {usage_doc.used_qty}")
+        else:
+            usage_doc.save(ignore_permissions=True)
+    except Exception as e:
+        frappe.log_error(f"update_or_delete_long_term_reserve_usage ERROR: {e}", frappe.get_traceback())
 
 
 def release_reservations_on_stock_entry(doc, method):
@@ -616,13 +622,13 @@ def upsert_reserved_raw_material(
 	"""
 	Verilen satış siparişi ve hammadde için Rezerved Raw Materials kaydını ekler veya günceller.
 	"""
-	qty = normalize_qty(qty)
+	# qty'yi normalize etmiyoruz
 	existing = frappe.db.exists(
 		"Rezerved Raw Materials", {"sales_order": sales_order, "item_code": item_code}
 	)
 	if existing:
 		rm_doc = frappe.get_doc("Rezerved Raw Materials", existing)
-		rm_doc.quantity = qty
+		rm_doc.quantity = get_real_qty(qty)
 		rm_doc.item_name = item_name
 		rm_doc.customer = customer
 		rm_doc.end_customer = end_customer
@@ -631,7 +637,7 @@ def upsert_reserved_raw_material(
 		rm_doc = frappe.new_doc("Rezerved Raw Materials")
 		rm_doc.sales_order = sales_order
 		rm_doc.item_code = item_code
-		rm_doc.quantity = qty
+		rm_doc.quantity = get_real_qty(qty)
 		rm_doc.item_name = item_name
 		rm_doc.customer = customer
 		rm_doc.end_customer = end_customer
@@ -734,18 +740,18 @@ def check_long_term_reserve_availability(sales_order):
 	raw_materials = get_sales_order_raw_materials(sales_order)
 	recommendations = []
 	for row in raw_materials:
-		acik_miktar = float(row.get("acik_miktar", 0) or 0)
+		acik_miktar = get_real_qty(row.get("acik_miktar", 0) or 0)
 		item_code = row.get("raw_material")
 		if is_long_term_child and parent_sales_order:
 			parent_so = parent_sales_order
-			parent_rezerv = normalize_qty(
+			parent_rezerv = get_real_qty(
 				frappe.db.get_value(
 					"Rezerved Raw Materials",
 					{"sales_order": parent_so, "item_code": item_code},
 					"quantity",
 				)
 			)
-			total_usage = normalize_qty(
+			total_usage = get_real_qty(
 				frappe.db.sql(
 					"""
                 SELECT SUM(used_qty) FROM `tabLong Term Reserve Usage`
@@ -764,7 +770,7 @@ def check_long_term_reserve_availability(sales_order):
 				parent_rezerv_result[0].quantity if parent_rezerv_result else 0
 			)
 
-			total_usage = normalize_qty(
+			total_usage = get_real_qty(
 				frappe.db.sql(
 					"""
                 SELECT SUM(used_qty) FROM `tabLong Term Reserve Usage`
@@ -780,11 +786,11 @@ def check_long_term_reserve_availability(sales_order):
 				{
 					"item_code": item_code,
 					"item_name": row.get("item_name"),
-					"acik_miktar": float(acik_miktar or 0),
-					"uzun_vadeli_rezerv": float(parent_rezerv or 0),
-					"kullanilan_rezerv": float(total_usage or 0),
-					"kullanilabilir_uzun_vadeli": float(kalan_kullanilabilir or 0),
-					"onerilen_kullanim": float(onerilen_kullanim or 0),
+								"acik_miktar": get_real_qty(acik_miktar or 0),
+			"uzun_vadeli_rezerv": get_real_qty(parent_rezerv or 0),
+			"kullanilan_rezerv": get_real_qty(total_usage or 0),
+			"kullanilabilir_uzun_vadeli": get_real_qty(kalan_kullanilabilir or 0),
+			"onerilen_kullanim": get_real_qty(onerilen_kullanim or 0),
 					"gecici_kullanim": not is_long_term_child and not parent_sales_order,
 				}
 			)
@@ -818,15 +824,15 @@ def delete_long_term_reserve_usage_on_cancel(doc, method):
 					reserve_doc = frappe.get_doc(
 						"Rezerved Raw Materials", parent_reserve[0]["name"]
 					)
-					reserve_doc.quantity = normalize_qty(
-						reserve_doc.quantity + float(row["used_qty"])
+					reserve_doc.quantity = get_real_qty(
+						reserve_doc.quantity + get_real_qty(row["used_qty"])
 					)
 					reserve_doc.save(ignore_permissions=True)
 				else:
 					upsert_reserved_raw_material(
 						sales_order=parent_sales_order,
 						item_code=row["item_code"],
-						qty=normalize_qty(float(row["used_qty"])),
+						qty=get_real_qty(float(row["used_qty"])),
 						item_name=frappe.db.get_value(
 							"Item", row["item_code"], "item_name"
 						)
@@ -853,8 +859,7 @@ def delete_long_term_reserve_usage_on_cancel(doc, method):
 
 
 def check_raw_material_stock_on_submit(doc, method):
-	# --- PASİF ---
-	# Stok ve rezerv kontrolü şimdilik devre dışı bırakıldı. İleride tekrar açılabilir.
+	# Stok ve rezerv kontrolü devre dışı bırakıldı
 	pass
 
 
@@ -865,7 +870,7 @@ def upsert_long_term_reserve_usage(
 	Verilen satış siparişi ve hammadde için Long Term Reserve Usage kaydını ekler veya günceller.
 	Child siparişlerde parent_sales_order referansı da eklenir.
 	"""
-	qty = normalize_qty(qty)
+	# qty'yi normalize etmiyoruz
 	existing = frappe.get_all(
 		"Long Term Reserve Usage",
 		filters={"sales_order": sales_order, "item_code": item_code},
@@ -873,7 +878,7 @@ def upsert_long_term_reserve_usage(
 	)
 	if existing:
 		usage_doc = frappe.get_doc("Long Term Reserve Usage", existing[0]["name"])
-		usage_doc.used_qty = qty  # <-- Birikmeli değil, yeni miktarı yaz
+		usage_doc.used_qty = get_real_qty(qty)  # <-- Birikmeli değil, yeni miktarı yaz
 		usage_doc.usage_date = frappe.utils.nowdate()
 		if is_long_term_child and parent_sales_order:
 			usage_doc.parent_sales_order = parent_sales_order
@@ -882,7 +887,7 @@ def upsert_long_term_reserve_usage(
 		usage_doc = frappe.new_doc("Long Term Reserve Usage")
 		usage_doc.sales_order = sales_order
 		usage_doc.item_code = item_code
-		usage_doc.used_qty = qty
+		usage_doc.used_qty = get_real_qty(qty)
 		usage_doc.usage_date = frappe.utils.nowdate()
 		if is_long_term_child and parent_sales_order:
 			usage_doc.parent_sales_order = parent_sales_order
@@ -906,13 +911,13 @@ def use_long_term_reserve_bulk(sales_order, usage_data):
 		usage_list = json.loads(usage_data)
 		for usage in usage_list:
 			item_code = str(usage.get("item_code")).strip()
-			qty = float(usage.get("qty", 0))
+			qty = get_real_qty(usage.get("qty", 0))
 			if not item_code or qty <= 0:
 				continue
 			# Parent'ı belirle
 			if is_long_term_child and parent_sales_order:
 				parent_so = parent_sales_order
-				parent_rezerv = normalize_qty(
+				parent_rezerv = get_real_qty(
 					frappe.db.get_value(
 						"Rezerved Raw Materials",
 						{"sales_order": parent_so, "item_code": item_code},
@@ -924,7 +929,7 @@ def use_long_term_reserve_bulk(sales_order, usage_data):
 				parent_rezerv = get_long_term_reserve_qty(item_code)
 			# Parent'ın toplam usage'ı (tüm usage kayıtları)
 			if is_long_term_child and parent_sales_order:
-				total_usage = normalize_qty(
+				total_usage = get_real_qty(
 					frappe.db.sql(
 						"""
                     SELECT SUM(used_qty) FROM `tabLong Term Reserve Usage`
@@ -934,7 +939,7 @@ def use_long_term_reserve_bulk(sales_order, usage_data):
 					)[0][0]
 				)
 			else:
-				total_usage = normalize_qty(
+				total_usage = get_real_qty(
 					frappe.db.sql(
 						"""
                     SELECT SUM(used_qty) FROM `tabLong Term Reserve Usage`
@@ -968,7 +973,7 @@ def use_long_term_reserve_bulk(sales_order, usage_data):
 						"Rezerved Raw Materials", parent_reserve[0]["name"]
 					)
 					reserve_doc.quantity -= qty
-					if normalize_qty(reserve_doc.quantity) <= 0:
+					if get_real_qty(reserve_doc.quantity) <= 0:
 						reserve_doc.delete(ignore_permissions=True)
 					else:
 						reserve_doc.save(ignore_permissions=True)
@@ -1127,25 +1132,25 @@ def handle_child_sales_order_reserves(doc, method):
 		bom_doc = frappe.get_doc("BOM", bom)
 		for rm in bom_doc.items:
 			hammadde_code = str(rm.item_code).strip()
-			ihtiyac = normalize_qty(float(rm.qty) * float(item.qty))
+			ihtiyac = get_real_qty(rm.qty * item.qty)
 			toplam_ihtiyac[hammadde_code] = toplam_ihtiyac.get(hammadde_code, 0) + ihtiyac
 	# 2. Her hammadde için parent rezervde yeterli miktar var mı kontrol et
 	for hammadde_code, ihtiyac_raw in toplam_ihtiyac.items():
-		ihtiyac = normalize_qty(ihtiyac_raw)
+		ihtiyac = get_real_qty(ihtiyac_raw)
 		parent_reserve = frappe.get_all(
 			"Rezerved Raw Materials",
 			filters={"sales_order": parent_so, "item_code": hammadde_code},
 			fields=["name", "quantity"],
 		)
 		if parent_reserve:
-			mevcut_rezerv = normalize_qty(float(parent_reserve[0]["quantity"]))
+			mevcut_rezerv = get_real_qty(parent_reserve[0]["quantity"])
 			if safe_qty_compare(mevcut_rezerv, ihtiyac):
 				# 3. Usage ve düşüm işlemini tek seferde yap
 				reserve_doc = frappe.get_doc(
 					"Rezerved Raw Materials", parent_reserve[0]["name"]
 				)
-				reserve_doc.quantity = normalize_qty(reserve_doc.quantity - ihtiyac)
-				if normalize_qty(reserve_doc.quantity) <= 0:
+				reserve_doc.quantity = get_real_qty(reserve_doc.quantity - ihtiyac)
+				if get_real_qty(reserve_doc.quantity) <= 0:
 					reserve_doc.delete(ignore_permissions=True)
 				else:
 					reserve_doc.save(ignore_permissions=True)
@@ -1174,13 +1179,29 @@ def handle_child_sales_order_reserves(doc, method):
 def create_material_request_for_shortages(sales_order):
     """
     Bu Siparişe Ait Eksikler İçin Satınalma Talebi Oluştur butonu için:
-    Sadece ilgili satış siparişi için eksik hammaddelerden satınalma talebi oluşturur.
+    OPTIMIZE EDİLDİ: Tek sorgu ile eksik hammaddeleri tespit eder ve toplar.
     Aynı sipariş ve hammadde için açık bir talep varsa tekrar oluşturmaz.
     """
     if not sales_order:
         return {"success": False, "message": "Satış Siparişi bulunamadı."}
     try:
-        # Satış siparişi için açık veya onaylanmış bir Material Request var mı? (ana belge seviyesinde kontrol)
+        # Sales Order varlığını ve durumunu kontrol et
+        if not frappe.db.exists("Sales Order", sales_order):
+            return {"success": False, "message": f"Satış siparişi '{sales_order}' bulunamadı."}
+        
+        # SO bilgilerini güvenli şekilde al
+        so_doc = frappe.get_doc("Sales Order", sales_order)
+        
+        # İptal edilmiş siparişler için çalışmasın
+        if so_doc.docstatus == 2:
+            return {
+                "success": False, 
+                "message": f"Satış siparişi '{sales_order}' iptal edilmiş. İptal edilmiş siparişler için malzeme talebi oluşturulamaz."
+            }
+        
+        company = so_doc.company
+
+        # Mevcut açık Material Request kontrolü - tek sorgu
         existing_mr = frappe.db.sql("""
             SELECT mr.name
             FROM `tabMaterial Request` mr
@@ -1190,72 +1211,149 @@ def create_material_request_for_shortages(sales_order):
               AND mr.docstatus IN (0, 1)
             LIMIT 1
         """, (sales_order,))
+        
         if existing_mr:
             return {
                 "success": False,
                 "message": "Bu satış siparişi için zaten bir malzeme talebi var. Lütfen mevcut talebi kullanın.",
             }
-        raw_materials = get_sales_order_raw_materials(sales_order)
-        shortage_items = []
-        for row in raw_materials:
-            acik_miktar = float(row.get("acik_miktar", 0))
-            item_code = row.get("raw_material")
-            if normalize_qty(acik_miktar) > 0:
-                # Performanslı kontrol: Bu sipariş ve hammadde için açık bir talep var mı?
-                existing = frappe.db.sql(
-                    """
-                    SELECT mri.name FROM `tabMaterial Request Item` mri
-                    INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
-                    WHERE mri.item_code = %s
-                      AND mri.sales_order = %s
-                      AND mr.material_request_type = 'Purchase'
-                      AND mr.docstatus != 1
-                    LIMIT 1
-                    """,
-                    (item_code, sales_order),
-                )
-                if existing:
-                    continue  # Zaten açık talep var, tekrar oluşturma
-                shortage_items.append(
-                    {
-                        "item_code": item_code,
-                        "qty": acik_miktar,
-                        "schedule_date": frappe.utils.nowdate(),
-                    }
-                )
-        if not shortage_items:
+
+        # Sales Order'da item var mı kontrol et
+        if not so_doc.items:
+            return {
+                "success": False,
+                "message": f"Satış siparişi '{sales_order}' içinde hiç ürün yok."
+            }
+
+        # OPTIMIZE: Direkt SQL ile hammadde eksiklerini hesapla
+        shortage_data = frappe.db.sql("""
+            WITH raw_material_needs AS (
+                SELECT 
+                    bi.item_code as raw_material,
+                    SUM(bi.qty * soi.qty) as total_needed
+                FROM `tabSales Order Item` soi
+                INNER JOIN `tabBOM` b ON b.item = soi.item_code 
+                    AND b.is_active = 1 AND b.is_default = 1
+                INNER JOIN `tabBOM Item` bi ON bi.parent = b.name
+                INNER JOIN `tabItem` i ON i.item_code = bi.item_code 
+                    AND i.is_stock_item = 1 AND i.is_purchase_item = 1
+                WHERE soi.parent = %s
+                GROUP BY bi.item_code
+            ),
+            stock_and_reserve AS (
+                SELECT 
+                    rmn.raw_material,
+                    rmn.total_needed,
+                    COALESCE(SUM(bin.actual_qty), 0) as total_stock,
+                    COALESCE(reserved.total_reserved, 0) as total_reserved
+                FROM raw_material_needs rmn
+                LEFT JOIN `tabBin` bin ON bin.item_code = rmn.raw_material
+                LEFT JOIN (
+                    SELECT item_code, SUM(quantity) as total_reserved
+                    FROM `tabRezerved Raw Materials`
+                    GROUP BY item_code
+                ) reserved ON reserved.item_code = rmn.raw_material
+                GROUP BY rmn.raw_material, rmn.total_needed, reserved.total_reserved
+            )
+            SELECT 
+                raw_material,
+                total_needed,
+                total_stock,
+                total_reserved,
+                CASE 
+                    WHEN total_needed > (total_stock - total_reserved) 
+                    THEN total_needed - (total_stock - total_reserved)
+                    ELSE 0 
+                END as shortage
+            FROM stock_and_reserve
+            WHERE total_needed > (total_stock - total_reserved)
+        """, (sales_order,), as_dict=True)
+
+        if not shortage_data:
+            # BOM tanımlı mı kontrol et
+            bom_check = frappe.db.sql("""
+                SELECT COUNT(*) as bom_count
+                FROM `tabSales Order Item` soi
+                INNER JOIN `tabBOM` b ON b.item = soi.item_code 
+                    AND b.is_active = 1 AND b.is_default = 1
+                WHERE soi.parent = %s
+            """, (sales_order,))
+            
+            bom_count = bom_check[0][0] if bom_check else 0
+            
+            if bom_count == 0:
+                return {
+                    "success": False,
+                    "message": f"Satış siparişi '{sales_order}' içindeki ürünler için aktif BOM bulunamadı. Lütfen önce BOM tanımlarını kontrol edin.",
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Satış siparişi '{sales_order}' için eksik hammadde yok.",
+                }
+
+        # Mevcut açık talepleri toplu kontrol et
+        existing_items = set()
+        if shortage_data:
+            item_codes = [row['raw_material'] for row in shortage_data]
+            existing_requests = frappe.db.sql("""
+                SELECT DISTINCT mri.item_code
+                FROM `tabMaterial Request Item` mri
+                INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
+                WHERE mri.item_code IN %s
+                  AND mri.sales_order = %s
+                  AND mr.material_request_type = 'Purchase'
+                  AND mr.docstatus != 2
+            """, (tuple(item_codes), sales_order))
+            existing_items = set(row[0] for row in existing_requests)
+
+        # Consolidated shortage items - aynı üründen birden fazla satır olmamalı
+        consolidated_items = {}
+        for row in shortage_data:
+            item_code = row['raw_material']
+            if item_code in existing_items:
+                continue  # Zaten açık talep var
+            
+            shortage_qty = get_real_qty(row['shortage'])
+            if shortage_qty > 0:
+                if item_code in consolidated_items:
+                    consolidated_items[item_code] += shortage_qty
+                else:
+                    consolidated_items[item_code] = shortage_qty
+
+        if not consolidated_items:
             return {
                 "success": False,
                 "message": "Bu siparişe ait eksik hammadde için zaten açık bir talep var veya eksik yok.",
             }
+
+        # Material Request oluştur
         mr = frappe.new_doc("Material Request")
         mr.material_request_type = "Purchase"
         mr.schedule_date = frappe.utils.nowdate()
-        mr.company = frappe.db.get_value("Sales Order", sales_order, "company")
+        mr.company = company
         mr.set("items", [])
-        for item in shortage_items:
-            mr.append(
-                "items",
-                {
-                    "item_code": item["item_code"],
-                    "qty": item["qty"],
-                    "schedule_date": item["schedule_date"],
-                    "warehouse": None,
-                    "sales_order": sales_order,  # Satış siparişi ile ilişkilendir
-                },
-            )
+        
+        for item_code, qty in consolidated_items.items():
+            mr.append("items", {
+                "item_code": item_code,
+                "qty": qty,
+                "schedule_date": frappe.utils.nowdate(),
+                "warehouse": None,
+                "sales_order": sales_order,
+            })
+        
         mr.insert(ignore_permissions=True)
         mr.submit()
+        
         return {
             "success": True,
-            "message": "Bu siparişe ait eksikler için satınalma talebi başarıyla oluşturuldu.",
+            "message": f"Satış siparişi '{sales_order}' için {len(consolidated_items)} kalem hammadde eksiklerine ait satınalma talebi başarıyla oluşturuldu.",
             "mr_name": mr.name,
-            "created_rows": shortage_items,
+            "created_rows": list(consolidated_items.keys()),
         }
     except Exception:
-        frappe.log_error(
-            "create_material_request_for_shortages HATA", frappe.get_traceback()
-        )
+        frappe.log_error("create_material_request_for_shortages HATA", frappe.get_traceback())
         return {"success": False, "message": "Bir hata oluştu. Lütfen tekrar deneyin."}
 
 
@@ -1263,90 +1361,99 @@ def create_material_request_for_shortages(sales_order):
 def is_glass_item(item_code, item_name, item_group=None):
     return (item_group or "").lower() == "camlar"
 
+
+# ADMİN/CRON için otomatik rezerv temizlik utility
+def cleanup_unused_reserves():
+    """
+    Sıfır ve negatif rezerve sahip tüm satırları temizler (admin/cron ile).
+    """
+    rows = frappe.get_all("Rezerved Raw Materials", fields=["name", "quantity"])
+    deleted = 0
+    for row in rows:
+        try:
+            if get_real_qty(row['quantity']) <= 0.0:
+                frappe.delete_doc("Rezerved Raw Materials", row["name"], ignore_permissions=True)
+                deleted += 1
+        except Exception as e:
+            frappe.log_error(f"Cleanup reserve error: {e}")
+    frappe.logger().info(f"Rezerv Temizlik: {deleted} satır silindi.")
+    return f"{deleted} rezerve satırı silindi."
+
 @frappe.whitelist()
 def create_material_request_for_all_shortages():
     """
     Tüm Siparişlere Ait Eksikler İçin Satınalma Talebi Oluştur butonu için:
-    Performanslı: Tüm satış siparişlerindeki eksik hammaddeleri topluca tespit edip,
-    her bir hammadde için toplam açık miktar kadar tek bir satınalma talebi oluşturur.
+    ULTRA OPTIMIZE EDİLDİ: Tek sorgu ile tüm eksik hammaddeleri hesaplar.
     Cam ürünleri (item_group="Camlar") eklenmez, ama cam ürünlerinin BOM'undaki hammaddeler eklenir.
+    Aynı üründen birden fazla satır oluşturmaz, toplam miktarı birleştirir.
     """
     try:
-        sales_orders = frappe.get_all(
-            "Sales Order",
-            filters={"docstatus": 1},
-            fields=["name"]
-        )
-        if not sales_orders:
-            return {"success": False, "message": "Aktif satış siparişi yok."}
-
-        # 1. Tüm satış siparişlerindeki ürün kodlarını topla
-        all_so_names = [so["name"] for so in sales_orders]
-        so_items = frappe.get_all(
-            "Sales Order Item",
-            filters={"parent": ["in", all_so_names]},
-            fields=["parent", "item_code"]
-        )
-        all_item_codes = set(item["item_code"] for item in so_items)
-
-        # 2. Tüm bu ürünlerin BOM'larını ve BOM'lardaki hammaddeleri topla
-        bom_map = {}
-        bom_items_set = set()
-        for item_code in all_item_codes:
-            bom_name = frappe.db.get_value(
-                "BOM", {"item": item_code, "is_active": 1, "is_default": 1}, "name"
+        # ULTRA OPTIMIZE: Tek SQL sorgusu ile tüm eksikleri hesapla
+        shortage_data = frappe.db.sql("""
+            WITH all_raw_material_needs AS (
+                SELECT 
+                    bi.item_code as raw_material,
+                    SUM(bi.qty * soi.qty) as total_needed,
+                    MAX(i_parent.item_group) as parent_item_group,
+                    MAX(i_raw.item_group) as raw_item_group
+                FROM `tabSales Order` so
+                INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name
+                INNER JOIN `tabBOM` b ON b.item = soi.item_code 
+                    AND b.is_active = 1 AND b.is_default = 1
+                INNER JOIN `tabBOM Item` bi ON bi.parent = b.name
+                INNER JOIN `tabItem` i_raw ON i_raw.item_code = bi.item_code 
+                    AND i_raw.is_stock_item = 1 AND i_raw.is_purchase_item = 1
+                LEFT JOIN `tabItem` i_parent ON i_parent.item_code = soi.item_code
+                WHERE so.docstatus IN (0, 1)
+                GROUP BY bi.item_code
+            ),
+            filtered_needs AS (
+                SELECT 
+                    raw_material,
+                    total_needed
+                FROM all_raw_material_needs
+                WHERE 
+                    -- Cam hammaddeleri hariç tut
+                    LOWER(COALESCE(raw_item_group, '')) != 'camlar'
+                    -- Cam ürünlerinin hammaddeleri dahil, diğer ürünlerin hammaddeleri de dahil
+                    AND (
+                        LOWER(COALESCE(parent_item_group, '')) = 'camlar' 
+                        OR LOWER(COALESCE(parent_item_group, '')) != 'camlar'
+                    )
+            ),
+            stock_and_reserve AS (
+                SELECT 
+                    fn.raw_material,
+                    fn.total_needed,
+                    COALESCE(SUM(bin.actual_qty), 0) as total_stock,
+                    COALESCE(reserved.total_reserved, 0) as total_reserved
+                FROM filtered_needs fn
+                LEFT JOIN `tabBin` bin ON bin.item_code = fn.raw_material
+                LEFT JOIN (
+                    SELECT item_code, SUM(quantity) as total_reserved
+                    FROM `tabRezerved Raw Materials`
+                    GROUP BY item_code
+                ) reserved ON reserved.item_code = fn.raw_material
+                GROUP BY fn.raw_material, fn.total_needed, reserved.total_reserved
+            ),
+            shortages AS (
+                SELECT 
+                    raw_material,
+                    total_needed,
+                    total_stock,
+                    total_reserved,
+                    GREATEST(0, total_needed - GREATEST(0, total_stock - total_reserved)) as shortage
+                FROM stock_and_reserve
             )
-            if not bom_name:
-                continue
-            bom_doc = frappe.get_doc("BOM", bom_name)
-            bom_map[item_code] = bom_doc.items
-            for rm in bom_doc.items:
-                bom_items_set.add(rm.item_code)
+            SELECT 
+                raw_material,
+                shortage
+            FROM shortages
+            WHERE shortage > 0
+            ORDER BY shortage DESC
+        """, as_dict=True)
 
-        # 3. Tüm ilgili item'ların özelliklerini topluca çek
-        all_needed_item_codes = list(all_item_codes | bom_items_set)
-        item_features = {}
-        for item in frappe.get_all(
-            "Item",
-            filters={"item_code": ["in", all_needed_item_codes]},
-            fields=["item_code", "item_name", "item_group", "is_stock_item", "is_purchase_item"]
-        ):
-            item_features[item["item_code"]] = item
-
-        # 4. Cam ürünleri ve gerçek hammaddeleri baştan belirle
-        def is_glass(item_code):
-            return (item_features.get(item_code, {}).get("item_group", "").lower() == "camlar")
-        def is_real_raw(item_code):
-            f = item_features.get(item_code, {})
-            return f.get("is_stock_item") and f.get("is_purchase_item")
-
-        total_shortages = {}
-        # 5. Her satış siparişi için eksik hammaddeleri topla
-        for so in sales_orders:
-            raw_materials = get_sales_order_raw_materials(so["name"])
-            for row in raw_materials:
-                acik_miktar = float(row.get("acik_miktar", 0))
-                item_code = row.get("raw_material")
-                # Cam ürünleri eklenmesin
-                if is_glass(item_code):
-                    # Cam ürününün BOM'undaki hammaddeleri ekle
-                    for rm in bom_map.get(item_code, []):
-                        rm_code = rm.item_code
-                        if not is_real_raw(rm_code):
-                            continue
-                        rm_acik_miktar = float(rm.qty or 0)
-                        if normalize_qty(rm_acik_miktar) > 0:
-                            total_shortages[rm_code] = total_shortages.get(rm_code, 0) + normalize_qty(rm_acik_miktar)
-                    continue  # Cam ürünü ekleme
-                # Sadece gerçek hammadde olanlar eklensin
-                if not is_real_raw(item_code):
-                    continue
-                if is_glass(item_code):
-                    continue
-                if normalize_qty(acik_miktar) > 0:
-                    total_shortages[item_code] = total_shortages.get(item_code, 0) + normalize_qty(acik_miktar)
-
-        if not total_shortages:
+        if not shortage_data:
             return {
                 "success": True,
                 "message": "Tüm siparişlere ait eksik hammadde yok, talep oluşturulmadı.",
@@ -1354,29 +1461,58 @@ def create_material_request_for_all_shortages():
                 "created_rows": {},
             }
 
+        # Toplam şirket bilgisini al (ilk aktif Sales Order'dan)
+        company = frappe.db.get_value("Sales Order", 
+                                     {"docstatus": ["in", [0, 1]]}, 
+                                     "company", 
+                                     order_by="creation DESC")
+        
+        if not company:
+            return {"success": False, "message": "Aktif satış siparişi bulunamadı."}
+
+        # Consolidated items - aynı üründen birden fazla satır olmasın
+        consolidated_items = {}
+        for row in shortage_data:
+            item_code = row['raw_material']
+            shortage_qty = get_real_qty(row['shortage'])
+            
+            if shortage_qty > 0:
+                if item_code in consolidated_items:
+                    consolidated_items[item_code] += shortage_qty
+                else:
+                    consolidated_items[item_code] = shortage_qty
+
+        if not consolidated_items:
+            return {
+                "success": True,
+                "message": "Tüm siparişlere ait eksik hammadde yok, talep oluşturulmadı.",
+                "mr_name": None,
+                "created_rows": {},
+            }
+
+        # Material Request oluştur
         mr = frappe.new_doc("Material Request")
         mr.material_request_type = "Purchase"
         mr.schedule_date = frappe.utils.nowdate()
-        if sales_orders:
-            mr.company = frappe.db.get_value("Sales Order", sales_orders[0]["name"], "company")
+        mr.company = company
         mr.set("items", [])
-        for item_code, qty in total_shortages.items():
-            mr.append(
-                "items",
-                {
-                    "item_code": item_code,
-                    "qty": qty,
-                    "schedule_date": frappe.utils.nowdate(),
-                    "warehouse": None,
-                },
-            )
+        
+        for item_code, qty in consolidated_items.items():
+            mr.append("items", {
+                "item_code": item_code,
+                "qty": qty,
+                "schedule_date": frappe.utils.nowdate(),
+                "warehouse": None,
+            })
+        
         mr.insert(ignore_permissions=True)
         mr.submit()
+        
         return {
             "success": True,
-            "message": f"Tüm siparişlere ait eksikler için satınalma talebi başarıyla oluşturuldu. {mr.name}",
+            "message": f"Tüm siparişlere ait {len(consolidated_items)} kalem hammadde eksiklerine ait satınalma talebi başarıyla oluşturuldu. {mr.name}",
             "mr_name": mr.name,
-            "created_rows": total_shortages,
+            "created_rows": consolidated_items,
         }
     except Exception as e:
         frappe.log_error("create_material_request_for_all_shortages HATA", frappe.get_traceback())
@@ -1394,18 +1530,18 @@ def test_quantity_comparison():
 	Test function to verify quantity comparison logic works correctly.
 	"""
 	test_cases = [
-		(33.41, 33.4, "Should be equal with tolerance"),
-		(33.4, 33.41, "Should be equal with tolerance (reverse)"),
+		(33.41, 33.4, "Should NOT be equal (different values)"),
+		(33.4, 33.41, "Should NOT be equal (different values)"),
 		(15.44, 15.44, "Should be exactly equal"),
 		(15.0, 15.00, "Should be exactly equal (different precision)"),
-		(10.05, 10.01, "Should be equal with tolerance"),
-		(10.1, 10.05, "Should NOT be equal (outside tolerance)"),
+		(10.05, 10.01, "Should NOT be equal (different values)"),
+		(10.1, 10.05, "Should NOT be equal (different values)"),
 	]
 
 	results = []
 	for qty1, qty2, description in test_cases:
-		norm_qty1 = normalize_qty(qty1)
-		norm_qty2 = normalize_qty(qty2)
+		norm_qty1 = get_real_qty(qty1)
+		norm_qty2 = get_real_qty(qty2)
 		is_equal = qty_equals(norm_qty1, norm_qty2)
 		is_greater_equal = qty_greater_or_equal(norm_qty1, norm_qty2)
 		safe_compare = safe_qty_compare(norm_qty1, norm_qty2)
@@ -1429,7 +1565,7 @@ def test_quantity_comparison():
 
 def remove_reservations_on_work_order_complete(doc, method):
     """
-    İş emri tamamlandığında (stok hareketi oluşmuyorsa), ilgili satış siparişi ve hammaddeler için rezervleri siler.
+    İş emri tamamlandığında (stok hareketi oluşmuyorsa), ilgili satış siparişi ve hammaddeler için rezervleri azaltır veya siler.
     """
     if getattr(doc, "status", None) != "Completed":
         return
@@ -1438,12 +1574,18 @@ def remove_reservations_on_work_order_complete(doc, method):
         return
     for item in getattr(doc, "required_items", []):
         item_code = item.item_code
-        reserved = frappe.get_all(
+        qty_to_consume = abs(getattr(item, "required_qty", 0))
+        reserved_rows = frappe.get_all(
             "Rezerved Raw Materials",
             filters={"sales_order": sales_order, "item_code": item_code},
             fields=["name", "quantity"],
+            order_by="creation asc",
         )
-        for row in reserved:
-            frappe.delete_doc("Rezerved Raw Materials", row["name"], ignore_permissions=True)
+        for row in reserved_rows:
+            if qty_to_consume <= 0:
+                break
+            consume_qty = min(qty_to_consume, row["quantity"] or 0)
+            update_or_delete_reserved_raw_material(row["name"], consume_qty)
+            qty_to_consume -= consume_qty
     frappe.db.commit()
-    frappe.msgprint(_("İş emri tamamlandı, rezervler silindi."), indicator="green")
+    frappe.msgprint(_("İş emri tamamlandı, rezervler güncellendi."), indicator="green")

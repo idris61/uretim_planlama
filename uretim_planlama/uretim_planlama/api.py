@@ -631,6 +631,100 @@ def get_work_order_detail(work_order_id):
 
 
 @frappe.whitelist()
+def get_sales_order_work_orders(sales_order):
+	"""
+	Bir sipariş için tüm iş emirlerini ve operasyon detaylarını getir
+	"""
+	# Sipariş için tüm iş emirlerini çek
+	work_orders = frappe.get_all(
+		"Work Order",
+		filters={"sales_order": sales_order, "docstatus": 1},
+		fields=[
+			"name",
+			"status",
+			"qty",
+			"produced_qty",
+			"planned_start_date",
+			"planned_end_date",
+			"bom_no",
+			"production_plan"
+		],
+		order_by="planned_start_date asc"
+	)
+	
+	work_order_details = []
+	
+	for wo in work_orders:
+		# Her iş emri için operasyonları çek
+		operations = frappe.get_all(
+			"Work Order Operation",
+			filters={"parent": wo.name},
+			fields=[
+				"operation",
+				"workstation",
+				"status",
+				"completed_qty",
+				"planned_start_time",
+				"planned_end_time",
+				"actual_start_time",
+				"actual_end_time",
+				"time_in_mins",
+			],
+			order_by="planned_start_time asc"
+		)
+		
+		# İş kartlarını çek
+		job_cards = frappe.get_all(
+			"Job Card",
+			filters={"work_order": wo.name},
+			fields=["operation", "status", "actual_start_date", "actual_end_date"],
+		)
+		job_card_map = {jc["operation"]: jc for jc in job_cards}
+		
+		# Operasyonları işle
+		processed_operations = []
+		for op in operations:
+			jc = job_card_map.get(op["operation"])
+			status = jc["status"] if jc and jc.get("status") else op.get("status", "")
+			actual_start = (
+				jc["actual_start_date"]
+				if jc and jc.get("actual_start_date")
+				else op.get("actual_start_time", "")
+			)
+			actual_end = (
+				jc["actual_end_date"]
+				if jc and jc.get("actual_end_date")
+				else op.get("actual_end_time", "")
+			)
+			
+			processed_operations.append({
+				"operation": op.get("operation", ""),
+				"workstation": op.get("workstation", ""),
+				"status": status,
+				"completed_qty": op.get("completed_qty", ""),
+				"planned_start_time": op.get("planned_start_time"),
+				"planned_end_time": op.get("planned_end_time"),
+				"actual_start_time": actual_start,
+				"actual_end_time": actual_end,
+				"duration": op.get("time_in_mins", ""),
+			})
+		
+		work_order_details.append({
+			"name": wo.name,
+			"status": wo.status,
+			"qty": wo.qty,
+			"produced_qty": wo.produced_qty,
+			"planned_start_date": wo.planned_start_date,
+			"planned_end_date": wo.planned_end_date,
+			"bom_no": wo.bom_no,
+			"production_plan": wo.production_plan,
+			"operations": processed_operations
+		})
+	
+	return work_order_details
+
+
+@frappe.whitelist()
 def get_work_orders_for_calendar(start, end, include_draft=False):
 	"""
 	Frappe Calendar için iş emirlerini döndürür.
@@ -1515,3 +1609,522 @@ def get_assembly_accessory_materials(sales_orders):
                 "uom": item.get("uom", "")
             })
     return result
+
+@frappe.whitelist()
+def get_production_planning_data(filters=None):
+	"""
+	Üretim planlama paneli için veri getirir
+	- Planlanan üretim planları ve satış siparişleri
+	- Planlanmamış satış siparişleri
+	"""
+	try:
+		if filters:
+			filters = json.loads(filters) if isinstance(filters, str) else filters
+		else:
+			filters = {}
+
+		print("=== API BAŞLADI ===")
+		
+		# Planlanan üretim planları
+		planned_data = get_planned_production_data(filters)
+		print(f"Planlanan veri sayısı: {len(planned_data)}")
+		
+		# Planlanmamış satış siparişleri
+		unplanned_data = get_unplanned_sales_orders(filters)
+		print(f"Planlanmamış veri sayısı: {len(unplanned_data)}")
+		
+		# Özet verileri hesapla
+		summary = calculate_summary_data(planned_data, unplanned_data)
+		print(f"Özet: {summary}")
+		
+		result = {
+			"planned": planned_data,
+			"unplanned": unplanned_data,
+			"summary": summary
+		}
+		
+		print("=== API TAMAMLANDI ===")
+		return result
+		
+	except Exception as e:
+		import traceback
+		error_msg = f"Üretim planlama verisi getirme hatası: {str(e)}\n{traceback.format_exc()}"
+		frappe.log_error(error_msg)
+		print(f"API HATASI: {error_msg}")
+		return {"error": str(e)}
+
+def get_planned_production_data(filters):
+	"""
+	Planlanan üretim planları ve satış siparişlerini getirir
+	"""
+	try:
+		# Production Plan'ları getir
+		production_plans = frappe.get_all(
+			"Production Plan",
+			fields=[
+				"name",
+				"from_date",
+				"to_date",
+				"status",
+				"company"
+			],
+			filters={
+				"docstatus": 1,  # Onaylanmış planlar
+				"status": ["!=", "Closed"]
+			}
+		)
+		
+		print(f"Production Plan sayısı: {len(production_plans)}")
+		
+		planned_data = []
+		
+		for pp in production_plans:
+			print(f"İşleniyor: {pp.name}")
+			# Bu plana ait satış siparişlerini getir
+			sales_orders = get_sales_orders_for_production_plan(pp.name)
+			
+			for so in sales_orders:
+				try:
+					# Hafta hesapla
+					week_number = get_week_number(so.get("transaction_date"))
+					
+					# Acil durumu kontrol et
+					is_urgent = check_urgent_status(so)
+					
+					planned_data.append({
+						"hafta": week_number,
+						"uretim_plani": pp.name,
+						"siparis_no": so.get("name"),
+						"bayi": so.get("customer"),
+						"musteri": so.get("custom_end_customer", ""),
+						"siparis_tarihi": so.get("transaction_date"),
+						"adet": so.get("qty", 0),
+						"mtul": calculate_mtul(so),
+						"tip": get_item_type(so.get("item_code")),
+						"renk": get_item_color(so.get("item_code")),
+						"aciklamalar": so.get("description", ""),
+						"acil_durum": "ACİL" if is_urgent else "NORMAL",
+						"tahmini_bitis": so.get("delivery_date"),
+						"durum": get_turkish_status(pp.get("status")),
+						"acil": is_urgent
+					})
+				except Exception as e:
+					print(f"SO işleme hatası: {so.get('name')} - {str(e)}")
+					continue
+		
+		return planned_data
+		
+	except Exception as e:
+		print(f"get_planned_production_data hatası: {str(e)}")
+		return []
+
+def get_unplanned_sales_orders(filters):
+	"""
+	Planlanmamış satış siparişlerini getirir
+	"""
+	try:
+		# Production Plan'a dahil edilmemiş satış siparişleri
+		planned_so_list = frappe.get_all(
+			"Production Plan Item",
+			fields=["sales_order"],
+			filters={"sales_order": ["is", "set"]}
+		)
+		
+		planned_so_names = [item.sales_order for item in planned_so_list if item.sales_order]
+		print(f"Planlanmış SO sayısı: {len(planned_so_names)}")
+		
+		# Planlanmamış siparişleri getir
+		unplanned_orders = frappe.get_all(
+			"Sales Order",
+			fields=[
+				"name",
+				"customer",
+				"custom_end_customer",
+				"transaction_date",
+				"delivery_date",
+				"status"
+			],
+			filters={
+				"docstatus": 1,
+				"status": ["not in", ["Stopped", "Closed"]],
+				"name": ["not in", planned_so_names] if planned_so_names else []
+			}
+		)
+		
+		print(f"Planlanmamış SO sayısı: {len(unplanned_orders)}")
+		
+		unplanned_data = []
+		
+		for so in unplanned_orders:
+			try:
+				# Bu siparişin detaylarını getir
+				so_items = frappe.get_all(
+					"Sales Order Item",
+					fields=["item_code", "qty", "description"],
+					filters={"parent": so.name}
+				)
+				
+				for item in so_items:
+					try:
+						week_number = get_week_number(so.get("transaction_date"))
+						is_urgent = check_urgent_status(so)
+						
+						unplanned_data.append({
+							"hafta": week_number,
+							"siparis_no": so.get("name"),
+							"bayi": so.get("customer"),
+							"musteri": so.get("custom_end_customer", ""),
+							"siparis_tarihi": so.get("transaction_date"),
+							"adet": item.get("qty", 0),
+							"mtul": calculate_mtul({"item_code": item.get("item_code"), "qty": item.get("qty")}),
+							"tip": get_item_type(item.get("item_code")),
+							"renk": get_item_color(item.get("item_code")),
+							"aciklamalar": item.get("description", ""),
+							"acil_durum": "ACİL" if is_urgent else "NORMAL",
+							"tahmini_bitis": so.get("delivery_date"),
+							"durum": "PLANLANMAMIŞ",
+							"acil": is_urgent
+						})
+					except Exception as e:
+						print(f"Item işleme hatası: {item.get('item_code')} - {str(e)}")
+						continue
+						
+			except Exception as e:
+				print(f"SO detay hatası: {so.get('name')} - {str(e)}")
+				continue
+		
+		return unplanned_data
+		
+	except Exception as e:
+		print(f"get_unplanned_sales_orders hatası: {str(e)}")
+		return []
+
+def get_sales_orders_for_production_plan(production_plan):
+	"""
+	Bir üretim planına ait satış siparişlerini getirir
+	"""
+	try:
+		so_items = frappe.get_all(
+			"Production Plan Item",
+			fields=["sales_order", "sales_order_item", "item_code", "planned_qty"],
+			filters={"parent": production_plan}
+		)
+		
+		sales_orders = []
+		
+		for item in so_items:
+			if item.sales_order:
+				try:
+					so = frappe.get_doc("Sales Order", item.sales_order)
+					so_item = frappe.get_doc("Sales Order Item", item.sales_order_item) if item.sales_order_item else None
+					
+					sales_orders.append({
+						"name": so.name,
+						"customer": so.customer,
+						"custom_end_customer": so.get("custom_end_customer", ""),
+						"transaction_date": so.transaction_date,
+						"delivery_date": so_item.delivery_date if so_item else None,
+						"item_code": item.item_code,
+						"qty": item.planned_qty,
+						"description": so_item.description if so_item else ""
+					})
+				except Exception as e:
+					print(f"SO doc hatası: {item.sales_order} - {str(e)}")
+					continue
+		
+		return sales_orders
+		
+	except Exception as e:
+		print(f"get_sales_orders_for_production_plan hatası: {str(e)}")
+		return []
+
+def get_week_number(date_str):
+	"""
+	Tarihten hafta numarasını hesaplar
+	"""
+	if not date_str:
+		return 0
+	
+	try:
+		date = frappe.utils.getdate(date_str)
+		return date.isocalendar()[1]
+	except:
+		return 0
+
+def check_urgent_status(sales_order):
+	"""
+	Acil durumu kontrol eder
+	"""
+	try:
+		# Burada acil durumu belirleyen kriterleri ekleyebilirsiniz
+		# Örnek: Teslim tarihi yakın, özel not, vs.
+		
+		# Şimdilik basit bir kontrol
+		if sales_order.get("delivery_date"):
+			delivery_date = frappe.utils.getdate(sales_order.get("delivery_date"))
+			today = frappe.utils.today()
+			days_diff = (delivery_date - frappe.utils.getdate(today)).days
+			
+			return days_diff <= 7  # 7 gün içinde teslim edilecekse acil
+		
+		return False
+		
+	except Exception as e:
+		print(f"check_urgent_status hatası: {str(e)}")
+		return False
+
+def calculate_mtul(sales_order):
+	"""
+	MTÜL hesaplar (şimdilik basit)
+	"""
+	try:
+		# Burada gerçek MTÜL hesaplaması yapılabilir
+		return sales_order.get("qty", 0) * 10  # Örnek hesaplama
+	except:
+		return 0
+
+def get_item_type(item_code):
+	"""
+	Ürün tipini getirir
+	"""
+	if not item_code:
+		return ""
+	
+	try:
+		item = frappe.get_doc("Item", item_code)
+		return item.get("custom_item_type", "") or item.get("item_group", "")
+	except:
+		return ""
+
+def get_item_color(item_code):
+	"""
+	Ürün rengini getirir
+	"""
+	if not item_code:
+		return ""
+	
+	try:
+		item = frappe.get_doc("Item", item_code)
+		return item.get("custom_color", "") or ""
+	except:
+		return ""
+
+def get_turkish_status(status):
+	"""
+	Durumu Türkçe'ye çevirir
+	"""
+	status_map = {
+		"Draft": "Taslak",
+		"Submitted": "Onaylandı",
+		"Not Started": "Başlamadı",
+		"In Progress": "Devam Ediyor",
+		"Completed": "Tamamlandı",
+		"Stopped": "Durduruldu",
+		"Closed": "Kapatıldı"
+	}
+	
+	return status_map.get(status, status)
+
+def calculate_summary_data(planned_data, unplanned_data):
+	"""
+	Özet verileri hesaplar
+	"""
+	try:
+		planned_count = len(planned_data)
+		unplanned_count = len(unplanned_data)
+		total_count = planned_count + unplanned_count
+		urgent_count = len([item for item in planned_data + unplanned_data if item.get("acil")])
+		
+		return {
+			"planlanan": planned_count,
+			"planlanmamis": unplanned_count,
+			"toplam": total_count,
+			"acil": urgent_count
+		}
+	except Exception as e:
+		print(f"calculate_summary_data hatası: {str(e)}")
+		return {
+			"planlanan": 0,
+			"planlanmamis": 0,
+			"toplam": 0,
+			"acil": 0
+		}
+
+@frappe.whitelist()
+def get_bom_count_and_status():
+	"""
+	Tüm BOM'ların sayısını ve statülerini döndürür.
+	"""
+	try:
+		# BOM'ları statü bazında grupla
+		bom_stats = frappe.db.sql("""
+			SELECT 
+				docstatus,
+				is_active,
+				is_default,
+				COUNT(*) as count
+			FROM `tabBOM`
+			GROUP BY docstatus, is_active, is_default
+		""", as_dict=True)
+		
+		# Sonuçları düzenle
+		result = {
+			"total_boms": 0,
+			"active_boms": 0,
+			"inactive_boms": 0,
+			"submitted_boms": 0,
+			"draft_boms": 0,
+			"cancelled_boms": 0,
+			"default_boms": 0,
+			"non_default_boms": 0,
+			"status_breakdown": []
+		}
+		
+		for stat in bom_stats:
+			count = stat.count
+			result["total_boms"] += count
+			
+			# Aktif/Pasif durumu
+			if stat.is_active:
+				result["active_boms"] += count
+			else:
+				result["inactive_boms"] += count
+			
+			# Docstatus durumu
+			if stat.docstatus == 0:
+				result["draft_boms"] += count
+			elif stat.docstatus == 1:
+				result["submitted_boms"] += count
+			elif stat.docstatus == 2:
+				result["cancelled_boms"] += count
+			
+			# Default durumu
+			if stat.is_default:
+				result["default_boms"] += count
+			else:
+				result["non_default_boms"] += count
+			
+			# Detaylı statü breakdown
+			status_key = f"docstatus_{stat.docstatus}_active_{stat.is_active}_default_{stat.is_default}"
+			result["status_breakdown"].append({
+				"docstatus": stat.docstatus,
+				"is_active": stat.is_active,
+				"is_default": stat.is_default,
+				"count": count,
+				"status_description": get_bom_status_description(stat.docstatus, stat.is_active, stat.is_default)
+			})
+		
+		# En çok kullanılan BOM'ları da ekle
+		most_used_boms = frappe.db.sql("""
+			SELECT 
+				bom.name,
+				bom.item,
+				bom.item_name,
+				bom.docstatus,
+				bom.is_active,
+				bom.is_default,
+				COUNT(wo.name) as usage_count
+			FROM `tabBOM` bom
+			LEFT JOIN `tabWork Order` wo ON bom.name = wo.bom_no
+			GROUP BY bom.name
+			ORDER BY usage_count DESC
+			LIMIT 10
+		""", as_dict=True)
+		
+		result["most_used_boms"] = most_used_boms
+		
+		return result
+		
+	except Exception as e:
+		frappe.log_error(f"BOM count and status error: {str(e)}")
+		return {
+			"error": str(e),
+			"total_boms": 0,
+			"active_boms": 0,
+			"inactive_boms": 0,
+			"submitted_boms": 0,
+			"draft_boms": 0,
+			"cancelled_boms": 0,
+			"default_boms": 0,
+			"non_default_boms": 0,
+			"status_breakdown": [],
+			"most_used_boms": []
+		}
+
+def get_bom_status_description(docstatus, is_active, is_default):
+	"""
+	BOM statü açıklamasını döndürür
+	"""
+	status_parts = []
+	
+	if docstatus == 0:
+		status_parts.append("Taslak")
+	elif docstatus == 1:
+		status_parts.append("Onaylı")
+	elif docstatus == 2:
+		status_parts.append("İptal")
+	
+	if is_active:
+		status_parts.append("Aktif")
+	else:
+		status_parts.append("Pasif")
+	
+	if is_default:
+		status_parts.append("Varsayılan")
+	
+	return " - ".join(status_parts)
+
+@frappe.whitelist()
+def get_bom_details_by_item(item_code=None):
+	"""
+	Belirli bir item için BOM detaylarını döndürür
+	"""
+	try:
+		filters = {}
+		if item_code:
+			filters["item"] = item_code
+		
+		boms = frappe.get_all(
+			"BOM",
+			filters=filters,
+			fields=[
+				"name",
+				"item",
+				"item_name", 
+				"docstatus",
+				"is_active",
+				"is_default",
+				"quantity",
+				"uom",
+				"creation",
+				"modified"
+			],
+			order_by="creation desc"
+		)
+		
+		for bom in boms:
+			# BOM item sayısını ekle
+			bom_item_count = frappe.db.count("BOM Item", {"parent": bom.name})
+			bom["item_count"] = bom_item_count
+			
+			# Kullanım sayısını ekle
+			usage_count = frappe.db.count("Work Order", {"bom_no": bom.name})
+			bom["usage_count"] = usage_count
+			
+			# Statü açıklamasını ekle
+			bom["status_description"] = get_bom_status_description(
+				bom.docstatus, bom.is_active, bom.is_default
+			)
+		
+		return {
+			"boms": boms,
+			"total_count": len(boms)
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"BOM details error: {str(e)}")
+		return {
+			"error": str(e),
+			"boms": [],
+			"total_count": 0
+		}
