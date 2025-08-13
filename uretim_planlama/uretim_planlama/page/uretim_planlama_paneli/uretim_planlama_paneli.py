@@ -143,6 +143,26 @@ def apply_tip_filter_unplanned(where_conditions: List[str], filters: Dict) -> No
         where_conditions.append("(i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar')")
     # Karışık filtresi yok - performans için
 
+def add_business_days(start_date, business_days):
+    """
+    Verilen tarihe iş günü sayısı ekler (hafta sonları hariç)
+    """
+    from datetime import timedelta
+    
+    if not start_date:
+        return start_date
+    
+    current_date = start_date
+    added_days = 0
+    
+    while added_days < business_days:
+        current_date += timedelta(days=1)
+        # Hafta sonu kontrolü (0=Monday, 6=Sunday)
+        if current_date.weekday() < 5:  # 0-4 = Monday to Friday
+            added_days += 1
+    
+    return current_date
+
 @frappe.whitelist()
 def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
@@ -409,6 +429,12 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
             work_order_status = first_item.get('work_order_status', 'Not Started')
             plan_status = 'Completed' if work_order_status == 'Completed' else first_item.get('plan_status', 'Not Started')
             
+            # Teslim tarihi hesaplama: Başlangıç tarihi + 4 iş günü
+            baslangic_tarihi = first_item.get('planlanan_baslangic_tarihi')
+            hesaplanan_teslim_tarihi = None
+            if baslangic_tarihi:
+                hesaplanan_teslim_tarihi = add_business_days(baslangic_tarihi, 4)
+            
             formatted_item = {
                 'uretim_plani': first_item['uretim_plani'],
                 'opti_no': first_item.get('opti_no'),
@@ -424,7 +450,7 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
                 'renk': renk or '-',
                 'seri': seri or '-',
                 'aciklama': first_item.get('siparis_aciklama') or f"{len(group_data['items'])} ürün grubu",
-                'bitis_tarihi': first_item['bitis_tarihi'].strftime('%Y-%m-%d') if first_item['bitis_tarihi'] else None,
+                'bitis_tarihi': hesaplanan_teslim_tarihi.strftime('%Y-%m-%d') if hesaplanan_teslim_tarihi else None,
                 'acil': bool(first_item['acil']),
                 'durum_badges': [],  # Badge logic kaldırıldı - performans için
                 'pvc_count': group_data['total_pvc'],
@@ -519,13 +545,19 @@ def format_unplanned_data(unplanned_data: List[Dict]) -> List[Dict]:
             seri_str = ', '.join(sorted(group['seri_list'])) if group['seri_list'] else '-'
             renk_str = ', '.join(sorted(group['renk_list'])) if group['renk_list'] else '-'
             
+            # Planlanmamış veriler için teslim tarihi hesaplama: Sipariş tarihi + 4 iş günü
+            siparis_tarihi = group['siparis_tarihi']
+            hesaplanan_teslim_tarihi = None
+            if siparis_tarihi:
+                hesaplanan_teslim_tarihi = add_business_days(siparis_tarihi, 4)
+            
             formatted_item = {
                 'sales_order': group['sales_order'],
                 'item_code': f"{group['sales_order']}_{group['product_type']}",
                 'bayi': group['bayi'],
                 'musteri': group['musteri'],
                 'siparis_tarihi': group['siparis_tarihi'].strftime('%Y-%m-%d') if group['siparis_tarihi'] else None,
-                'bitis_tarihi': group['bitis_tarihi'].strftime('%Y-%m-%d') if group['bitis_tarihi'] else None,
+                'bitis_tarihi': hesaplanan_teslim_tarihi.strftime('%Y-%m-%d') if hesaplanan_teslim_tarihi else None,
                 'hafta': group['hafta'],
                 'seri': seri_str,
                 'renk': renk_str,
@@ -540,7 +572,7 @@ def format_unplanned_data(unplanned_data: List[Dict]) -> List[Dict]:
                 'is_akisi_durumu': group['is_akisi_durumu'],
                 'workflow_state': group['workflow_state'],
                 'belge_durumu': group['belge_durumu'],
-                'mly_dosyasi_var': group['mly_dosyasi_var'],
+                'mly_dosyani_var': group['mly_dosyasi_var'],
                 'kismi_planlama': group['kismi_planlama']
             }
             unplanned_formatted.append(formatted_item)
@@ -689,12 +721,18 @@ def get_sales_order_details_v2(order_no: str) -> Dict[str, Any]:
         seri_text = ", ".join(seri_list) if seri_list else getattr(sales_order, 'custom_seri', '')
         renk_text = ", ".join(renk_list) if renk_list else getattr(sales_order, 'custom_renk', '')
         
+        # Teslim tarihi hesaplama: Sipariş tarihi + 4 iş günü
+        siparis_tarihi = sales_order.transaction_date
+        hesaplanan_teslim_tarihi = None
+        if siparis_tarihi:
+            hesaplanan_teslim_tarihi = add_business_days(siparis_tarihi, 4)
+        
         return {
             "sales_order": sales_order.name,
             "bayi": sales_order.customer,
             "musteri": sales_order.custom_end_customer,
             "siparis_tarihi": sales_order.transaction_date,
-            "bitis_tarihi": sales_order.delivery_date,
+            "bitis_tarihi": hesaplanan_teslim_tarihi,
             "durum": sales_order.status,
             "workflow_state": getattr(sales_order, 'workflow_state', ''),
             "custom_acil_durum": getattr(sales_order, 'custom_acil_durum', 0),
@@ -935,12 +973,18 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
             
             total_mtul += mtul_value
             
+            # Teslim tarihi hesaplama: Üretim planı oluşturma tarihi + 4 iş günü
+            plan_creation_date = latest_plan.get('creation')
+            hesaplanan_teslim_tarihi = None
+            if plan_creation_date:
+                hesaplanan_teslim_tarihi = add_business_days(plan_creation_date, 4)
+            
             order_info = {
                 "sales_order": item.sales_order,
                 "bayi": sales_order_data.get('customer', ''),
                 "musteri": sales_order_data.get('custom_end_customer', ''),
                 "siparis_tarihi": str(sales_order_data.get('transaction_date', '')) if sales_order_data.get('transaction_date') else None,
-                "bitis_tarihi": str(sales_order_data.get('delivery_date', '')) if sales_order_data.get('delivery_date') else None,
+                "bitis_tarihi": hesaplanan_teslim_tarihi.strftime('%Y-%m-%d') if hesaplanan_teslim_tarihi else None,
                 "seri": item.custom_serial or item_data.get('custom_serial', ''),
                 "renk": item.custom_color or item_data.get('custom_color', ''),
                 "pvc_qty": item.planned_qty if item_group == "PVC" else 0,
