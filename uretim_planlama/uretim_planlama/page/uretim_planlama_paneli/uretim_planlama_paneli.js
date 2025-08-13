@@ -2101,50 +2101,67 @@ class UretimPlanlamaPaneli {
 	showOrderDetails(salesOrderId) {
 		if (!salesOrderId) return;
 		
-		const modal = $(`
-			<div class="modal fade" tabindex="-1">
-				<div class="modal-dialog modal-lg">
-					<div class="modal-content">
-						<div class="modal-header bg-info text-white">
-							<h5 class="modal-title">
-								<i class="fa fa-info-circle mr-2"></i>Sipariş Detayları - ${salesOrderId}
-							</h5>
-							<button type="button" class="close text-white" data-dismiss="modal">
-								<span>&times;</span>
-							</button>
-						</div>
-						<div class="modal-body">
-							<div id="order-details-content">
-								<div class="text-center p-4">
-									<div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+		// Lazy Loading: Modal'ı sadece açıldığında oluştur
+		const modalId = `order-details-${salesOrderId}`;
+		let modal = document.getElementById(modalId);
+		
+		if (!modal) {
+			// Modal henüz oluşturulmamış, şimdi oluştur
+			modal = $(`
+				<div class="modal fade" id="${modalId}" tabindex="-1">
+					<div class="modal-dialog modal-lg">
+						<div class="modal-content">
+							<div class="modal-header bg-info text-white">
+								<h5 class="modal-title">
+									<i class="fa fa-info-circle mr-2"></i>Sipariş Detayları - ${salesOrderId}
+								</h5>
+								<button type="button" class="close text-white" data-dismiss="modal">
+									<span>&times;</span>
+								</button>
+							</div>
+							<div class="modal-body">
+								<div id="order-details-content-${salesOrderId}">
+									<div class="text-center p-4">
+										<div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-		`);
+			`);
+			
+			// Modal'ı DOM'a ekle
+			document.body.appendChild(modal[0]);
+		}
 		
+		// Modal'ı göster
 		modal.modal('show');
 
-		frappe.call({
-			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
-			args: { order_no: salesOrderId },
-			callback: function(r) {
-				if (r.exc) {
-					errorHandler.show('Sipariş detayları yüklenirken hata: ' + r.exc);
-					return;
+		// Veriyi sadece modal açıldığında yükle
+		const contentDiv = document.getElementById(`order-details-content-${salesOrderId}`);
+		if (contentDiv && !contentDiv.dataset.loaded) {
+			frappe.call({
+				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
+				args: { order_no: salesOrderId },
+				callback: (r) => {
+					if (r.exc) {
+						errorHandler.show('Sipariş detayları yüklenirken hata: ' + r.exc);
+						return;
+					}
+					
+					const data = r.message;
+					if (data.error) {
+						errorHandler.show(data.error);
+						return;
+					}
+					
+					// Veriyi yüklendi olarak işaretle
+					contentDiv.dataset.loaded = 'true';
+					updateOrderDetailsModal(data);
 				}
-				
-				const data = r.message;
-				if (data.error) {
-					errorHandler.show(data.error);
-					return;
-				}
-				
-				updateOrderDetailsModal(data);
-			}
-		});
+			});
+		}
 	}
 
 	showOptiDetails(optiNo) {
@@ -3793,17 +3810,36 @@ class UretimPlanlamaPaneli {
 		});
 		this.eventListeners.clear();
 		
-		// Clear observers
-		this.observers.forEach(observer => {
-			observer.disconnect();
-		});
-		this.observers.clear();
+		// Clear virtual scrollers
+		if (this.plannedVirtualScroller) {
+			this.plannedVirtualScroller.destroy();
+		}
+		if (this.unplannedVirtualScroller) {
+			this.unplannedVirtualScroller.destroy();
+		}
 		
-		// Clear cache
+		// Clear modal references
+		this.clearModalReferences();
+		
+		// Clear data caches
 		this.dataCache.clear();
-		modalManager.clearCache();
+		this.plannedTable.data = [];
+		this.unplannedTable.data = [];
 		
-		console.log('UretimPaneli cleanup tamamlandı');
+		// Force garbage collection hint
+		if (window.gc) {
+			window.gc();
+		}
+	}
+	
+	clearModalReferences() {
+		// Tüm modal referanslarını temizle
+		const modals = document.querySelectorAll('.modal');
+		modals.forEach(modal => {
+			if (modal.id && modal.id.startsWith('order-details-')) {
+				modal.remove();
+			}
+		});
 	}
 }
 
@@ -4640,4 +4676,101 @@ function updateOrderDetailsModal(data) {
 	`;
 	
 	content.html(html);
+}
+
+// Virtual Scrolling System - Büyük tablolarda performans için
+class VirtualScroller {
+    constructor(container, rowHeight = 40, buffer = 5) {
+        this.container = container;
+        this.rowHeight = rowHeight;
+        this.buffer = buffer;
+        this.data = [];
+        this.scrollTop = 0;
+        this.containerHeight = 0;
+        this.visibleRows = 0;
+        this.startIndex = 0;
+        this.endIndex = 0;
+        
+        this.init();
+    }
+    
+    init() {
+        this.container.style.position = 'relative';
+        this.container.style.overflow = 'auto';
+        
+        // Scroll event listener
+        this.container.addEventListener('scroll', this.handleScroll.bind(this));
+        
+        // Resize observer
+        this.resizeObserver = new ResizeObserver(() => {
+            this.updateDimensions();
+        });
+        this.resizeObserver.observe(this.container);
+        
+        this.updateDimensions();
+    }
+    
+    updateDimensions() {
+        this.containerHeight = this.container.clientHeight;
+        this.visibleRows = Math.ceil(this.containerHeight / this.rowHeight);
+        this.render();
+    }
+    
+    setData(data) {
+        this.data = data;
+        this.render();
+    }
+    
+    handleScroll() {
+        this.scrollTop = this.container.scrollTop;
+        this.render();
+    }
+    
+    render() {
+        if (!this.data.length) return;
+        
+        // Hangi satırların görünür olduğunu hesapla
+        this.startIndex = Math.floor(this.scrollTop / this.rowHeight);
+        this.endIndex = Math.min(
+            this.startIndex + this.visibleRows + this.buffer * 2,
+            this.data.length
+        );
+        
+        // Buffer ekle
+        this.startIndex = Math.max(0, this.startIndex - this.buffer);
+        
+        // Container'ı temizle
+        this.container.innerHTML = '';
+        
+        // Toplam yüksekliği ayarla (scroll bar için)
+        const totalHeight = this.data.length * this.rowHeight;
+        const spacer = document.createElement('div');
+        spacer.style.height = `${totalHeight}px`;
+        spacer.style.position = 'relative';
+        this.container.appendChild(spacer);
+        
+        // Sadece görünen satırları render et
+        for (let i = this.startIndex; i < this.endIndex; i++) {
+            const row = this.createRow(this.data[i], i);
+            row.style.position = 'absolute';
+            row.style.top = `${i * this.rowHeight}px`;
+            row.style.width = '100%';
+            this.container.appendChild(row);
+        }
+    }
+    
+    createRow(data, index) {
+        // Bu fonksiyon override edilecek
+        const row = document.createElement('div');
+        row.className = 'virtual-row';
+        row.textContent = `Row ${index + 1}`;
+        return row;
+    }
+    
+    destroy() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        this.container.removeEventListener('scroll', this.handleScroll);
+    }
 }

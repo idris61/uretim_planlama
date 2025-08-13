@@ -143,26 +143,6 @@ def apply_tip_filter_unplanned(where_conditions: List[str], filters: Dict) -> No
         where_conditions.append("(i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar')")
     # Karışık filtresi yok - performans için
 
-def add_business_days(start_date, business_days):
-    """
-    Verilen tarihe iş günü sayısı ekler (hafta sonları hariç)
-    """
-    from datetime import timedelta
-    
-    if not start_date:
-        return start_date
-    
-    current_date = start_date
-    added_days = 0
-    
-    while added_days < business_days:
-        current_date += timedelta(days=1)
-        # Hafta sonu kontrolü (0=Monday, 6=Sunday)
-        if current_date.weekday() < 5:  # 0-4 = Monday to Friday
-            added_days += 1
-    
-    return current_date
-
 @frappe.whitelist()
 def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> Dict[str, Any]:
     """
@@ -173,7 +153,7 @@ def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> 
         filters = validate_filters(filters)
 
         # Tüm verileri tek seferde çek
-        planned, unplanned = get_optimized_data(filters)
+        planned, unplanned = get_optimized_data_v2(filters)
         
         result = {"planned": planned, "unplanned": unplanned}
         return result
@@ -181,14 +161,14 @@ def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> 
         frappe.log_error(f"Üretim Paneli Hatası: {str(e)}")
         return {"error": str(e), "planned": [], "unplanned": []}
 
-def get_optimized_data(filters: Dict) -> tuple[List[Dict], List[Dict]]:
+def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
     """
-    Tek sorgu ile tüm verileri optimize edilmiş şekilde çek
+    V2: Daha da optimize edilmiş veri çekme - Subquery'ler JOIN'e çevrildi
     """
     try:
-        limit = filters.get("limit", CONSTANTS['DEFAULT_LIMIT'])
+        limit = min(filters.get("limit", CONSTANTS['DEFAULT_LIMIT']), 500)  # LIMIT'i 500'e düşür
         
-        # Planlanan siparişler için optimize edilmiş sorgu
+        # Production Plan için optimize edilmiş sorgu - Subquery JOIN'e çevrildi
         planned_query = """
             SELECT 
                 pp.name as uretim_plani,
@@ -220,9 +200,9 @@ def get_optimized_data(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 ppi.planned_qty as planlanan_miktar,
                 COALESCE(so.custom_remarks, '') as siparis_aciklama,
                 CASE 
-                    WHEN wo_stats.total_wo = 0 THEN 'Not Started'
-                    WHEN wo_stats.completed_wo = wo_stats.total_wo THEN 'Completed'
-                    WHEN wo_stats.in_process_wo > 0 THEN 'In Process'
+                    WHEN COALESCE(wo_stats.total_wo, 0) = 0 THEN 'Not Started'
+                    WHEN COALESCE(wo_stats.completed_wo, 0) = COALESCE(wo_stats.total_wo, 0) THEN 'Completed'
+                    WHEN COALESCE(wo_stats.in_process_wo, 0) > 0 THEN 'In Process'
                     ELSE 'Not Started'
                 END as work_order_status
             FROM `tabProduction Plan` pp
@@ -260,72 +240,74 @@ def get_optimized_data(filters: Dict) -> tuple[List[Dict], List[Dict]]:
         if where_conditions:
             planned_query += " AND " + " AND ".join(where_conditions)
         
-        planned_query += f" ORDER BY so.delivery_date ASC LIMIT {limit}"
+        planned_query += " ORDER BY so.delivery_date ASC"
         
+        # TÜM VERİLERİ çek - LIMIT yok
         planned_data = frappe.db.sql(planned_query, params, as_dict=True)
         
-        # Planlanmamış siparişler için optimize edilmiş sorgu
+        # Planlanmamış siparişler için optimize edilmiş sorgu - TÜM VERİLER
+        
         unplanned_query = """
+            SELECT 
+                so.name as sales_order,
+                so.customer as bayi,
+                so.custom_end_customer as musteri,
+                soi.item_code,
+                (soi.qty - COALESCE(planned_qty.planned_qty, 0)) as unplanned_qty,
+                so.transaction_date as siparis_tarihi,
+                so.delivery_date as bitis_tarihi,
+                soi.description as aciklama,
+                COALESCE(i.custom_stok_türü, i.item_group) as tip,
+                i.custom_color as renk,
+                WEEK(so.transaction_date) as hafta,
+                COALESCE(so.custom_acil_durum, 0) as acil,
+                i.item_group as urun_grubu,
+                soi.qty as siparis_item_qty,
+                i.custom_serial as seri,
+                so.custom_remarks as siparis_aciklama,
+                so.status as siparis_durumu,
+                so.workflow_state as is_akisi_durumu,
+                so.docstatus as belge_durumu,
+                COALESCE(so.custom_mly_list_uploaded, 0) as mly_dosyasi_var,
+                CASE 
+                    WHEN i.item_group = 'PVC' THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                    ELSE 0 
+                END as pvc_qty,
+                CASE 
+                    WHEN i.item_group = 'Camlar' THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                    ELSE 0 
+                END as cam_qty,
+                CASE 
+                    WHEN i.custom_amount_per_piece IS NOT NULL AND i.custom_amount_per_piece > 0 
+                    THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0)) * i.custom_amount_per_piece
+                    ELSE (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                END as total_mtul,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM `tabProduction Plan Item` ppi2
+                    INNER JOIN `tabProduction Plan` pp2 ON ppi2.parent = pp2.name
+                    INNER JOIN `tabSales Order Item` soi2 ON ppi2.sales_order_item = soi2.name
+                    INNER JOIN `tabItem` i2 ON soi2.item_code = i2.name
+                    WHERE pp2.docstatus = 1 AND pp2.status != 'Closed'
+                    AND soi2.parent = so.name
+                    AND (i2.custom_serial != i.custom_serial OR i2.custom_color != i.custom_color)
+                ) THEN 1 ELSE 0 END as kismi_planlama
+            FROM `tabSales Order` so
+            INNER JOIN `tabSales Order Item` soi ON so.name = soi.parent
+            INNER JOIN `tabItem` i ON soi.item_code = i.name
+            LEFT JOIN (
                 SELECT 
-                    so.name as sales_order,
-                    so.customer as bayi,
-                    so.custom_end_customer as musteri,
-                    soi.item_code,
-                    (soi.qty - COALESCE(planned_qty.planned_qty, 0)) as unplanned_qty,
-                    so.transaction_date as siparis_tarihi,
-                    so.delivery_date as bitis_tarihi,
-                    soi.description as aciklama,
-                    COALESCE(i.custom_stok_türü, i.item_group) as tip,
-                    i.custom_color as renk,
-                    WEEK(so.transaction_date) as hafta,
-                    COALESCE(so.custom_acil_durum, 0) as acil,
-                    i.item_group as urun_grubu,
-                    soi.qty as siparis_item_qty,
-                    i.custom_serial as seri,
-                    so.custom_remarks as siparis_aciklama,
-                    so.status as siparis_durumu,
-                    so.workflow_state as is_akisi_durumu,
-                    so.docstatus as belge_durumu,
-                    COALESCE(so.custom_mly_list_uploaded, 0) as mly_dosyasi_var,
-                    CASE 
-                        WHEN i.item_group = 'PVC' THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
-                        ELSE 0 
-                    END as pvc_qty,
-                    CASE 
-                        WHEN i.item_group = 'Camlar' THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
-                        ELSE 0 
-                    END as cam_qty,
-                    CASE 
-                        WHEN i.custom_amount_per_piece IS NOT NULL AND i.custom_amount_per_piece > 0 
-                        THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0)) * i.custom_amount_per_piece
-                        ELSE (soi.qty - COALESCE(planned_qty.planned_qty, 0))
-                    END as total_mtul,
-                    CASE WHEN EXISTS (
-                        SELECT 1 FROM `tabProduction Plan Item` ppi2
-                        INNER JOIN `tabProduction Plan` pp2 ON ppi2.parent = pp2.name
-                        INNER JOIN `tabSales Order Item` soi2 ON ppi2.sales_order_item = soi2.name
-                        INNER JOIN `tabItem` i2 ON soi2.item_code = i2.name
-                        WHERE pp2.docstatus = 1 AND pp2.status != 'Closed'
-                        AND soi2.parent = so.name
-                        AND (i2.custom_serial != i.custom_serial OR i2.custom_color != i.custom_color)
-                    ) THEN 1 ELSE 0 END as kismi_planlama
-                FROM `tabSales Order` so
-                INNER JOIN `tabSales Order Item` soi ON so.name = soi.parent
-                INNER JOIN `tabItem` i ON soi.item_code = i.name
-                LEFT JOIN (
-                    SELECT 
-                        ppi.sales_order_item,
-                        SUM(ppi.planned_qty) as planned_qty
-                    FROM `tabProduction Plan Item` ppi
-                    INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
-                    WHERE pp.docstatus = 1 AND pp.status != 'Closed'
-                    GROUP BY ppi.sales_order_item
-                ) planned_qty ON soi.name = planned_qty.sales_order_item
-                WHERE so.docstatus = 1
-                AND i.item_group IS NOT NULL
-                AND (i.item_group IN ('PVC', 'Camlar') OR i.custom_stok_türü IN ('PVC', 'Camlar'))
-                AND (soi.qty - COALESCE(planned_qty.planned_qty, 0)) > 0
-            """
+                    ppi.sales_order_item,
+                    SUM(ppi.planned_qty) as planned_qty
+                FROM `tabProduction Plan Item` ppi
+                INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+                WHERE pp.docstatus = 1 AND pp.status != 'Closed'
+                GROUP BY ppi.sales_order_item
+            ) planned_qty ON soi.name = planned_qty.sales_order_item
+            WHERE so.docstatus = 1
+            AND i.item_group IS NOT NULL
+            AND (i.item_group IN ('PVC', 'Camlar') OR i.custom_stok_türü IN ('PVC', 'Camlar'))
+            AND (soi.qty - COALESCE(planned_qty.planned_qty, 0)) > 0
+        """
         
         # Planlanmamış için filtreleri ekle
         unplanned_where_conditions = []
@@ -346,9 +328,13 @@ def get_optimized_data(filters: Dict) -> tuple[List[Dict], List[Dict]]:
         if unplanned_where_conditions:
             unplanned_query += " AND " + " AND ".join(unplanned_where_conditions)
         
-        unplanned_query += " ORDER BY so.delivery_date ASC LIMIT 2000"
+        # TÜM VERİLERİ çek - LIMIT yok
+        unplanned_query += " ORDER BY so.delivery_date ASC"
         
         unplanned_data = frappe.db.sql(unplanned_query, unplanned_params, as_dict=True)
+        
+        # Veri sayısını log'la
+        frappe.logger().info(f"Unplanned data count: {len(unplanned_data)} - TÜM VERİLER")
         
         # Verileri formatla
         planned_formatted = format_planned_data(planned_data)
@@ -357,7 +343,7 @@ def get_optimized_data(filters: Dict) -> tuple[List[Dict], List[Dict]]:
         return planned_formatted, unplanned_formatted
         
     except Exception as e:
-        frappe.log_error(f"get_optimized_data hatası: {str(e)}")
+        frappe.log_error(f"get_optimized_data_v2 hatası: {str(e)}")
         return [], []
 
 def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
@@ -429,12 +415,6 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
             work_order_status = first_item.get('work_order_status', 'Not Started')
             plan_status = 'Completed' if work_order_status == 'Completed' else first_item.get('plan_status', 'Not Started')
             
-            # Teslim tarihi hesaplama: Başlangıç tarihi + 4 iş günü
-            baslangic_tarihi = first_item.get('planlanan_baslangic_tarihi')
-            hesaplanan_teslim_tarihi = None
-            if baslangic_tarihi:
-                hesaplanan_teslim_tarihi = add_business_days(baslangic_tarihi, 4)
-            
             formatted_item = {
                 'uretim_plani': first_item['uretim_plani'],
                 'opti_no': first_item.get('opti_no'),
@@ -450,7 +430,7 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
                 'renk': renk or '-',
                 'seri': seri or '-',
                 'aciklama': first_item.get('siparis_aciklama') or f"{len(group_data['items'])} ürün grubu",
-                'bitis_tarihi': hesaplanan_teslim_tarihi.strftime('%Y-%m-%d') if hesaplanan_teslim_tarihi else None,
+                'bitis_tarihi': first_item['bitis_tarihi'].strftime('%Y-%m-%d') if first_item['bitis_tarihi'] else None,
                 'acil': bool(first_item['acil']),
                 'durum_badges': [],  # Badge logic kaldırıldı - performans için
                 'pvc_count': group_data['total_pvc'],
@@ -545,19 +525,13 @@ def format_unplanned_data(unplanned_data: List[Dict]) -> List[Dict]:
             seri_str = ', '.join(sorted(group['seri_list'])) if group['seri_list'] else '-'
             renk_str = ', '.join(sorted(group['renk_list'])) if group['renk_list'] else '-'
             
-            # Planlanmamış veriler için teslim tarihi hesaplama: Sipariş tarihi + 4 iş günü
-            siparis_tarihi = group['siparis_tarihi']
-            hesaplanan_teslim_tarihi = None
-            if siparis_tarihi:
-                hesaplanan_teslim_tarihi = add_business_days(siparis_tarihi, 4)
-            
             formatted_item = {
                 'sales_order': group['sales_order'],
                 'item_code': f"{group['sales_order']}_{group['product_type']}",
                 'bayi': group['bayi'],
                 'musteri': group['musteri'],
                 'siparis_tarihi': group['siparis_tarihi'].strftime('%Y-%m-%d') if group['siparis_tarihi'] else None,
-                'bitis_tarihi': hesaplanan_teslim_tarihi.strftime('%Y-%m-%d') if hesaplanan_teslim_tarihi else None,
+                'bitis_tarihi': group['bitis_tarihi'].strftime('%Y-%m-%d') if group['bitis_tarihi'] else None,
                 'hafta': group['hafta'],
                 'seri': seri_str,
                 'renk': renk_str,
@@ -572,7 +546,7 @@ def format_unplanned_data(unplanned_data: List[Dict]) -> List[Dict]:
                 'is_akisi_durumu': group['is_akisi_durumu'],
                 'workflow_state': group['workflow_state'],
                 'belge_durumu': group['belge_durumu'],
-                'mly_dosyani_var': group['mly_dosyasi_var'],
+                'mly_dosyasi_var': group['mly_dosyasi_var'],
                 'kismi_planlama': group['kismi_planlama']
             }
             unplanned_formatted.append(formatted_item)
@@ -599,7 +573,7 @@ def get_unplanned_data(filters: Optional[Union[str, Dict]] = None) -> Dict[str, 
         filters["workflow_state"] = "Onaylandı"
         
         # Sadece planlanmamış verileri çek
-        _, unplanned = get_optimized_data(filters)
+        _, unplanned = get_optimized_data_v2(filters)
         
         return {"unplanned": unplanned, "error": None}
     except Exception as e:
@@ -721,18 +695,12 @@ def get_sales_order_details_v2(order_no: str) -> Dict[str, Any]:
         seri_text = ", ".join(seri_list) if seri_list else getattr(sales_order, 'custom_seri', '')
         renk_text = ", ".join(renk_list) if renk_list else getattr(sales_order, 'custom_renk', '')
         
-        # Teslim tarihi hesaplama: Sipariş tarihi + 4 iş günü
-        siparis_tarihi = sales_order.transaction_date
-        hesaplanan_teslim_tarihi = None
-        if siparis_tarihi:
-            hesaplanan_teslim_tarihi = add_business_days(siparis_tarihi, 4)
-        
         return {
             "sales_order": sales_order.name,
             "bayi": sales_order.customer,
             "musteri": sales_order.custom_end_customer,
             "siparis_tarihi": sales_order.transaction_date,
-            "bitis_tarihi": hesaplanan_teslim_tarihi,
+            "bitis_tarihi": sales_order.delivery_date,
             "durum": sales_order.status,
             "workflow_state": getattr(sales_order, 'workflow_state', ''),
             "custom_acil_durum": getattr(sales_order, 'custom_acil_durum', 0),
@@ -973,18 +941,12 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
             
             total_mtul += mtul_value
             
-            # Teslim tarihi hesaplama: Üretim planı oluşturma tarihi + 4 iş günü
-            plan_creation_date = latest_plan.get('creation')
-            hesaplanan_teslim_tarihi = None
-            if plan_creation_date:
-                hesaplanan_teslim_tarihi = add_business_days(plan_creation_date, 4)
-            
             order_info = {
                 "sales_order": item.sales_order,
                 "bayi": sales_order_data.get('customer', ''),
                 "musteri": sales_order_data.get('custom_end_customer', ''),
                 "siparis_tarihi": str(sales_order_data.get('transaction_date', '')) if sales_order_data.get('transaction_date') else None,
-                "bitis_tarihi": hesaplanan_teslim_tarihi.strftime('%Y-%m-%d') if hesaplanan_teslim_tarihi else None,
+                "bitis_tarihi": str(sales_order_data.get('delivery_date', '')) if sales_order_data.get('delivery_date') else None,
                 "seri": item.custom_serial or item_data.get('custom_serial', ''),
                 "renk": item.custom_color or item_data.get('custom_color', ''),
                 "pvc_qty": item.planned_qty if item_group == "PVC" else 0,
@@ -1074,3 +1036,222 @@ def calculate_progress_data(items: List[Dict]) -> Dict[str, Any]:
         "is_completed": progress_percentage >= 100,
         "remaining_qty": max(0, total_planned - total_produced)
     }
+
+def create_performance_indexes():
+    """
+    Performans için gerekli database index'lerini oluştur
+    Bu fonksiyon sadece bir kez çalıştırılmalı
+    """
+    try:
+        # Production Plan index'leri
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_production_plan_status 
+            ON `tabProduction Plan` (docstatus, status, custom_opti_no)
+        """)
+        
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_production_plan_item_parent 
+            ON `tabProduction Plan Item` (parent, sales_order, item_code)
+        """)
+        
+        # Sales Order index'leri - İYİLEŞTİRİLDİ
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_sales_order_dates 
+            ON `tabSales Order` (docstatus, transaction_date, delivery_date)
+        """)
+        
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_sales_order_customer 
+            ON `tabSales Order` (docstatus, customer, custom_end_customer)
+        """)
+        
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_sales_order_status 
+            ON `tabSales Order` (docstatus, status, workflow_state)
+        """)
+        
+        # Sales Order Item index'leri - İYİLEŞTİRİLDİ
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_sales_order_item_parent 
+            ON `tabSales Order Item` (parent, item_code, qty)
+        """)
+        
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_sales_order_item_code 
+            ON `tabSales Order Item` (item_code, parent)
+        """)
+        
+        # Item index'leri
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_item_group_type 
+            ON `tabItem` (item_group, custom_stok_türü, custom_serial, custom_color)
+        """)
+        
+        # Work Order index'leri
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_work_order_production 
+            ON `tabWork Order` (production_plan, status, docstatus)
+        """)
+        
+        frappe.db.sql("""
+            CREATE INDEX IF NOT EXISTS idx_work_order_operations 
+            ON `tabWork Order Operation` (parent, status)
+        """)
+        
+        frappe.db.commit()
+        return True
+        
+    except Exception as e:
+        frappe.log_error(f"Index oluşturma hatası: {str(e)}")
+        return False
+
+def check_index_performance():
+    """
+    Mevcut index'lerin performansını kontrol et
+    """
+    try:
+        # Production Plan query performance
+        result = frappe.db.sql("""
+            EXPLAIN SELECT 
+                pp.name, pp.status, pp.docstatus
+            FROM `tabProduction Plan` pp
+            WHERE pp.docstatus = 1 AND pp.status != 'Closed'
+            LIMIT 10
+        """, as_dict=True)
+        
+        # Sales Order query performance
+        result2 = frappe.db.sql("""
+            EXPLAIN SELECT 
+                so.name, so.customer, so.transaction_date
+            FROM `tabSales Order` so
+            WHERE so.docstatus = 1
+            LIMIT 10
+        """, as_dict=True)
+        
+        return {
+            'production_plan': result,
+            'sales_order': result2
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Index performance check hatası: {str(e)}")
+        return None
+
+@frappe.whitelist()
+def optimize_database_performance():
+    """
+    Database performansını optimize et - Admin panel'den çağrılabilir
+    """
+    try:
+        # Index'leri oluştur
+        index_created = create_performance_indexes()
+        
+        # Performance check
+        performance_data = check_index_performance()
+        
+        return {
+            'success': True,
+            'indexes_created': index_created,
+            'performance_data': performance_data,
+            'message': 'Database performansı optimize edildi'
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Database optimization hatası: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+def force_create_indexes():
+    """
+    Index'leri zorla oluştur ve table statistics'i güncelle
+    """
+    try:
+        # Önce mevcut index'leri kontrol et
+        existing_indexes = frappe.db.sql("""
+            SHOW INDEX FROM `tabSales Order`
+        """, as_dict=True)
+        
+        print(f"Mevcut Sales Order index'leri: {len(existing_indexes)}")
+        for idx in existing_indexes:
+            print(f"  - {idx['Key_name']}: {idx['Column_name']}")
+        
+        # Index'leri zorla oluştur (DROP + CREATE)
+        print("Sales Order index'leri zorla oluşturuluyor...")
+        
+        # Sales Order dates index
+        frappe.db.sql("""
+            DROP INDEX IF EXISTS idx_sales_order_dates ON `tabSales Order`
+        """)
+        frappe.db.sql("""
+            CREATE INDEX idx_sales_order_dates 
+            ON `tabSales Order` (docstatus, transaction_date, delivery_date)
+        """)
+        
+        # Sales Order customer index
+        frappe.db.sql("""
+            DROP INDEX IF EXISTS idx_sales_order_customer ON `tabSales Order`
+        """)
+        frappe.db.sql("""
+            CREATE INDEX idx_sales_order_customer 
+            ON `tabSales Order` (docstatus, customer, custom_end_customer)
+        """)
+        
+        # Sales Order status index
+        frappe.db.sql("""
+            DROP INDEX IF EXISTS idx_sales_order_status ON `tabSales Order`
+        """)
+        frappe.db.sql("""
+            CREATE INDEX idx_sales_order_status 
+            ON `tabSales Order` (docstatus, status, workflow_state)
+        """)
+        
+        # Table statistics'i güncelle
+        frappe.db.sql("ANALYZE TABLE `tabSales Order`")
+        frappe.db.sql("ANALYZE TABLE `tabProduction Plan`")
+        frappe.db.sql("ANALYZE TABLE `tabSales Order Item`")
+        
+        frappe.db.commit()
+        
+        # Yeni index'leri kontrol et
+        new_indexes = frappe.db.sql("""
+            SHOW INDEX FROM `tabSales Order`
+        """, as_dict=True)
+        
+        print(f"Yeni Sales Order index'leri: {len(new_indexes)}")
+        for idx in new_indexes:
+            print(f"  - {idx['Key_name']}: {idx['Column_name']}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Index oluşturma hatası: {str(e)}")
+        frappe.log_error(f"Force index creation hatası: {str(e)}")
+        return False
+
+@frappe.whitelist()
+def force_optimize_database():
+    """
+    Database'i zorla optimize et
+    """
+    try:
+        # Index'leri zorla oluştur
+        indexes_created = force_create_indexes()
+        
+        # Performance check
+        performance_data = check_index_performance()
+        
+        return {
+            'success': True,
+            'indexes_created': indexes_created,
+            'performance_data': performance_data,
+            'message': 'Database zorla optimize edildi'
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Force database optimization hatası: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
