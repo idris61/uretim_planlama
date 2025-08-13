@@ -802,6 +802,7 @@ class UretimPlanlamaPaneli {
 			this.initControls();
 			this.initSummary();
 			this.initTables();
+			this.initCuttingTable();
 			this.bindEvents();
 			
 			// Load initial data for both tables independently
@@ -845,7 +846,26 @@ class UretimPlanlamaPaneli {
 	createPage() {
 		this.page.main.html(`
 			<div class="container-fluid" style="max-width: 100%; padding: 0;">
-				<!-- Sadece PVC-CAM Yan Yana Tablosu -->
+				<!-- Profil Stok Paneli Butonu - Üst sağ köşede -->
+				<div class="row mb-3">
+					<div class="col-12 text-right">
+						<button class="btn btn-success" id="profil-stok-paneli-btn" style="font-size: 1rem; padding: 10px 24px; border-radius: 25px; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+							<i class="fa fa-cubes mr-2"></i>
+							Profil Stok Paneli
+						</button>
+					</div>
+				</div>
+				
+				<!-- PVC-CAM Overview Header -->
+				<div class="row mb-3">
+					<div class="col-12">
+						<h4 class="mb-0" style="color: #333; font-weight: 700;">
+							<i class="fa fa-chart-pie mr-2"></i>
+							Üretim Durumu Özeti
+						</h4>
+					</div>
+				</div>
+				
 				<div class="row no-gutters">
 							<!-- PVC BÖLÜMÜ -->
 							<div class="col-md-6" style="background: #fff3cd; border: 3px solid #ffc107; border-right: 1.5px solid #ffc107;">
@@ -927,6 +947,8 @@ class UretimPlanlamaPaneli {
 								</div>
 							</div>
 				</div>
+				
+
 				
 				<!-- Ana içerik buraya eklenecek -->
 			</div>
@@ -1443,6 +1465,224 @@ class UretimPlanlamaPaneli {
 		`);
 	}
 
+	// Kesim Planı Tablosu - Üretim planı hazırlarken kapasite kontrolü için
+	initCuttingTable() {
+		const cuttingRow = $('<div class="row mb-4"></div>').appendTo(this.page.body);
+		const cuttingCol = $('<div class="col-12"></div>').appendTo(cuttingRow);
+		
+		cuttingCol.append(`
+			<div class="card mb-4">
+				<div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+					<div class="d-flex justify-content-between align-items-center">
+						<div class="d-flex align-items-center">
+							<div class="mr-3">
+								<i class="fa fa-cut" style="font-size: 1.5rem;"></i>
+							</div>
+							<div>
+								<h5 class="mb-0" style="font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">GÜNLÜK KESİM İSTASYONU TABLOSU</h5>
+							</div>
+						</div>
+						<div class="d-flex align-items-center">
+							<button class="btn btn-outline-light btn-sm mr-3" id="refresh-cutting-btn" style="white-space: nowrap; font-size: 0.8rem;">
+								<i class="fa fa-refresh mr-1"></i>
+								Yenile
+							</button>
+							<div class="badge badge-light" style="font-size: 1.1rem; padding: 8px 12px; border-radius: 20px;" id="cutting-count">0</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="card-body p-0">
+					<!-- Kesim Planı Filtreleri -->
+					<div class="filter-section cutting-filter">
+						<div class="filter-single-row">
+							<div class="filter-inputs">
+								<div class="filter-input-item">
+									<input id="cutting-from-date" class="form-control" type="date" placeholder="Başlangıç Tarihi...">
+								</div>
+								<div class="filter-input-item">
+									<input id="cutting-to-date" class="form-control" type="date" placeholder="Bitiş Tarihi...">
+								</div>
+								<div class="filter-input-item">
+									<select id="cutting-production-type" class="form-control">
+										<option value="">Tümü</option>
+										<option value="pvc">PVC</option>
+										<option value="cam">Cam</option>
+									</select>
+								</div>
+								<div class="filter-input-item">
+									<button class="btn btn-danger" id="cutting-clear-btn">
+										<i class="fa fa-times"></i> TEMİZLE
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<div id="cutting-matrix-table" class="p-3">
+						<div class="text-center text-muted">
+							<i class="fa fa-info-circle mr-2"></i>Kesim planı verileri yükleniyor...
+						</div>
+					</div>
+				</div>
+			</div>
+		`);
+
+		// Tarih filtrelerini ayarla
+		const today = new Date();
+		const fromDefault = new Date(today.getTime() - (10 * 24 * 60 * 60 * 1000)); // 10 gün önce
+		const toDefault = new Date(today.getTime() + (10 * 24 * 60 * 60 * 1000)); // 10 gün sonra
+
+		const fromDateInput = document.getElementById('cutting-from-date');
+		const toDateInput = document.getElementById('cutting-to-date');
+		
+		if (fromDateInput && toDateInput) {
+			fromDateInput.value = fromDefault.toISOString().split('T')[0];
+			toDateInput.value = toDefault.toISOString().split('T')[0];
+		}
+
+		// İlk yükleme
+		this.loadCuttingTable();
+	}
+
+	// Kesim planı tablosunu yükle
+	async loadCuttingTable() {
+		const fromDate = document.getElementById('cutting-from-date')?.value;
+		const toDate = document.getElementById('cutting-to-date')?.value;
+		const productionType = document.getElementById('cutting-production-type')?.value;
+
+		if (!fromDate || !toDate) return;
+
+		try {
+			const response = await frappe.call({
+				method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_matrix",
+				args: { from_date: fromDate, to_date: toDate },
+				timeout: 30000
+			});
+
+			if (response.exc) {
+				this.showError('Kesim planı verileri yüklenirken hata: ' + response.exc);
+				return;
+			}
+
+			const data = response.message || [];
+			this.renderCuttingTable(data, productionType);
+
+		} catch (error) {
+			this.showError('Kesim planı verileri yüklenirken hata: ' + error.message);
+		}
+	}
+
+	// Kesim planı tablosunu render et
+	renderCuttingTable(data, productionType = '') {
+		const tableContainer = document.getElementById('cutting-matrix-table');
+		if (!tableContainer) return;
+
+		// Üretim türüne göre filtreleme
+		let filteredData = data;
+		if (productionType === 'pvc') {
+			filteredData = data.filter(row => 
+				row.workstation && (row.workstation.includes('Murat') || row.workstation.includes('Kaban'))
+			);
+		} else if (productionType === 'cam') {
+			filteredData = data.filter(row => 
+				row.workstation && row.workstation.includes('Bottero')
+			);
+		}
+
+		if (filteredData.length === 0) {
+			tableContainer.innerHTML = `
+				<div class="text-center text-muted p-4">
+					<i class="fa fa-info-circle mr-2"></i>Seçilen tarih aralığında kesim planı bulunamadı
+				</div>
+			`;
+			return;
+		}
+
+		// Tarihe göre sırala
+		const sortedData = filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+		// Tablo satırlarını oluştur
+		const rows = sortedData.map(row => {
+			const totalMtul = parseFloat(row.total_mtul || 0);
+			const totalQuantity = parseInt(row.total_quantity || 0);
+
+			// MTUL değerini 1400'e kadar ve 1400 sonrası olarak ayır
+			const mtulUnder1400 = Math.min(totalMtul, 1400);
+			const mtulOver1400 = totalMtul > 1400 ? totalMtul - 1400 : 0;
+
+			// Maksimum MTUL değeri için ölçeklendirme
+			const maxMtul = Math.max(...filteredData.map(item => parseFloat(item.total_mtul || 0)), 2000);
+			const maxMtulForScaling = Math.max(2000, maxMtul * 1.1);
+
+			// Segment genişliklerini yüzde olarak hesapla
+			const under1400Percentage = (mtulUnder1400 / maxMtulForScaling) * 100;
+			const over1400Percentage = (mtulOver1400 / maxMtulForScaling) * 100;
+
+			// İş istasyonuna göre renk belirleme
+			const baseColor = row.workstation.includes("Kaban") ? '#944de0' : 
+							  row.workstation.includes("Murat") ? '#e89225' : '#6c757d';
+
+			// Tarih formatını ayarla
+			let displayDate = row.date;
+			try {
+				const dateObj = new Date(row.date);
+				const dayName = dateObj.toLocaleDateString('tr-TR', { weekday: 'long' });
+				displayDate = `${dateObj.toLocaleDateString('tr-TR')} (${dayName})`;
+			} catch (e) {
+				console.warn("Geçersiz tarih:", row.date);
+			}
+
+			// Toplam etiketi
+			const totalLabel = `${totalMtul.toFixed(2)} MTUL - ${totalQuantity} Adet`;
+
+			return `
+				<tr>
+					<td style="white-space: nowrap; font-weight: bold;">${displayDate}</td>
+					<td style="color: ${baseColor}; font-weight: bold;">${row.workstation}</td>
+					<td>
+						<div style="position: relative; background: #f5f5f5; border: 1px solid #ddd; height: 24px; border-radius: 4px; overflow: hidden; display: flex; align-items: center;">
+							${mtulUnder1400 > 0 ? `<div style="width: ${under1400Percentage}%; background: ${baseColor}; height: 100%;"></div>` : ''}
+							${mtulOver1400 > 0 ? `<div style="width: ${over1400Percentage}%; background: red; height: 100%;"></div>` : ''}
+							<span style="position: absolute; left: 8px; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px #fff;">
+								${totalLabel}
+							</span>
+							${mtulOver1400 > 0 ? `
+								<span style="position: absolute; left: ${under1400Percentage}%; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px #000; padding-left: 4px;">
+									+${mtulOver1400.toFixed(2)}
+								</span>
+							` : ''}
+						</div>
+					</td>
+				</tr>
+			`;
+		}).join('');
+
+		// Tablo HTML'ini oluştur
+		const tableHtml = `
+			<table class="table table-bordered table-sm" style="font-size: 13px;">
+				<thead class="table-light">
+					<tr>
+						<th style="width: 160px;">Tarih</th>
+						<th style="width: 150px;">İstasyon</th>
+						<th>Toplam MTUL / m² - Toplam Adet</th>
+					</tr>
+				</thead>
+				<tbody>
+					${rows}
+				</tbody>
+			</table>
+		`;
+
+		tableContainer.innerHTML = tableHtml;
+
+		// Count badge'ini güncelle
+		const countBadge = document.getElementById('cutting-count');
+		if (countBadge) {
+			countBadge.textContent = filteredData.length;
+		}
+	}
+
 	bindEvents() {
 		// Planlanan table filter inputs - Anında tepki için
 		['opti', 'siparis', 'bayi', 'musteri', 'seri', 'renk', 'tip'].forEach(filter => {
@@ -1521,11 +1761,79 @@ class UretimPlanlamaPaneli {
 		
 		// Overview summary events
 		this.bindOverviewEvents();
+
+		// Kesim planı tablosu event'leri
+		this.bindCuttingTableEvents();
+
+		// Profil Stok Paneli butonu event'i
+		const profilStokBtn = document.getElementById('profil-stok-paneli-btn');
+		if (profilStokBtn) {
+			profilStokBtn.addEventListener('click', () => {
+				// Profil Stok Paneli sayfasını yeni sekmede aç
+				const url = '/app/profil_stok_paneli';
+				window.open(url, '_blank');
+			});
+		}
 	}
 	
 	bindOverviewEvents() {
 		// Overview refresh button - Kaldırıldı (mor header artık yok)
 
+	}
+
+	// Kesim planı tablosu event'leri
+	bindCuttingTableEvents() {
+		// Refresh butonu
+		const refreshCuttingBtn = document.getElementById('refresh-cutting-btn');
+		if (refreshCuttingBtn) {
+			refreshCuttingBtn.addEventListener('click', () => {
+				this.loadCuttingTable();
+			});
+		}
+
+		// Tarih filtreleri
+		const fromDateInput = document.getElementById('cutting-from-date');
+		const toDateInput = document.getElementById('cutting-to-date');
+		
+		if (fromDateInput) {
+			fromDateInput.addEventListener('change', () => {
+				this.loadCuttingTable();
+			});
+		}
+		
+		if (toDateInput) {
+			toDateInput.addEventListener('change', () => {
+				this.loadCuttingTable();
+			});
+		}
+
+		// Üretim türü filtresi
+		const productionTypeSelect = document.getElementById('cutting-production-type');
+		if (productionTypeSelect) {
+			productionTypeSelect.addEventListener('change', () => {
+				this.loadCuttingTable();
+			});
+		}
+
+		// Temizle butonu
+		const clearCuttingBtn = document.getElementById('cutting-clear-btn');
+		if (clearCuttingBtn) {
+			clearCuttingBtn.addEventListener('click', () => {
+				if (fromDateInput) fromDateInput.value = '';
+				if (toDateInput) toDateInput.value = '';
+				if (productionTypeSelect) productionTypeSelect.value = '';
+				
+				// Varsayılan tarihleri ayarla
+				const today = new Date();
+				const fromDefault = new Date(today.getTime() - (10 * 24 * 60 * 60 * 1000));
+				const toDefault = new Date(today.getTime() + (10 * 24 * 60 * 60 * 1000));
+				
+				if (fromDateInput) fromDateInput.value = fromDefault.toISOString().split('T')[0];
+				if (toDateInput) toDateInput.value = toDefault.toISOString().split('T')[0];
+				
+				this.loadCuttingTable();
+			});
+		}
 	}
 	
 	bindSortingEvents() {
