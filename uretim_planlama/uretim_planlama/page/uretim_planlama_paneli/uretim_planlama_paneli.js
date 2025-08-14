@@ -194,6 +194,35 @@ const utils = {
                 handler.call(target, e, target);
             }
         });
+    },
+
+    // İş günü hesaplama fonksiyonu - Başlangıç tarihine 4 iş günü ekler
+    calculateDeliveryDate: (startDate) => {
+        if (!startDate) return '-';
+        
+        try {
+            const start = new Date(startDate);
+            if (isNaN(start.getTime())) return startDate;
+            
+            let deliveryDate = new Date(start);
+            let workDaysAdded = 0;
+            
+            // 4 iş günü ekle (hafta sonları hariç)
+            while (workDaysAdded < 4) {
+                deliveryDate.setDate(deliveryDate.getDate() + 1);
+                
+                // Hafta sonu değilse iş günü say
+                const dayOfWeek = deliveryDate.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Pazar, 6 = Cumartesi
+                    workDaysAdded++;
+                }
+            }
+            
+            // Formatlanmış tarihi döndür
+            return deliveryDate.toLocaleDateString('tr-TR');
+        } catch (e) {
+            return startDate;
+        }
     }
 };
 
@@ -604,47 +633,58 @@ const modalManager = {
     CACHE_DURATION: 60000,
 
     closeAllModals() {
-        $('.modal').modal('hide');
-        setTimeout(() => {
-            $('.modal').remove();
-            this.activeModals.clear();
-        }, 300);
+        // Tüm modal'ları hızlıca kapat ve DOM'dan kaldır
+        $('.modal').each(function() {
+            const modal = $(this);
+            modal.modal('hide');
+            // Modal tamamen kapandıktan sonra DOM'dan kaldır
+            modal.on('hidden.bs.modal', function() {
+                modal.remove();
+            });
+        });
+        this.activeModals.clear();
     },
 
     closeOtherModals(currentModalId) {
-        $('.modal').not(`#${currentModalId}`).modal('hide');
-        setTimeout(() => {
-            $('.modal').not(`#${currentModalId}`).remove();
-        }, 300);
+        // Diğer modal'ları hızlıca kapat ve DOM'dan kaldır
+        $('.modal').not(`#${currentModalId}`).each(function() {
+            const otherModal = $(this);
+            otherModal.modal('hide');
+            // Modal tamamen kapandıktan sonra DOM'dan kaldır
+            otherModal.on('hidden.bs.modal', function() {
+                otherModal.remove();
+                modalManager.activeModals.delete(otherModal.attr('id'));
+            });
+        });
     },
 
     createModal(modalId, title, size = 'modal-lg') {
         this.closeOtherModals(modalId);
         
-                    const modalHtml = `
-                <div class="modal fade" id="${modalId}" tabindex="-1" data-backdrop="static" data-keyboard="false">
-                    <div class="modal-dialog ${size}">
-                        <div class="modal-content" style="background: white; border: none;">
-                            <div class="modal-header" style="background: #dc3545; color: white; border: none;">
-                                <h5 class="modal-title">
-                                    <i class="fa fa-spinner fa-spin mr-2"></i>${title}
-                                </h5>
-                                <button type="button" class="close text-white" data-dismiss="modal">
-                                    <span>&times;</span>
-                                </button>
-                            </div>
-                            <div class="modal-body" style="max-height: 70vh; overflow-y: scroll; background: white; color: #333;">
-                                <div id="modal-content-${modalId}" class="modal-content-inner">
-                                    <div class="text-center p-4">
-                                        <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
-                                        <p class="mt-2 text-muted">Yükleniyor...</p>
-                                    </div>
+        const modalHtml = `
+            <div class="modal" id="${modalId}" tabindex="-1" data-backdrop="static" data-keyboard="false">
+                <div class="modal-dialog ${size}">
+                    <div class="modal-content" style="background: white; border: none;">
+                        <div class="modal-header" style="background: #dc3545; color: white; border: none;">
+                            <h5 class="modal-title">
+                                <i class="fa fa-spinner fa-spin mr-2"></i>${title}
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body" style="max-height: 70vh; overflow-y: scroll; background: white; color: #333;">
+                            <div id="modal-content-${modalId}" class="modal-content-inner">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+                                    <p class="mt-2 text-muted">Yükleniyor...</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            `;
+            </div>
+        `;
         
         try {
             $('body').append(modalHtml);
@@ -660,7 +700,12 @@ const modalManager = {
             });
             
             this.activeModals.add(modalId);
-            modal.modal('show');
+            // Modal'ı hızlıca göster
+            modal.modal({
+                show: true,
+                backdrop: 'static',
+                keyboard: false
+            });
             
             return modal;
         } catch (error) {
@@ -1952,7 +1997,7 @@ class UretimPlanlamaPaneli {
 		};
 	}
 
-	// Enhanced renderPlannedTable with grouping
+			// Enhanced renderPlannedTable with grouping
 	renderPlannedTable() {
 		const tbody = document.getElementById('planlanan-tbody');
 		if (!tbody) return;
@@ -2007,7 +2052,10 @@ class UretimPlanlamaPaneli {
 					renk_list: new Set()
 				};
 			}
-			optiGroups[optiNo].sales_orders.push(order.sales_order);
+			// Sipariş numarasını sadece bir kez ekle
+			if (!optiGroups[optiNo].sales_orders.includes(order.sales_order)) {
+				optiGroups[optiNo].sales_orders.push(order.sales_order);
+			}
 			optiGroups[optiNo].total_pvc += order.pvc_count || 0;
 			optiGroups[optiNo].total_cam += order.cam_count || 0;
 			optiGroups[optiNo].total_mtul += order.toplam_mtul_m2 || 0;
@@ -2101,6 +2149,16 @@ class UretimPlanlamaPaneli {
 	showOrderDetails(salesOrderId) {
 		if (!salesOrderId) return;
 		
+		// Önceki açık modal'ları hızlıca kapat ve DOM'dan kaldır
+		$('.modal:visible').each(function() {
+			const currentModal = $(this);
+			currentModal.modal('hide');
+			// Modal tamamen kapandıktan sonra DOM'dan kaldır
+			currentModal.on('hidden.bs.modal', function() {
+				currentModal.remove();
+			});
+		});
+		
 		// Lazy Loading: Modal'ı sadece açıldığında oluştur
 		const modalId = `order-details-${salesOrderId}`;
 		let modal = document.getElementById(modalId);
@@ -2108,7 +2166,7 @@ class UretimPlanlamaPaneli {
 		if (!modal) {
 			// Modal henüz oluşturulmamış, şimdi oluştur
 			modal = $(`
-				<div class="modal fade" id="${modalId}" tabindex="-1">
+				<div class="modal" id="${modalId}" tabindex="-1" data-backdrop="static" data-keyboard="false">
 					<div class="modal-dialog modal-lg">
 						<div class="modal-content">
 							<div class="modal-header bg-info text-white">
@@ -2135,8 +2193,12 @@ class UretimPlanlamaPaneli {
 			document.body.appendChild(modal[0]);
 		}
 		
-		// Modal'ı göster
-		modal.modal('show');
+		// Modal'ı hızlıca göster
+		modal.modal({
+			show: true,
+			backdrop: 'static',
+			keyboard: false
+		});
 
 		// Veriyi sadece modal açıldığında yükle
 		const contentDiv = document.getElementById(`order-details-content-${salesOrderId}`);
@@ -2144,6 +2206,7 @@ class UretimPlanlamaPaneli {
 			frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
 				args: { order_no: salesOrderId },
+				timeout: 5000, // 5 saniye timeout ekle
 				callback: (r) => {
 					if (r.exc) {
 						errorHandler.show('Sipariş detayları yüklenirken hata: ' + r.exc);
@@ -2158,7 +2221,11 @@ class UretimPlanlamaPaneli {
 					
 					// Veriyi yüklendi olarak işaretle
 					contentDiv.dataset.loaded = 'true';
+					// Mevcut updateOrderDetailsModal fonksiyonunu kullan
 					updateOrderDetailsModal(data);
+				},
+				error: (err) => {
+					errorHandler.show('Bağlantı hatası: ' + err);
 				}
 			});
 		}
@@ -2177,7 +2244,7 @@ class UretimPlanlamaPaneli {
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_opti_details',
 			args: { opti_no: optiNo },
-			timeout: 10000,
+			timeout: 5000, // 5 saniye timeout - hızlandırıldı
 			callback: (r) => {
 				if (r.exc) {
 					frappe.show_alert({
@@ -2234,6 +2301,9 @@ class UretimPlanlamaPaneli {
 		);
 		
 		if (!modal) return;
+
+		// Üretim planı bilgisini al
+		const productionPlan = this.getProductionPlanFromOpti(optiNo);
 
 		// Toplamları hesapla - API field adlarına göre düzelt
 		let totalPvc = 0;
@@ -2361,6 +2431,7 @@ class UretimPlanlamaPaneli {
 			const remarks = order.siparis_aciklama || order.custom_remarks || order.remarks || '';
 			const bayi = order.bayi || order.customer_name || '-';
 			const musteri = order.musteri || order.customer || '-';
+			const itemCount = order.item_count || 1; // Bu siparişteki toplam ürün sayısı
 			
 			// Profil ve Cam badge'leri
 			let profileBadge = '';
@@ -2473,7 +2544,8 @@ class UretimPlanlamaPaneli {
 			// Modal'ı kapat ve iş emirlerini göster
 			modal.modal('hide');
 			setTimeout(() => {
-				window.showWorkOrdersPaneli(salesOrder);
+				// Üretim planı bilgisini geç
+				window.showWorkOrdersPaneli(salesOrder, productionPlan);
 			}, 300);
 		});
 
@@ -2485,7 +2557,8 @@ class UretimPlanlamaPaneli {
 				// Modal'ı kapat ve iş emirlerini göster
 				modal.modal('hide');
 				setTimeout(() => {
-					window.showWorkOrdersPaneli(salesOrder);
+					// Üretim planı bilgisini geç
+					window.showWorkOrdersPaneli(salesOrder, productionPlan);
 				}, 300);
 			}
 		});
@@ -2493,6 +2566,17 @@ class UretimPlanlamaPaneli {
 		// Modal filtre event'lerini ekle
 		this.bindModalFilters(modal, orders);
 	}
+
+	// Üretim planı bilgisini Opti numarasından al
+	getProductionPlanFromOpti(optiNo) {
+		if (!optiNo || !this.plannedTable.data) return null;
+		
+		// Planlanan verilerde bu Opti numarasına ait üretim planını bul
+		const optiData = this.plannedTable.data.find(item => item.opti_no === optiNo);
+		return optiData ? optiData.uretim_plani : null;
+	}
+
+
 
 	// Modal filtre fonksiyonları
 	bindModalFilters(modal, orders) {
@@ -2651,7 +2735,8 @@ class UretimPlanlamaPaneli {
 			const salesOrder = $(this).data('sales-order');
 			modal.modal('hide');
 			setTimeout(() => {
-				window.showWorkOrdersPaneli(salesOrder);
+				// Üretim planı bilgisini geç
+				window.showWorkOrdersPaneli(salesOrder, productionPlan);
 			}, 300);
 		});
 		
@@ -2661,7 +2746,8 @@ class UretimPlanlamaPaneli {
 				const salesOrder = $(this).data('sales-order');
 				modal.modal('hide');
 				setTimeout(() => {
-					window.showWorkOrdersPaneli(salesOrder);
+					// Üretim planı bilgisini geç
+					window.showWorkOrdersPaneli(salesOrder, productionPlan);
 				}, 300);
 			}
 		});
@@ -3233,7 +3319,7 @@ class UretimPlanlamaPaneli {
 				<span class="badge badge-warning">${utils.formatDate(optiGroup.siparis_tarihi)}</span>
 			</td>
 			<td class="text-center">
-				<span class="badge badge-danger">${utils.formatDate(optiGroup.bitis_tarihi)}</span>
+				<span class="badge badge-danger">${utils.calculateDeliveryDate(optiGroup.planlanan_baslangic_tarihi)}</span>
 			</td>
 			<td class="text-center">
 				<span class="badge badge-danger">${pvcCount}</span>
@@ -3537,7 +3623,10 @@ class UretimPlanlamaPaneli {
 					renk_list: new Set()
 				};
 			}
-			optiGroups[optiNo].sales_orders.push(order.sales_order);
+			// Sipariş numarasını sadece bir kez ekle
+			if (!optiGroups[optiNo].sales_orders.includes(order.sales_order)) {
+				optiGroups[optiNo].sales_orders.push(order.sales_order);
+			}
 			optiGroups[optiNo].total_pvc += order.pvc_count || 0;
 			optiGroups[optiNo].total_cam += order.cam_count || 0;
 			optiGroups[optiNo].total_mtul += order.toplam_mtul_m2 || 0;
@@ -3649,7 +3738,7 @@ class UretimPlanlamaPaneli {
 				<span class="badge badge-warning">${utils.formatDate(optiGroup.siparis_tarihi)}</span>
 			</td>
 			<td class="text-center">
-				<span class="badge badge-danger">${utils.formatDate(optiGroup.bitis_tarihi)}</span>
+				<span class="badge badge-danger">${utils.calculateDeliveryDate(optiGroup.planlanan_baslangic_tarihi)}</span>
 			</td>
 			<td class="text-center">
 				<span class="badge badge-danger">${optiGroup.total_pvc || 0}</span>
@@ -3861,7 +3950,7 @@ window.toggleCompletedItems = () => {
 };
 
 // Work Orders Modal - STABLE VERSION
-window.showWorkOrdersPaneli = function(salesOrderId) {
+window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 	if (!salesOrderId) {
 		frappe.show_alert({
 			message: 'Geçersiz sipariş numarası',
@@ -3911,8 +4000,11 @@ window.showWorkOrdersPaneli = function(salesOrderId) {
 	// API çağrısı
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_orders_for_sales_order',
-		args: { sales_order: salesOrderId },
-		timeout: 15000,
+		args: { 
+			sales_order: salesOrderId,
+			production_plan: productionPlan 
+		},
+		timeout: 5000, // 5 saniye timeout - hızlandırıldı
 		callback: function(r) {
 			const contentDiv = modal.fields_dict.work_orders_content.$wrapper;
 			
@@ -4035,7 +4127,7 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
 			args: { work_order: woName },
-			timeout: 10000,
+			timeout: 5000, // 5 saniye timeout - hızlandırıldı
 			callback: function(r) {
 				if (r.message && r.message.length > 0) {
 					let opsHtml = `
@@ -4246,7 +4338,7 @@ function loadOperationsForWorkOrder(workOrderName, index) {
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
 		args: { work_order: workOrderName },
-		timeout: 10000,
+		timeout: 5000, // 5 saniye timeout - hızlandırıldı
 		callback: (r) => {
 			if (r.exc) {
 				operationsContainer.html(`
@@ -4338,74 +4430,7 @@ function renderOperationsTable(container, operations) {
 	container.html(html);
 }
 
-// Modal functions
-window.showOrderDetailsModal = (item) => {
-	if (!item) return;
-	
-	const modal = $(`
-		<div class="modal fade" tabindex="-1">
-			<div class="modal-dialog modal-lg">
-				<div class="modal-content">
-					<div class="modal-header bg-info text-white">
-						<h5 class="modal-title">
-							<i class="fa fa-info-circle mr-2"></i>Sipariş Detayları
-						</h5>
-						<button type="button" class="close text-white" data-dismiss="modal">
-							<span>&times;</span>
-						</button>
-					</div>
-					<div class="modal-body">
-						<div class="row">
-							<div class="col-md-6">
-								<h6><i class="fa fa-shopping-cart mr-2"></i>Sipariş Bilgileri</h6>
-								<table class="table table-sm table-bordered">
-									<tr><td><strong>Sipariş No:</strong></td><td><span class="badge badge-primary">${utils.escapeHtml(item.sales_order || '-')}</span></td></tr>
-									<tr><td><strong>Bayi:</strong></td><td>${utils.escapeHtml(item.bayi || '-')}</td></tr>
-									<tr><td><strong>Müşteri:</strong></td><td>${utils.escapeHtml(item.musteri || '-')}</td></tr>
-									<tr><td><strong>Sipariş Tarihi:</strong></td><td>${utils.formatDate(item.siparis_tarihi)}</td></tr>
-									<tr><td><strong>Teslim Tarihi:</strong></td><td>${utils.formatDate(item.bitis_tarihi)}</td></tr>
-								</table>
-							</div>
-							<div class="col-md-6">
-								<h6><i class="fa fa-cogs mr-2"></i>Ürün Bilgileri</h6>
-								<table class="table table-sm table-bordered">
-									<tr><td><strong>Seri:</strong></td><td>${utils.escapeHtml(item.seri || '-')}</td></tr>
-									<tr><td><strong>Renk:</strong></td><td>${utils.escapeHtml(item.renk || '-')}</td></tr>
-									<tr><td><strong>PVC:</strong></td><td><span class="badge badge-danger">${utils.escapeHtml(item.pvc_count || '0')}</span></td></tr>
-									<tr><td><strong>Cam:</strong></td><td><span class="badge badge-primary">${utils.escapeHtml(item.cam_count || '0')}</span></td></tr>
-									<tr><td><strong>Durum:</strong></td><td><span class="badge badge-warning">Planlanmamış</span></td></tr>
-								</table>
-							</div>
-						</div>
-						<div class="row mt-3">
-							<div class="col-md-6">
-								<h6><i class="fa fa-exclamation-triangle mr-2"></i>Acil Durum</h6>
-								<div class="alert ${item.acil ? 'alert-danger' : 'alert-success'}">
-									<strong>${item.acil ? 'ACİL' : 'NORMAL'}</strong>
-									${item.acil ? ' - Bu sipariş acil olarak işaretlenmiş' : ' - Bu sipariş normal durumda'}
-								</div>
-							</div>
-							<div class="col-md-6">
-								<h6><i class="fa fa-comment mr-2"></i>Açıklama</h6>
-								<div class="alert alert-info">
-									<p class="mb-0">${utils.escapeHtml(item.aciklama || 'Açıklama bulunmuyor')}</p>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-success" onclick="window.open('/app/sales-order/${utils.escapeHtml(item.sales_order)}', '_blank')">
-							<i class="fa fa-external-link mr-2"></i>Siparişi Aç
-						</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
-					</div>
-				</div>
-			</div>
-		</div>
-	`);
-	
-	modal.modal('show');
-};
+
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
@@ -4540,7 +4565,7 @@ function updateOptiDetailsModal(data) {
 						<a href="/app/sales-order/${order.sales_order}" target="_blank" class="btn btn-sm btn-outline-primary mb-1">
 							<i class="fa fa-external-link mr-1"></i>Sipariş
 						</a>
-						<button class="btn btn-sm btn-outline-success" onclick="window.showWorkOrdersPaneli('${order.sales_order}')">
+						<button class="btn btn-sm btn-outline-success" onclick="window.showWorkOrdersPaneli('${order.sales_order}', '${data.production_plan}')">
 							<i class="fa fa-bars mr-1"></i>İş Emirleri
 						</button>
 					</div>
@@ -4571,7 +4596,8 @@ function updateOrderDetailsModal(data) {
 	const modal = $('.modal:visible');
 	if (!modal.length) return;
 	
-	const content = modal.find('#order-details-content');
+	// order-details-content-{salesOrderId} formatında ID'yi bul
+	const content = modal.find('[id^="order-details-content-"]');
 	if (!content.length) return;
 	
 	let html = `

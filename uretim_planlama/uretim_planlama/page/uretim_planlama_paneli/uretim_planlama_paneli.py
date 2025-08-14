@@ -718,9 +718,10 @@ def get_sales_order_details_v2(order_no: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @frappe.whitelist()
-def get_work_orders_for_sales_order(sales_order: Union[str, Dict]) -> List[Dict]:
+def get_work_orders_for_sales_order(sales_order: Union[str, Dict], production_plan: str = None) -> List[Dict]:
     """
     Satış siparişi için iş emirlerini getir
+    Eğer production_plan belirtilmişse, sadece o üretim planına ait iş emirlerini getir
     """
     try:
         # Parametre handling
@@ -736,16 +737,31 @@ def get_work_orders_for_sales_order(sales_order: Union[str, Dict]) -> List[Dict]
         if not frappe.db.exists("Sales Order", sales_order):
             return []
         
-        # İş emirlerini optimize edilmiş sorgu ile al
-        work_orders = frappe.db.sql("""
-            SELECT 
-                name, status, production_item, qty, produced_qty,
-                planned_start_date, planned_end_date, sales_order,
-                creation, modified
-            FROM `tabWork Order`
-            WHERE sales_order = %s
-            ORDER BY creation DESC
-        """, (sales_order,), as_dict=1)
+        # Üretim planına göre filtreleme
+        if production_plan:
+            # Sadece belirtilen üretim planına ait iş emirlerini getir
+            work_orders = frappe.db.sql("""
+                SELECT 
+                    wo.name, wo.status, wo.production_item, wo.qty, wo.produced_qty,
+                    wo.planned_start_date, wo.planned_end_date, wo.sales_order,
+                    wo.creation, wo.modified
+                FROM `tabWork Order` wo
+                INNER JOIN `tabProduction Plan Item` ppi ON wo.production_plan_item = ppi.name
+                INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+                WHERE wo.sales_order = %s AND pp.name = %s
+                ORDER BY wo.creation DESC
+            """, (sales_order, production_plan), as_dict=1)
+        else:
+            # Tüm iş emirlerini getir (eski davranış)
+            work_orders = frappe.db.sql("""
+                SELECT 
+                    name, status, production_item, qty, produced_qty,
+                    planned_start_date, planned_end_date, sales_order,
+                    creation, modified
+                FROM `tabWork Order`
+                WHERE sales_order = %s
+                ORDER BY creation DESC
+            """, (sales_order,), as_dict=1)
         
         # Her iş emri için progress ve status badge ekle
         for wo in work_orders:
@@ -915,8 +931,8 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
             )
             items_data = {item.name: item for item in items}
         
-        # Siparişleri işle
-        orders = []
+        # Siparişleri gruplandır (sipariş numarası bazında)
+        orders_grouped = {}
         total_mtul = 0
         total_pvc = 0
         total_cam = 0
@@ -941,20 +957,73 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
             
             total_mtul += mtul_value
             
-            order_info = {
-                "sales_order": item.sales_order,
-                "bayi": sales_order_data.get('customer', ''),
-                "musteri": sales_order_data.get('custom_end_customer', ''),
-                "siparis_tarihi": str(sales_order_data.get('transaction_date', '')) if sales_order_data.get('transaction_date') else None,
-                "bitis_tarihi": str(sales_order_data.get('delivery_date', '')) if sales_order_data.get('delivery_date') else None,
+            # Sipariş numarasına göre gruplandır
+            sales_order = item.sales_order
+            if sales_order not in orders_grouped:
+                orders_grouped[sales_order] = {
+                    "sales_order": sales_order,
+                    "bayi": sales_order_data.get('customer', ''),
+                    "musteri": sales_order_data.get('custom_end_customer', ''),
+                    "siparis_tarihi": str(sales_order_data.get('transaction_date', '')) if sales_order_data.get('transaction_date') else None,
+                    "bitis_tarihi": str(sales_order_data.get('delivery_date', '')) if sales_order_data.get('delivery_date') else None,
+                    "pvc_qty": 0,
+                    "cam_qty": 0,
+                    "total_mtul": 0,
+                    "uretim_plani_durumu": latest_plan.status,
+                    "siparis_aciklama": sales_order_data.get('custom_remarks', '') or "",
+                    "is_urgent": sales_order_data.get('custom_acil_durum', False) or False,
+                    "items": [],  # Bu siparişe ait ürünler
+                    "seri_list": set(),  # Benzersiz seri listesi
+                    "renk_list": set()   # Benzersiz renk listesi
+                }
+            
+            # Ürün bilgilerini ekle
+            orders_grouped[sales_order]["items"].append({
+                "item_code": item.item_code,
+                "planned_qty": item.planned_qty,
                 "seri": item.custom_serial or item_data.get('custom_serial', ''),
                 "renk": item.custom_color or item_data.get('custom_color', ''),
-                "pvc_qty": item.planned_qty if item_group == "PVC" else 0,
-                "cam_qty": item.planned_qty if item_group == "Camlar" else 0,
-                "total_mtul": mtul_value,
-                "uretim_plani_durumu": latest_plan.status,
-                "siparis_aciklama": sales_order_data.get('custom_remarks', '') or "",
-                "is_urgent": sales_order_data.get('custom_acil_durum', False) or False
+                "item_group": item_group,
+                "mtul_value": mtul_value
+            })
+            
+            # PVC/Cam miktarlarını topla
+            if item_group == "PVC":
+                orders_grouped[sales_order]["pvc_qty"] += item.planned_qty
+            elif item_group == "Camlar":
+                orders_grouped[sales_order]["cam_qty"] += item.planned_qty
+            
+            # Toplam MTÜL'ü topla
+            orders_grouped[sales_order]["total_mtul"] += mtul_value
+            
+            # Benzersiz seri ve renkleri ekle
+            if item.custom_serial or item_data.get('custom_serial'):
+                orders_grouped[sales_order]["seri_list"].add(item.custom_serial or item_data.get('custom_serial', ''))
+            if item.custom_color or item_data.get('custom_color'):
+                orders_grouped[sales_order]["renk_list"].add(item.custom_color or item_data.get('custom_color', ''))
+        
+        # Gruplandırılmış verileri düz listeye çevir
+        orders = []
+        for sales_order, order_data in orders_grouped.items():
+            # Seri ve renk bilgilerini string olarak birleştir
+            seri_text = ", ".join(filter(None, order_data["seri_list"])) if order_data["seri_list"] else "-"
+            renk_text = ", ".join(filter(None, order_data["renk_list"])) if order_data["renk_list"] else "-"
+            
+            order_info = {
+                "sales_order": order_data["sales_order"],
+                "bayi": order_data["bayi"],
+                "musteri": order_data["musteri"],
+                "siparis_tarihi": order_data["siparis_tarihi"],
+                "bitis_tarihi": order_data["bitis_tarihi"],
+                "seri": seri_text,
+                "renk": renk_text,
+                "pvc_qty": order_data["pvc_qty"],
+                "cam_qty": order_data["cam_qty"],
+                "total_mtul": order_data["total_mtul"],
+                "uretim_plani_durumu": order_data["uretim_plani_durumu"],
+                "siparis_aciklama": order_data["siparis_aciklama"],
+                "is_urgent": order_data["is_urgent"],
+                "item_count": len(order_data["items"])  # Bu siparişteki toplam ürün sayısı
             }
             
             orders.append(order_info)
