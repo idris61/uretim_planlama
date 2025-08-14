@@ -1564,7 +1564,7 @@ class UretimPlanlamaPaneli {
 						</div>
 					</div>
 					
-					<div id="cutting-matrix-table" class="p-3">
+					<div id="cutting-matrix-table" class="p-3" style="max-height: 400px; overflow-y: auto;">
 						<div class="text-center text-muted">
 							<i class="fa fa-info-circle mr-2"></i>Kesim planı verileri yükleniyor...
 						</div>
@@ -1706,7 +1706,7 @@ class UretimPlanlamaPaneli {
 		// Tablo HTML'ini oluştur
 		const tableHtml = `
 			<table class="table table-bordered table-sm" style="font-size: 13px;">
-				<thead class="table-light">
+				<thead class="table-light" style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
 					<tr>
 						<th style="width: 160px;">Tarih</th>
 						<th style="width: 150px;">İstasyon</th>
