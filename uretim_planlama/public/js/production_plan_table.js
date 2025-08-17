@@ -136,8 +136,6 @@ frappe.ui.form.on("Production Plan", {
                         });
                     }
 
-                    console.log("[Geçici Plan Özeti]", temp_summary);
-
                     // Backend ve geçici veriyi birleştir (Toplam MTUL ve Adet için)
                     const combined = {};
 
@@ -196,7 +194,7 @@ frappe.ui.form.on("Production Plan", {
                             const dayName = d.toLocaleDateString('tr-TR', { weekday: 'long' });
                             display_date = `${frappe.datetime.obj_to_user(d)} (${dayName})`;
                         } catch (e) {
-                            console.warn("Geçersiz tarih:", row.date);
+                            // Geçersiz tarih formatı - varsayılan değeri kullan
                         }
 
                         // Toplam etiketi
@@ -268,7 +266,7 @@ frappe.ui.form.on("Production Plan", {
                                 const dayName = d.toLocaleDateString('tr-TR', { weekday: 'long' });
                                 display_date = `${frappe.datetime.obj_to_user(d)} (${dayName})`;
                             } catch (e) {
-                                console.warn("Geçersiz tarih:", item.date);
+                                // Geçersiz tarih formatı - varsayılan değeri kullan
                             }
 
                             // Toplam etiketi
@@ -318,9 +316,6 @@ frappe.ui.form.on("Production Plan", {
 
                     // Tablo ve listeyi container'a ekle
                     $table.html(table_html + temp_table_html);
-
-                    // Add debug logs for dates being sent to backend
-                    console.log("[Frontend] Tarihler API'a gönderiliyor - from_date:", from_date, "to_date:", to_date);
 
                 }
             });

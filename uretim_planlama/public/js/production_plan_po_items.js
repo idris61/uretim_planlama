@@ -62,6 +62,7 @@ function setupFloatingPanel(frm) {
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button class="btn btn-sm btn-primary" id="assign-workstation-btn">İş İstasyonu Ata</button>
                 <button class="btn btn-sm btn-primary" id="assign-start-date-btn">Başlangıç Tarihi Ata</button>
+                <button class="btn btn-sm btn-primary" id="assign-end-date-btn">Bitiş Tarihi Ata</button>
             </div>
         </div>
     `;
@@ -71,6 +72,7 @@ function setupFloatingPanel(frm) {
     // Event delegation kullan
     $(document).on('click', '#assign-workstation-btn', eventOptions, () => assignWorkstation(frm));
     $(document).on('click', '#assign-start-date-btn', eventOptions, () => assignStartDate(frm));
+    $(document).on('click', '#assign-end-date-btn', eventOptions, () => assignEndDate(frm));
 }
 
 function attachRowSelectionHandler(frm) {
@@ -122,14 +124,10 @@ const attachQtyChangeListenersForRow = (frm, row, retryCount = 0) => {
 
      // Field'ın varlığını kontrol et
      if (!plannedQtyField) {
-         console.log(`planned_qty field bulunamadı for row: ${rowName}, retry: ${retryCount}`);
-         
          if (retryCount < maxRetries) {
              setTimeout(() => {
                  attachQtyChangeListenersForRow(frm, row, retryCount + 1);
              }, retryDelay);
-         } else {
-             console.warn(`planned_qty field ${maxRetries} denemeden sonra bulunamadı: ${rowName}`);
          }
          return;
      }
@@ -316,4 +314,68 @@ function assignStartDate(frm) {
         frappe.show_alert({ message: `${selectedItems.length} satıra Başlangıç Tarihi atandı.`, indicator: 'green' });
          updateSelectedTotalMtul(frm); // MTUL toplamını güncelle
     }, 'Başlangıç Tarihi Ata', 'Ata');
+}
+
+function assignEndDate(frm) {
+    const grid = frm.fields_dict['po_items']?.grid; // Optional chaining ekledim
+    if (!grid) return; // Grid objesi yoksa çık
+
+    const selectedItems = grid.get_selected();
+
+    if (!selectedItems.length) {
+        frappe.msgprint('Lütfen önce atanacak satırları seçin.');
+        return;
+    }
+
+    // Seçili satırlarda başlangıç tarihi var mı kontrol et
+    let hasStartDate = false;
+    let startDate = null;
+    
+    selectedItems.forEach(itemName => {
+        const itemDoc = frappe.model.get_doc('Production Plan Item', itemName);
+        if (itemDoc && itemDoc.planned_start_date) {
+            hasStartDate = true;
+            startDate = itemDoc.planned_start_date;
+        }
+    });
+
+    let defaultEndDate;
+    
+    if (hasStartDate && startDate) {
+        // Başlangıç tarihinden 4 gün sonra ve saat 18:00
+        const startDateObj = new Date(startDate);
+        startDateObj.setDate(startDateObj.getDate() + 4);
+        startDateObj.setHours(18, 0, 0, 0);
+        defaultEndDate = frappe.datetime.obj_to_str(startDateObj);
+    } else {
+        // Başlangıç tarihi yoksa bugün 17:00
+        defaultEndDate = frappe.datetime.get_today() + ' 18:00:00';
+    }
+
+    frappe.prompt([
+        {
+            label: 'Atanacak Bitiş Tarihi',
+            fieldname: 'end_date',
+            fieldtype: 'Datetime',
+            reqd: 1,
+            default: defaultEndDate
+        }
+    ], (values) => {
+        const endDate = values.end_date;
+        
+        selectedItems.forEach(itemName => {
+            try {
+                frappe.model.set_value('Production Plan Item', itemName, 'planned_end_date', endDate);
+                const gridRow = grid.grid_rows.find(row => row.doc.name === itemName);
+                if (gridRow) {
+                    gridRow.refresh_field('planned_end_date');
+                }
+            } catch (error) {
+                frappe.show_alert({ message: `Hata: ${error.message}`, indicator: 'red' });
+            }
+        });
+
+        frappe.show_alert({ message: `${selectedItems.length} satıra Bitiş Tarihi atandı.`, indicator: 'green' });
+         updateSelectedTotalMtul(frm); // MTUL toplamını güncelle
+    }, 'Bitiş Tarihi Ata', 'Ata');
 } 

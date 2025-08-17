@@ -47,19 +47,19 @@ CONSTANTS = {
         "Tamamlandı": "Tamamlandı",
         "İptal Edildi": "İptal Edildi",
     },
-    'DEFAULT_LIMIT': 500,
-    'CACHE_DURATION': 30000,  # 30 saniye
+    'DEFAULT_LIMIT': 0,  # 0 = sınırsız
+    'CACHE_DURATION': 300000,  # 5 dakika
     'MAX_RETRIES': 3,
     'DEFAULT_MTUL_CAM': 1.745,
     'DEFAULT_MTUL_PVC': 11.35,
-    'MAX_QUERY_LIMIT': 1000
+    'MAX_QUERY_LIMIT': 0  # 0 = sınırsız
 }
 
 def validate_filters(filters: Dict) -> Dict:
     """Filter validation ve sanitization"""
     validated = {}
     if filters.get("limit"):
-        validated["limit"] = min(int(filters["limit"]), CONSTANTS['MAX_QUERY_LIMIT'])
+        validated["limit"] = int(filters["limit"]) if int(filters["limit"]) > 0 else 0
     else:
         validated["limit"] = CONSTANTS['DEFAULT_LIMIT']
     
@@ -166,7 +166,7 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
     V2: Daha da optimize edilmiş veri çekme - Subquery'ler JOIN'e çevrildi
     """
     try:
-        limit = min(filters.get("limit", CONSTANTS['DEFAULT_LIMIT']), 500)  # LIMIT'i 500'e düşür
+        limit = filters.get("limit", CONSTANTS['DEFAULT_LIMIT'])  # LIMIT kısıtlaması kaldırıldı
         
         # Production Plan için optimize edilmiş sorgu - Subquery JOIN'e çevrildi
         planned_query = """
@@ -192,6 +192,7 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 soi.qty as siparis_item_qty,
                 i.custom_serial as seri,
                 ppi.planned_start_date as planlanan_baslangic_tarihi,
+                ppi.planned_end_date as planned_end_date,
                 CASE 
                     WHEN i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar'
                     THEN ppi.planned_qty * COALESCE(ppi.custom_mtul_per_piece, %s)
@@ -221,7 +222,6 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 GROUP BY wo.production_plan
             ) wo_stats ON wo_stats.production_plan = pp.name
             WHERE pp.docstatus = 1 
-            AND pp.status != 'Closed'
             AND ppi.planned_qty > 0
             AND i.item_group != 'All Item Groups'
         """
@@ -383,7 +383,7 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
             grouped_data[combination_key]['items'].append(item)
             
             # PVC/Cam hesapla (sipariş miktarı)
-            urun_grubu = item['urun_grubu']
+            urun_grubu = item.get('urun_grubu', '')
             planlanan_miktar = float(item.get('planlanan_miktar', 0) or 0)
             toplam_mtul_m2 = float(item.get('toplam_mtul_m2', 0) or 0)
             urun_grubu_str = str(urun_grubu or '').lower()
@@ -405,6 +405,12 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
             
             # İlk ürünü temel al (sipariş bilgileri için)
             first_item = group_data['items'][0]
+            
+            # Debug: planned_end_date alanını kontrol et
+            frappe.logger().info(f"Opti {first_item.get('opti_no')} - planned_end_date: {first_item.get('planned_end_date')} (type: {type(first_item.get('planned_end_date'))})")
+            frappe.logger().info(f"Opti {first_item.get('opti_no')} - planlanan_baslangic_tarihi: {first_item.get('planlanan_baslangic_tarihi')} (type: {type(first_item.get('planlanan_baslangic_tarihi'))})")
+            frappe.logger().info(f"Opti {first_item.get('opti_no')} - first_item keys: {list(first_item.keys())}")
+            frappe.logger().info(f"Opti {first_item.get('opti_no')} - first_item raw: {first_item}")
             
             # Gruplandırılmış verilerden formatlanmış veri oluştur
             sales_order = group_data['sales_order']
@@ -437,6 +443,7 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
                 'cam_count': group_data['total_cam'],
                 'toplam_mtul_m2': group_data['total_mtul'],
                 'planlanan_baslangic_tarihi': first_item.get('planlanan_baslangic_tarihi').strftime('%Y-%m-%d') if first_item.get('planlanan_baslangic_tarihi') else None,
+                'planned_end_date': first_item.get('planned_end_date').strftime('%Y-%m-%d') if first_item.get('planned_end_date') and first_item.get('planned_end_date') != 'None' else None,
                 'plan_status': plan_status
             }
             planned_formatted.append(formatted_item)

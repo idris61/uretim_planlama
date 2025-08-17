@@ -196,37 +196,51 @@ const utils = {
         });
     },
 
-    // İş günü hesaplama fonksiyonu - Başlangıç tarihine 4 iş günü ekler
-    calculateDeliveryDate: (startDate) => {
-        if (!startDate) return '-';
-        
-        try {
-            const start = new Date(startDate);
-            if (isNaN(start.getTime())) return startDate;
-            
-            let deliveryDate = new Date(start);
-            let workDaysAdded = 0;
-            
-            // 4 iş günü ekle (hafta sonları hariç)
-            while (workDaysAdded < 4) {
-                deliveryDate.setDate(deliveryDate.getDate() + 1);
-                
-                // Hafta sonu değilse iş günü say
-                const dayOfWeek = deliveryDate.getDay();
-                if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Pazar, 6 = Cumartesi
-                    workDaysAdded++;
+    // Teslim tarihi hesaplama
+    getDeliveryDate: (endDate, startDate) => {
+        // Önce planned_end_date'i kontrol et
+        if (endDate) {
+            try {
+                const date = new Date(endDate);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('tr-TR');
                 }
+            } catch (e) {
+                console.warn('planned_end_date parse hatası:', e);
             }
-            
-            // Formatlanmış tarihi döndür
-            return deliveryDate.toLocaleDateString('tr-TR');
-        } catch (e) {
-            return startDate;
         }
+        
+        // planned_end_date yoksa veya geçersizse, başlangıç tarihinden hesapla
+        if (startDate) {
+            try {
+                const start = new Date(startDate);
+                if (!isNaN(start.getTime())) {
+                    let deliveryDate = new Date(start);
+                    let workDaysAdded = 0;
+                    
+                    // 4 iş günü ekle (hafta sonları hariç)
+                    while (workDaysAdded < 4) {
+                        deliveryDate.setDate(deliveryDate.getDate() + 1);
+                        
+                        // Hafta sonu değilse iş günü say
+                        const dayOfWeek = deliveryDate.getDay();
+                        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Pazar, 6 = Cumartesi
+                            workDaysAdded++;
+                        }
+                    }
+                    
+                    return deliveryDate.toLocaleDateString('tr-TR');
+                }
+            } catch (e) {
+                console.warn('startDate parse hatası:', e);
+            }
+        }
+        
+        return '-';
     }
 };
 
-// Error handling - Enhanced with performance
+// Error handling
 const errorHandler = {
     show: (message, title = 'Hata', type = 'error') => {
         try {
@@ -733,8 +747,8 @@ const CONFIG = {
     },
     
     // Performance settings
-    CACHE_DURATION: 30000,
-    DATA_LOAD_TIMEOUT: 60000, // 60 saniye - timeout artırıldı
+    CACHE_DURATION: 300000, // 5 dakika - cache süresi artırıldı
+    DATA_LOAD_TIMEOUT: 120000, // 2 dakika - timeout artırıldı
     
     // Table configurations
     TABLES: {
@@ -788,10 +802,10 @@ const CONFIG = {
         end_date: ''
     },
     
-    // Pagination
+    // Pagination - Tüm verileri göster
     PAGINATION: {
-        DEFAULT_PAGE_SIZE: 50,
-        PAGE_SIZE_OPTIONS: [25, 50, 100, 200]
+        DEFAULT_PAGE_SIZE: 0, // 0 = tüm veriler
+        PAGE_SIZE_OPTIONS: [0, 100, 500, 1000] // 0 = sınırsız
     },
     
     // Refresh intervals (in milliseconds)
@@ -1330,10 +1344,6 @@ class UretimPlanlamaPaneli {
 							</div>
 						</div>
 						<div class="d-flex align-items-center">
-							<button class="btn btn-outline-light btn-sm mr-3" id="refresh-planned-btn" style="white-space: nowrap; font-size: 0.8rem;">
-								<i class="fa fa-refresh mr-1"></i>
-								Yenile
-							</button>
 							<button class="btn btn-outline-light btn-sm mr-3" id="toggle-completed-btn" style="white-space: nowrap; font-size: 0.8rem;">
 								<i class="fa fa-eye-slash mr-1"></i>
 								Tamamlananları Göster (0)
@@ -1428,10 +1438,6 @@ class UretimPlanlamaPaneli {
 							</div>
 						</div>
 						<div class="d-flex align-items-center">
-							<button class="btn btn-outline-light btn-sm mr-3" id="refresh-unplanned-btn" style="white-space: nowrap; font-size: 0.8rem;">
-								<i class="fa fa-refresh mr-1"></i>
-								Yenile
-							</button>
 							<div class="badge badge-light" style="font-size: 1.1rem; padding: 8px 12px; border-radius: 20px;" id="planlanmamis-count">0</div>
 						</div>
 					</div>
@@ -1528,10 +1534,6 @@ class UretimPlanlamaPaneli {
 							</div>
 						</div>
 						<div class="d-flex align-items-center">
-							<button class="btn btn-outline-light btn-sm mr-3" id="refresh-cutting-btn" style="white-space: nowrap; font-size: 0.8rem;">
-								<i class="fa fa-refresh mr-1"></i>
-								Yenile
-							</button>
 							<div class="badge badge-light" style="font-size: 1.1rem; padding: 8px 12px; border-radius: 20px;" id="cutting-count">0</div>
 						</div>
 					</div>
@@ -1598,12 +1600,27 @@ class UretimPlanlamaPaneli {
 
 		if (!fromDate || !toDate) return;
 
+		// Cache kontrolü
+		const cacheKey = `cutting_${fromDate}_${toDate}_${productionType}`;
+		const cachedData = this.dataCache.get(cacheKey);
+		const now = Date.now();
+		
+		if (cachedData && (now - cachedData.timestamp) < (CONFIG.CACHE_DURATION * 2)) {
+			this.renderCuttingTable(cachedData.data, productionType);
+			return;
+		}
+
+		// Loading indicator göster
+		this.showTableLoading('cutting');
+
 		try {
 			const response = await frappe.call({
 				method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_matrix",
 				args: { from_date: fromDate, to_date: toDate },
-				timeout: 30000
+				timeout: 120000 // 2 dakika timeout
 			});
+
+			this.hideTableLoading('cutting');
 
 			if (response.exc) {
 				this.showError('Kesim planı verileri yüklenirken hata: ' + response.exc);
@@ -1611,12 +1628,69 @@ class UretimPlanlamaPaneli {
 			}
 
 			const data = response.message || [];
+			
+			// Cache'e kaydet
+			this.dataCache.set(cacheKey, {
+				data: data,
+				timestamp: now
+			});
+			
 			this.renderCuttingTable(data, productionType);
 
 		} catch (error) {
+			this.hideTableLoading('cutting');
 			this.showError('Kesim planı verileri yüklenirken hata: ' + error.message);
 		}
 	}
+
+	// Loading indicator fonksiyonları
+	showTableLoading(tableType) {
+		let tbody;
+		let message;
+		
+		switch(tableType) {
+			case 'planned':
+				tbody = document.getElementById('planlanan-tbody');
+				message = 'Planlanan veriler yükleniyor...';
+				break;
+			case 'unplanned':
+				tbody = document.getElementById('planlanmamis-tbody');
+				message = 'Planlanmamış veriler yükleniyor...';
+				break;
+			case 'cutting':
+				const container = document.getElementById('cutting-matrix-table');
+				if (container) {
+					container.innerHTML = `
+						<div class="text-center p-4">
+							<div class="spinner-border text-primary" role="status">
+								<span class="sr-only">Yükleniyor...</span>
+							</div>
+							<p class="mt-2 text-muted">${message}</p>
+						</div>
+					`;
+				}
+				return;
+			default:
+				return;
+		}
+		
+		if (tbody) {
+			tbody.innerHTML = `
+				<tr><td colspan="13" class="text-center p-4">
+					<div class="spinner-border text-primary" role="status">
+						<span class="sr-only">Yükleniyor...</span>
+					</div>
+					<p class="mt-2 text-muted">${message}</p>
+				</td></tr>
+			`;
+		}
+	}
+
+	hideTableLoading(tableType) {
+		// Loading indicator'ı gizle - tablo render edildiğinde otomatik temizlenir
+	}
+
+
 
 	// Kesim planı tablosunu render et
 	renderCuttingTable(data, productionType = '') {
@@ -1828,13 +1902,6 @@ class UretimPlanlamaPaneli {
 
 	// Kesim planı tablosu event'leri
 	bindCuttingTableEvents() {
-		// Refresh butonu
-		const refreshCuttingBtn = document.getElementById('refresh-cutting-btn');
-		if (refreshCuttingBtn) {
-			refreshCuttingBtn.addEventListener('click', () => {
-				this.loadCuttingTable();
-			});
-		}
 
 		// Tarih filtreleri
 		const fromDateInput = document.getElementById('cutting-from-date');
@@ -2043,6 +2110,7 @@ class UretimPlanlamaPaneli {
 					total_cam: 0,
 					total_mtul: 0,
 					planlanan_baslangic_tarihi: order.planlanan_baslangic_tarihi,
+					planned_end_date: order.planned_end_date,
 					seri: order.seri,
 					renk: order.renk,
 					plan_status: order.plan_status,
@@ -2206,7 +2274,7 @@ class UretimPlanlamaPaneli {
 			frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
 				args: { order_no: salesOrderId },
-				timeout: 5000, // 5 saniye timeout ekle
+				timeout: 30000, // 30 saniye timeout
 				callback: (r) => {
 					if (r.exc) {
 						errorHandler.show('Sipariş detayları yüklenirken hata: ' + r.exc);
@@ -2244,7 +2312,7 @@ class UretimPlanlamaPaneli {
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_opti_details',
 			args: { opti_no: optiNo },
-			timeout: 5000, // 5 saniye timeout - hızlandırıldı
+			timeout: 30000, // 30 saniye timeout
 			callback: (r) => {
 				if (r.exc) {
 					frappe.show_alert({
@@ -3046,7 +3114,8 @@ class UretimPlanlamaPaneli {
 			const cachedData = this.dataCache.get(cacheKey);
 			const now = Date.now();
 			
-			if (cachedData && (now - cachedData.timestamp) < CONFIG.CACHE_DURATION) {
+			// Cache kontrolü - daha uzun süre cache'de tut
+			if (cachedData && (now - cachedData.timestamp) < (CONFIG.CACHE_DURATION * 3)) {
 				this.plannedTable.data = cachedData.data;
 				this.renderPlannedTable();
 				this.updatePlannedSummary();
@@ -3062,12 +3131,16 @@ class UretimPlanlamaPaneli {
 				return;
 			}
 			
+			// Loading indicator göster
+			this.showTableLoading('planned');
+			
 			const apiCall = frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_production_planning_data',
 				args: { filters: JSON.stringify(filters) },
-				timeout: CONFIG.DATA_LOAD_TIMEOUT,
+				timeout: 120000, // 2 dakika timeout
 				callback: (r) => {
 					this.plannedTable.isLoading = false;
+					this.hideTableLoading('planned');
 					
 					if (r.exc) {
 						this.showError('Planlanan veri yüklenirken hata: ' + r.exc);
@@ -3083,7 +3156,7 @@ class UretimPlanlamaPaneli {
 					
 					this.plannedTable.data = data.planned || [];
 					
-					// Cache'e kaydet
+					// Cache'e kaydet - daha uzun süre
 					this.dataCache.set(cacheKey, {
 						data: this.plannedTable.data,
 						timestamp: now
@@ -3101,6 +3174,7 @@ class UretimPlanlamaPaneli {
 				},
 				error: (err) => {
 					this.plannedTable.isLoading = false;
+					this.hideTableLoading('planned');
 					this.showError('Planlanan veri bağlantı hatası: ' + err);
 				}
 			});
@@ -3108,12 +3182,14 @@ class UretimPlanlamaPaneli {
 			setTimeout(() => {
 				if (this.plannedTable.isLoading) {
 					this.plannedTable.isLoading = false;
+					this.hideTableLoading('planned');
 					this.showError('Planlanan veri yükleme zaman aşımı.');
 				}
-			}, CONFIG.DATA_LOAD_TIMEOUT + 1000);
+			}, 61000);
 			
 		} catch (error) {
 			this.plannedTable.isLoading = false;
+			this.hideTableLoading('planned');
 			this.showError('Planlanan veriler yüklenirken hata oluştu: ' + error.message);
 		}
 	}
@@ -3123,26 +3199,14 @@ class UretimPlanlamaPaneli {
 		
 		this.unplannedTable.isLoading = true;
 		
-		// Loading indicator göster
-		const tbody = document.getElementById('planlanmamis-tbody');
-		if (tbody) {
-			tbody.innerHTML = `
-				<tr><td colspan="13" class="text-center p-4">
-					<div class="spinner-border text-primary" role="status">
-						<span class="sr-only">Yükleniyor...</span>
-					</div>
-					<p class="mt-2 text-muted">Planlanmamış siparişler yükleniyor...</p>
-				</td></tr>
-			`;
-		}
-		
 		try {
 			const filters = this.getPlanlanmamisFilters();
 			const cacheKey = `unplanned_${JSON.stringify(filters)}`;
 			const cachedData = this.dataCache.get(cacheKey);
 			const now = Date.now();
 			
-			if (cachedData && (now - cachedData.timestamp) < CONFIG.CACHE_DURATION) {
+			// Cache kontrolü - daha uzun süre cache'de tut
+			if (cachedData && (now - cachedData.timestamp) < (CONFIG.CACHE_DURATION * 3)) {
 				this.unplannedTable.data = cachedData.data;
 				this.renderUnplannedTable();
 				this.updateUnplannedSummary();
@@ -3154,15 +3218,19 @@ class UretimPlanlamaPaneli {
 				return;
 			}
 			
+			// Loading indicator göster
+			this.showTableLoading('unplanned');
+			
 			const apiCall = frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_unplanned_data',
 				args: { filters: JSON.stringify(filters) },
-				timeout: CONFIG.DATA_LOAD_TIMEOUT,
+				timeout: 60000, // 60 saniye timeout
 				callback: (r) => {
 					this.unplannedTable.isLoading = false;
+					this.hideTableLoading('unplanned');
 					
 					if (r.exc) {
-						this.showError('Planlanmamış veri yüklenirken hata: ' + r.exc);
+						this.showError('Planlanan veri yüklenirken hata: ' + r.exc);
 						return;
 					}
 					
@@ -3175,9 +3243,7 @@ class UretimPlanlamaPaneli {
 					
 					this.unplannedTable.data = data.unplanned || [];
 					
-					// DEBUG logları performans için kaldırıldı
-					
-					// Cache'e kaydet
+					// Cache'e kaydet - daha uzun süre
 					this.dataCache.set(cacheKey, {
 						data: this.unplannedTable.data,
 						timestamp: now
@@ -3191,6 +3257,7 @@ class UretimPlanlamaPaneli {
 				},
 				error: (err) => {
 					this.unplannedTable.isLoading = false;
+					this.hideTableLoading('unplanned');
 					this.showError('Planlanmamış veri bağlantı hatası: ' + err);
 				}
 			});
@@ -3198,12 +3265,14 @@ class UretimPlanlamaPaneli {
 			setTimeout(() => {
 				if (this.unplannedTable.isLoading) {
 					this.unplannedTable.isLoading = false;
+					this.hideTableLoading('unplanned');
 					this.showError('Planlanmamış veri yükleme zaman aşımı.');
 				}
-			}, CONFIG.DATA_LOAD_TIMEOUT + 1000);
+			}, 61000);
 			
 		} catch (error) {
 			this.unplannedTable.isLoading = false;
+			this.hideTableLoading('unplanned');
 			this.showError('Planlanmamış veriler yüklenirken hata oluştu: ' + error.message);
 		}
 	}
@@ -3319,7 +3388,7 @@ class UretimPlanlamaPaneli {
 				<span class="badge badge-warning">${utils.formatDate(optiGroup.siparis_tarihi)}</span>
 			</td>
 			<td class="text-center">
-				<span class="badge badge-danger">${utils.calculateDeliveryDate(optiGroup.planlanan_baslangic_tarihi)}</span>
+				<span class="badge badge-danger">${utils.getDeliveryDate(optiGroup.planned_end_date, optiGroup.planlanan_baslangic_tarihi)}</span>
 			</td>
 			<td class="text-center">
 				<span class="badge badge-danger">${pvcCount}</span>
@@ -3614,6 +3683,7 @@ class UretimPlanlamaPaneli {
 					total_cam: 0,
 					total_mtul: 0,
 					planlanan_baslangic_tarihi: order.planlanan_baslangic_tarihi,
+					planned_end_date: order.planned_end_date,
 					seri: order.seri,
 					renk: order.renk,
 					plan_status: order.plan_status,
@@ -3738,7 +3808,7 @@ class UretimPlanlamaPaneli {
 				<span class="badge badge-warning">${utils.formatDate(optiGroup.siparis_tarihi)}</span>
 			</td>
 			<td class="text-center">
-				<span class="badge badge-danger">${utils.calculateDeliveryDate(optiGroup.planlanan_baslangic_tarihi)}</span>
+				<span class="badge badge-danger">${utils.getDeliveryDate(optiGroup.planned_end_date, optiGroup.planlanan_baslangic_tarihi)}</span>
 			</td>
 			<td class="text-center">
 				<span class="badge badge-danger">${optiGroup.total_pvc || 0}</span>
@@ -3774,28 +3844,7 @@ class UretimPlanlamaPaneli {
 			}
 		});
 		
-		// Refresh butonları için event listener'lar
-		const refreshPlannedBtn = document.getElementById('refresh-planned-btn');
-		if (refreshPlannedBtn) {
-			refreshPlannedBtn.addEventListener('click', () => {
-				this.loadPlannedData().then(() => {
-					this.showSuccess('Planlanan veriler yenilendi');
-				}).catch(error => {
-					this.showError('Planlanan veriler yenilenirken hata oluştu: ' + error.message);
-				});
-			});
-		}
-		
-		const refreshUnplannedBtn = document.getElementById('refresh-unplanned-btn');
-		if (refreshUnplannedBtn) {
-			refreshUnplannedBtn.addEventListener('click', () => {
-				this.loadUnplannedData().then(() => {
-					this.showSuccess('Planlanmamış veriler yenilendi');
-				}).catch(error => {
-					this.showError('Planlanmamış veriler yenilenirken hata oluştu: ' + error.message);
-				});
-			});
-		}
+
 	}
 
 	startAutoRefresh() {
@@ -4004,7 +4053,7 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 			sales_order: salesOrderId,
 			production_plan: productionPlan 
 		},
-		timeout: 5000, // 5 saniye timeout - hızlandırıldı
+		timeout: 30000, // 30 saniye timeout
 		callback: function(r) {
 			const contentDiv = modal.fields_dict.work_orders_content.$wrapper;
 			
@@ -4127,7 +4176,7 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
 			args: { work_order: woName },
-			timeout: 5000, // 5 saniye timeout - hızlandırıldı
+			timeout: 30000, // 30 saniye timeout
 			callback: function(r) {
 				if (r.message && r.message.length > 0) {
 					let opsHtml = `
@@ -4338,7 +4387,7 @@ function loadOperationsForWorkOrder(workOrderName, index) {
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
 		args: { work_order: workOrderName },
-		timeout: 5000, // 5 saniye timeout - hızlandırıldı
+		timeout: 30000, // 30 saniye timeout
 		callback: (r) => {
 			if (r.exc) {
 				operationsContainer.html(`

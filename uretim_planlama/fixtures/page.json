@@ -1,0 +1,155 @@
+[
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2025-05-19 00:14:28.209268",
+  "module": "Uretim Planlama",
+  "name": "operasyon_plani",
+  "page_name": "operasyon_plani",
+  "restrict_to_domain": null,
+  "roles": [],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Operasyon Planı Sayfası"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2025-05-19 00:14:28.209268",
+  "module": "Uretim Planlama",
+  "name": "is_emirleri_plani",
+  "page_name": "is_emirleri_plani",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "parent": "is_emirleri_plani",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "System Manager"
+   },
+   {
+    "parent": "is_emirleri_plani",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "is_emirleri_plani",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Manufacturing User"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "İş Emirleri Planı"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2025-06-24 00:00:00",
+  "module": "Uretim Planlama",
+  "name": "profil_stok_paneli",
+  "page_name": "profil_stok_paneli",
+  "restrict_to_domain": null,
+  "roles": [],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Profil Stok Paneli"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2025-07-01 00:00:00",
+  "module": "Uretim Planlama",
+  "name": "accessory_delivery_package_create",
+  "page_name": "accessory_delivery_package_create",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "parent": "accessory_delivery_package_create",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "System Manager"
+   },
+   {
+    "parent": "accessory_delivery_package_create",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Stock User"
+   }
+  ],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Accessory Delivery Package Create"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2025-08-04 10:36:43.324224",
+  "module": "Uretim Planlama",
+  "name": "uretim_planlama_takip",
+  "page_name": "uretim_planlama_takip",
+  "restrict_to_domain": null,
+  "roles": [],
+  "script": null,
+  "standard": "Yes",
+  "style": null,
+  "system_page": 0,
+  "title": "Üretim Planlama Takip Paneli"
+ },
+ {
+  "content": null,
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": null,
+  "modified": "2024-01-01 00:00:00",
+  "module": "Uretim Planlama",
+  "name": "uretim_planlama_paneli",
+  "page_name": "uretim_planlama_paneli",
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "parent": "uretim_planlama_paneli",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "System Manager"
+   },
+   {
+    "parent": "uretim_planlama_paneli",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "uretim_planlama_paneli",
+    "parentfield": "roles",
+    "parenttype": "Page",
+    "role": "Manufacturing User"
+   }
+  ],
+  "script": null,
+  "standard": "No",
+  "style": null,
+  "system_page": 0,
+  "title": "Üretim Planlama Paneli"
+ }
+]
