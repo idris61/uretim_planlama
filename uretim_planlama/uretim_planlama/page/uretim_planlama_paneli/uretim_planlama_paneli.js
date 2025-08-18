@@ -1575,6 +1575,38 @@ class UretimPlanlamaPaneli {
 			</div>
 		`);
 
+		// İş İstasyonu Doluluk Oranları Tablosu
+		const utilizationRow = $('<div class="row mb-4"></div>').appendTo(this.page.body);
+		const utilizationCol = $('<div class="col-12"></div>').appendTo(utilizationRow);
+		
+		utilizationCol.append(`
+			<div class="card mb-4">
+				<div class="card-header" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); color: white;">
+					<div class="d-flex justify-content-between align-items-center">
+													<div class="d-flex align-items-center">
+								<div class="mr-3">
+									<i class="fa fa-tasks" style="font-size: 1.5rem;"></i>
+								</div>
+								<div>
+									<h5 class="mb-0" style="font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">OPERASYON DOLULUK ORANI</h5>
+								</div>
+							</div>
+						<div class="d-flex align-items-center">
+							<div class="badge badge-light" style="font-size: 1.1rem; padding: 8px 12px; border-radius: 20px;" id="utilization-count">0</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="card-body p-0">
+					<div id="workstation-utilization-table" class="p-3" style="max-height: 500px; overflow-y: auto;">
+						<div class="text-center text-muted">
+							<i class="fa fa-info-circle mr-2"></i>İş istasyonu doluluk verileri yükleniyor...
+						</div>
+					</div>
+								</div>
+			</div>
+		`);
+
 		// Tarih filtrelerini ayarla
 		const today = new Date();
 		const fromDefault = new Date(today.getTime() - (10 * 24 * 60 * 60 * 1000)); // 10 gün önce
@@ -1590,6 +1622,9 @@ class UretimPlanlamaPaneli {
 
 		// İlk yükleme
 		this.loadCuttingTable();
+		
+		// İş istasyonu doluluk oranlarını yükle
+		this.loadWorkstationUtilization();
 	}
 
 	// Kesim planı tablosunu yükle
@@ -1730,13 +1765,19 @@ class UretimPlanlamaPaneli {
 			const mtulUnder1400 = Math.min(totalMtul, 1400);
 			const mtulOver1400 = totalMtul > 1400 ? totalMtul - 1400 : 0;
 
+			// Verilerle orantılı genişlik hesaplama - 1400 MTUL'e kadar olan kısım daha geniş
 			// Maksimum MTUL değeri için ölçeklendirme
 			const maxMtul = Math.max(...filteredData.map(item => parseFloat(item.total_mtul || 0)), 2000);
-			const maxMtulForScaling = Math.max(2000, maxMtul * 1.1);
-
-			// Segment genişliklerini yüzde olarak hesapla
-			const under1400Percentage = (mtulUnder1400 / maxMtulForScaling) * 100;
-			const over1400Percentage = (mtulOver1400 / maxMtulForScaling) * 100;
+			
+			// 1400 MTUL'e kadar olan kısım için daha geniş ölçeklendirme
+			// 1400 MTUL = %80 genişlik, 1400+ MTUL = %20 genişlik
+			const scaleFactor = 0.8; // 1400 MTUL'e kadar olan kısım için ölçek faktörü
+			
+			// Segment genişliklerini hesapla
+			const under1400Percentage = mtulUnder1400 > 0 ? 
+				Math.min((mtulUnder1400 / 1400) * 80, 80) : 0; // 1400 MTUL'e kadar maksimum %80
+			const over1400Percentage = mtulOver1400 > 0 ? 
+				Math.min((mtulOver1400 / Math.max(maxMtul - 1400, 1)) * 20, 20) : 0; // 1400+ MTUL için %20
 
 			// İş istasyonuna göre renk belirleme
 			const baseColor = row.workstation.includes("Kaban") ? '#944de0' : 
@@ -1752,22 +1793,24 @@ class UretimPlanlamaPaneli {
 				console.warn("Geçersiz tarih:", row.date);
 			}
 
-			// Toplam etiketi
+			// Toplam etiketi - daha net görünüm için
 			const totalLabel = `${totalMtul.toFixed(2)} MTUL - ${totalQuantity} Adet`;
 
 			return `
 				<tr>
-					<td style="white-space: nowrap; font-weight: bold;">${displayDate}</td>
-					<td style="color: ${baseColor}; font-weight: bold;">${row.workstation}</td>
-					<td>
-						<div style="position: relative; background: #f5f5f5; border: 1px solid #ddd; height: 24px; border-radius: 4px; overflow: hidden; display: flex; align-items: center;">
-							${mtulUnder1400 > 0 ? `<div style="width: ${under1400Percentage}%; background: ${baseColor}; height: 100%;"></div>` : ''}
-							${mtulOver1400 > 0 ? `<div style="width: ${over1400Percentage}%; background: red; height: 100%;"></div>` : ''}
-							<span style="position: absolute; left: 8px; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px #fff;">
+					<td style="white-space: nowrap; font-weight: bold; padding: 8px;">${displayDate}</td>
+					<td style="color: ${baseColor}; font-weight: bold; padding: 8px;">${row.workstation}</td>
+					<td style="padding: 8px;">
+						<div style="position: relative; background: #f5f5f5; border: 2px solid #ddd; height: 28px; border-radius: 6px; overflow: hidden; display: flex; align-items: center; min-width: 400px;">
+							${mtulUnder1400 > 0 ? `<div style="width: ${under1400Percentage}%; background: ${baseColor}; height: 100%; border-right: 2px solid #fff;"></div>` : ''}
+							${mtulOver1400 > 0 ? `<div style="width: ${over1400Percentage}%; background: #dc3545; height: 100%;"></div>` : ''}
+							
+							<!-- Toplam etiketi - eski düzende -->
+							<span style="position: absolute; left: 8px; top: 0; line-height: 28px; font-size: 13px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px #fff;">
 								${totalLabel}
 							</span>
 							${mtulOver1400 > 0 ? `
-								<span style="position: absolute; left: ${under1400Percentage}%; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px #000; padding-left: 4px;">
+								<span style="position: absolute; left: ${under1400Percentage}%; top: 0; line-height: 28px; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px #000; padding-left: 4px;">
 									+${mtulOver1400.toFixed(2)}
 								</span>
 							` : ''}
@@ -1777,14 +1820,14 @@ class UretimPlanlamaPaneli {
 			`;
 		}).join('');
 
-		// Tablo HTML'ini oluştur
+		// Tablo HTML'ini oluştur - daha geniş kolon
 		const tableHtml = `
-			<table class="table table-bordered table-sm" style="font-size: 13px;">
+			<table class="table table-bordered table-sm" style="font-size: 13px; width: 100%;">
 				<thead class="table-light" style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
 					<tr>
-						<th style="width: 160px;">Tarih</th>
-						<th style="width: 150px;">İstasyon</th>
-						<th>Toplam MTUL / m² - Toplam Adet</th>
+						<th style="width: 180px; padding: 10px;">Tarih</th>
+						<th style="width: 180px; padding: 10px;">İstasyon</th>
+						<th style="padding: 10px;">Toplam MTUL / m² - Toplam Adet</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -1801,6 +1844,248 @@ class UretimPlanlamaPaneli {
 			countBadge.textContent = filteredData.length;
 		}
 	}
+
+		// İş İstasyonu Doluluk Oranları Tablosunu Yükle
+	async loadWorkstationUtilization(selectedDate = null) {
+		try {
+			// Seçilen tarih veya bugünün tarihini al
+			const targetDate = selectedDate || new Date();
+			const weekStart = this.getMonday(targetDate);
+			const weekEnd = new Date(weekStart);
+			weekEnd.setDate(weekStart.getDate() + 6);
+
+			const weekStartStr = weekStart.toISOString().split('T')[0];
+			const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+			// API'den iş istasyonu doluluk verilerini al
+			const response = await frappe.call({
+				method: 'uretim_planlama.uretim_planlama.api.get_weekly_production_schedule',
+				args: {
+					week_start: weekStartStr,
+					week_end: weekEndStr
+				},
+				timeout: 60000
+			});
+
+			if (response.exc) {
+				console.error('Doluluk verileri yüklenirken hata:', response.exc);
+				return;
+			}
+
+			const data = response.message;
+			if (data && data.workstations) {
+				this.renderWorkstationUtilization(data.workstations, data.days, weekStart, weekEnd);
+			}
+
+		} catch (error) {
+			console.error('İş istasyonu doluluk verileri yüklenirken hata:', error);
+		}
+	}
+
+	// Pazartesi gününü bul
+	getMonday(d) {
+		d = new Date(d);
+		const day = d.getDay();
+		const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+		return new Date(d.getFullYear(), d.getMonth(), diff);
+	}
+
+	// İş İstasyonu Doluluk Oranları Tablosunu Render Et
+	renderWorkstationUtilization(workstations, days, weekStart, weekEnd) {
+		const container = document.getElementById('workstation-utilization-table');
+		if (!container) return;
+
+		if (!workstations || workstations.length === 0) {
+			container.innerHTML = `
+				<div class="text-center text-muted p-4">
+					<i class="fa fa-info-circle mr-2"></i>İş istasyonu doluluk verisi bulunamadı
+				</div>
+			`;
+			return;
+		}
+
+		// Tarih navigasyonu ekle
+		const prevWeek = new Date(weekStart);
+		prevWeek.setDate(prevWeek.getDate() - 7);
+		const nextWeek = new Date(weekStart);
+		nextWeek.setDate(nextWeek.getDate() + 7);
+
+		// Haftalık doluluk tablosu oluştur
+		let tableHtml = `
+			<!-- Sabit Navigasyon ve Tablo -->
+			<div style="position: sticky; top: 0; z-index: 1000; background: white; border-bottom: 2px solid #dee2e6;">
+				<!-- Tarih Navigasyonu -->
+				<div class="d-flex justify-content-between align-items-center" style="background: #f8f9fa; padding: 12px; border-radius: 8px 8px 0 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+					<button class="btn btn-outline-primary btn-sm" onclick="appInstance.loadWorkstationUtilization(new Date('${prevWeek.toISOString()}'))">
+						<i class="fa fa-chevron-left mr-1"></i>Önceki Hafta
+					</button>
+					<div style="display: flex; align-items: center; gap: 15px;">
+						<span style="font-weight: 700; color: #2c3e50; font-size: 14px;">
+							${weekStart.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })} - ${weekEnd.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })} Tarihleri
+						</span>
+						<button class="btn btn-outline-success btn-sm" onclick="appInstance.loadWorkstationUtilization()">
+							<i class="fa fa-calendar mr-1"></i>Bu Hafta
+						</button>
+					</div>
+					<button class="btn btn-outline-primary btn-sm" onclick="appInstance.loadWorkstationUtilization(new Date('${nextWeek.toISOString()}'))">
+						Sonraki Hafta<i class="fa fa-chevron-right ml-1"></i>
+					</button>
+				</div>
+				
+				<!-- Tablo -->
+				<div class="table-responsive" style="margin: 0;">
+					<table class="table table-bordered table-sm mb-0" style="font-size: 12px; width: 100%; background: white; margin: 0;">
+						<thead style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); color: white;">
+							<tr>
+								<th style="width: 120px; padding: 12px; text-align: left; font-weight: 700;">Operasyon</th>
+		`;
+
+		// Gün başlıkları - Hafta sonu hariç
+		days.forEach(day => {
+			const date = new Date(day.date);
+			const dayOfWeek = date.getDay(); // 0 = Pazar, 6 = Cumartesi
+			
+			// Hafta sonu değilse ekle
+			if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+				const dayName = date.toLocaleDateString('tr-TR', { weekday: 'short' });
+				const dateStr = date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
+				
+				tableHtml += `
+					<th style="width: 120px; padding: 8px; text-align: center; font-weight: 700; font-size: 11px;">
+						${dayName}<br>${dateStr}
+					</th>
+				`;
+			}
+		});
+
+		tableHtml += `
+						</tr>
+					</thead>
+					<tbody>
+		`;
+
+		// İş istasyonu satırları
+		workstations.forEach(ws => {
+			const workstationName = ws.workstation_name || ws.name || 'Bilinmiyor';
+			const operations = ws.operations ? ws.operations.join(', ') : '-';
+
+			tableHtml += `
+				<tr style="background: white;">
+					<td style="padding: 8px; text-align: left; color: #2c3e50; font-size: 12px; font-weight: 700; border-right: 2px solid #dee2e6;">
+						${operations}
+					</td>
+			`;
+
+			// Günlük doluluk oranları - Hafta sonu hariç
+			days.forEach(day => {
+				const date = new Date(day.date);
+				const dayOfWeek = date.getDay(); // 0 = Pazar, 6 = Cumartesi
+				
+				// Hafta sonu değilse işle
+				if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+					const dayInfo = ws.daily_info ? ws.daily_info[day.weekday] : null;
+					let workMinutes = dayInfo ? dayInfo.work_minutes : 0;
+					let plannedMinutes = 0;
+
+					// Planlanan dakikaları hesapla
+					const validJobs = (ws.schedule?.[day.weekday] || []).filter(job => 
+						job && typeof job === 'object' && job.name && job.duration
+					);
+					validJobs.forEach(job => {
+						if (job.duration && typeof job.duration === 'number') {
+							plannedMinutes += job.duration;
+						}
+					});
+
+					// Doluluk oranını hesapla - %100'den fazla olabilir
+					let doluluk = workMinutes > 0 ? Math.round((plannedMinutes / workMinutes) * 100) : 0;
+					// %100 sınırı kaldırıldı - kapasite aşımı gösterilebilir
+					
+					// Yüzde değerini güvenli hale getir
+					doluluk = isNaN(doluluk) ? 0 : doluluk;
+					doluluk = Math.max(0, doluluk); // Negatif değerleri engelle
+					const overPercent = Math.max(0, doluluk - 100);
+					
+					// Debug: Yüzde değerini kontrol et
+					console.log('Doluluk hesaplama:', {
+						workMinutes,
+						plannedMinutes,
+						doluluk,
+						workstation: ws.name || 'Bilinmiyor',
+						day: day.weekday
+					});
+
+					// Renk kodlaması - %100'den fazla değerler için
+					let barColor, textColor;
+					if (doluluk < 60) {
+						barColor = '#28a745'; // Yeşil
+						textColor = '#155724';
+					} else if (doluluk < 90) {
+						barColor = '#ffc107'; // Sarı
+						textColor = '#856404';
+					} else if (doluluk <= 100) {
+						barColor = '#dc3545'; // Kırmızı
+						textColor = '#721c24';
+					} else {
+						barColor = '#dc3545'; // %100'den fazla için de kırmızı
+						textColor = '#ffffff';
+					}
+
+					// Tatil günü kontrolü
+					const isHoliday = day.isHoliday;
+
+					if (isHoliday) {
+						tableHtml += `
+							<td style="padding: 8px; text-align: center; background: #f8f9fa; color: #6c757d; font-size: 11px; border-right: 1px solid #dee2e6;">
+								Tatil
+							</td>
+						`;
+					} else {
+						tableHtml += `
+							<td style="padding: 8px; text-align: center; border-right: 1px solid #dee2e6;">
+								<div style="margin-bottom: 4px; font-weight: 700; color: ${textColor}; font-size: 12px;">
+									${doluluk}%
+									${overPercent > 0 ? `<span class="badge" style="background:#ff9800; color:#fff; margin-left:6px; vertical-align:baseline;">+${overPercent}%</span>` : ''}
+								</div>
+								<div style="height: 16px; width: 100%; background: #e9ecef; border-radius: 8px; overflow: hidden; position: relative;">
+									<div style="width: ${Math.min(doluluk, 100)}%; height: 100%; background: ${barColor}; transition: width 0.5s;"></div>
+									${overPercent > 0 ? `<div style=\"position:absolute; right:4px; top:0; height:100%; display:flex; align-items:center; font-size:10px; color:#dc3545; font-weight:700;\">+${overPercent}%</div>` : ''}
+								</div>
+								<div style="margin-top: 4px; font-size: 10px; color: #6c757d; display:flex; justify-content: space-between; gap:8px;">
+									<span><i class="fa fa-clipboard-list" style="color:#17a2b8; margin-right:4px;"></i>${validJobs.length} kart</span>
+									<span>${Math.floor(plannedMinutes/60)}sa ${plannedMinutes%60}dk</span>
+								</div>
+							</td>
+						`;
+					}
+				}
+			});
+
+			tableHtml += '</tr>';
+		});
+
+		tableHtml += `
+				</tbody>
+			</table>
+		</div>
+		</div>
+		`;
+
+		container.innerHTML = tableHtml;
+
+		// Count badge'ini güncelle
+		const countBadge = document.getElementById('utilization-count');
+		if (countBadge) {
+			countBadge.textContent = workstations.length;
+		}
+	}
+
+
+
+
+
+
+
 
 	bindEvents() {
 		// Planlanan table filter inputs - Anında tepki için

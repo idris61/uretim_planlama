@@ -1,5 +1,24 @@
+"""
+Üretim Planlama API Modülü
+
+Bu modül üretim planlama sistemi için gerekli tüm API fonksiyonlarını içerir.
+
+Fonksiyon Grupları:
+1. Üretim Planlama (Production Planning)
+2. Haftalık Üretim Takvimi (Weekly Production Schedule)
+3. İş Emirleri (Work Orders)
+4. Stok Yönetimi (Stock Management)
+5. Kesim Planı (Cutting Plan)
+6. Takvim Entegrasyonu (Calendar Integration)
+7. BOM Yönetimi (BOM Management)
+8. Yardımcı Fonksiyonlar (Utility Functions)
+
+Geliştirici: Uretim Planlama Takımı
+Versiyon: 1.0
+Son Güncelleme: 2024
+"""
+
 from calendar import monthrange
-from collections import defaultdict
 from datetime import timedelta
 
 import frappe
@@ -27,6 +46,10 @@ status_map = {
 	"İptal Edildi": "İptal Edildi",
 }
 
+
+# ============================================================================
+# 1. HAFTALIK ÜRETİM TAKVİMİ (WEEKLY PRODUCTION SCHEDULE)
+# ============================================================================
 
 @frappe.whitelist()
 def get_weekly_production_schedule(
@@ -308,6 +331,10 @@ def get_weekly_production_schedule(
 	}
 
 
+# ============================================================================
+# 2. YARDIMCI FONKSİYONLAR (UTILITY FUNCTIONS)
+# ============================================================================
+
 def get_color_for_sales_order(sales_order):
 	if not sales_order:
 		return "#cdeffe"
@@ -324,29 +351,16 @@ def get_color_for_sales_order(sales_order):
 	return color_palette[sum(ord(c) for c in sales_order) % len(color_palette)]
 
 
-def get_holidays(start_date, end_date):
-	holidays = []
-	for hl in frappe.get_all("Holiday List", fields=["name"]):
-		for h in frappe.get_all(
-			"Holiday",
-			filters={
-				"parent": hl.name,
-				"holiday_date": ["between", [start_date, end_date]],
-			},
-			fields=["holiday_date", "description"],
-		):
-			holidays.append(
-				{"date": str(h.holiday_date), "reason": h.description or "Tatil"}
-			)
-	return holidays
-
-
 def get_week_dates(start_date):
 	# Pazartesi'den başlat
 	monday = start_date - timedelta(days=start_date.weekday())
 	# Haftanın günlerini oluştur
 	return [monday + timedelta(days=i) for i in range(7)]
 
+
+# ============================================================================
+# 3. İŞ EMİRLERİ VE OPERASYONLAR (WORK ORDERS & OPERATIONS)
+# ============================================================================
 
 @frappe.whitelist()
 def reschedule_operation(work_order, operation, new_date):
@@ -376,6 +390,10 @@ def reschedule_operation(work_order, operation, new_date):
 		frappe.log_error(frappe.get_traceback(), "Operasyon Yeniden Planlama Hatası")
 		frappe.throw(str(e))
 
+
+# ============================================================================
+# 4. DIŞA AKTARMA VE RAPORLAMA (EXPORT & REPORTING)
+# ============================================================================
 
 @frappe.whitelist()
 def export_schedule(start_date, end_date, workstation=None, status=None):
@@ -502,6 +520,10 @@ def get_weekly_work_orders(
 		"end_date": end_date.strftime("%Y-%m-%d"),
 	}
 
+
+# ============================================================================
+# 5. İŞ KARTLARI VE İŞ EMİRİ DETAYLARI (JOB CARDS & WORK ORDER DETAILS)
+# ============================================================================
 
 @frappe.whitelist()
 def get_job_card_detail(job_card_id):
@@ -630,6 +652,10 @@ def get_work_order_detail(work_order_id):
 	}
 
 
+# ============================================================================
+# 6. SATIŞ SİPARİŞLERİ VE İŞ EMİRLERİ (SALES ORDERS & WORK ORDERS)
+# ============================================================================
+
 @frappe.whitelist()
 def get_sales_order_work_orders(sales_order):
 	"""
@@ -723,6 +749,10 @@ def get_sales_order_work_orders(sales_order):
 	
 	return work_order_details
 
+
+# ============================================================================
+# 7. TAKVİM ENTEGRASYONU (CALENDAR INTEGRATION)
+# ============================================================================
 
 @frappe.whitelist()
 def get_work_orders_for_calendar(start, end, include_draft=False):
@@ -909,32 +939,43 @@ def update_work_order_date(work_order_id, new_start):
 		return {"success": False, "error": str(e)}
 
 
+# ============================================================================
+# 8. ÜRETİM PLANI VE CHART VERİLERİ (PRODUCTION PLAN & CHART DATA)
+# ============================================================================
+
 @frappe.whitelist()
 def get_production_plan_chart_data(production_plan):
-	"""Get data for the production plan chart"""
+	"""
+	Üretim planı için chart verisi döndürür.
+	Bu fonksiyon geliştirilmeye ihtiyaç duymaktadır.
+	"""
 	if not production_plan:
 		return None
 
-	# Get production plan details
-	plan = frappe.get_doc("Production Plan", production_plan)
+	try:
+		# Get production plan details
+		plan = frappe.get_doc("Production Plan", production_plan)
 
-	# Example chart data structure
-	# You can modify this according to your needs
-	chart_data = {
-		"labels": [],
-		"datasets": [
-			{"name": "Planlanan Miktar", "values": []},
-			{"name": "Tamamlanan Miktar", "values": []},
-		],
-	}
+		# Chart data structure
+		chart_data = {
+			"labels": [],
+			"datasets": [
+				{"name": "Planlanan Miktar", "values": []},
+				{"name": "Tamamlanan Miktar", "values": []},
+			],
+		}
 
-	# Get items from production plan
-	for item in plan.po_items:
-		chart_data["labels"].append(item.item_code)
-		chart_data["datasets"][0]["values"].append(item.planned_qty)
-		chart_data["datasets"][1]["values"].append(item.completed_qty or 0)
+		# Get items from production plan
+		for item in plan.po_items:
+			chart_data["labels"].append(item.item_code)
+			chart_data["datasets"][0]["values"].append(item.planned_qty)
+			chart_data["datasets"][1]["values"].append(item.completed_qty or 0)
 
-	return chart_data
+		return chart_data
+		
+	except Exception as e:
+		frappe.log_error(f"Chart data hatası: {str(e)}")
+		return None
 
 
 @frappe.whitelist()
@@ -943,9 +984,7 @@ def get_daily_cutting_matrix(from_date, to_date):
 	Belirtilen tarih aralığındaki kesim planlarını getirir.
 	"""
 	try:
-		frappe.logger().info(
-			f"[API] get_daily_cutting_matrix çağrıldı: from_date={from_date}, to_date={to_date}"
-		)
+		# API çağrısı başladı
 		# Tarihleri kontrol et ve formatla
 		if not from_date or not to_date:
 			frappe.logger().error("[API] Tarih parametreleri eksik")
@@ -957,12 +996,7 @@ def get_daily_cutting_matrix(from_date, to_date):
 		except Exception as e:
 			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
 			return []
-		frappe.logger().info(
-			f"[API] Formatlanmış tarihler: from_date={from_date}, to_date={to_date}"
-		)
-		frappe.logger().info(
-			f"[API] SQL sorgusu başlatılıyor: from_date={from_date}, to_date={to_date}"
-		)
+		# Tarihler formatlandı ve SQL sorgusu başlatılıyor
 		# SQL sorgusundan docstatus filtresi kaldırıldı
 		result = frappe.db.sql(
 			"""
@@ -979,12 +1013,10 @@ def get_daily_cutting_matrix(from_date, to_date):
 			(from_date, to_date),
 			as_dict=True,
 		)
-		frappe.logger().info(
-			f"[API] SQL sorgusu tamamlandı. Kayıt sayısı: {len(result)}. Sonuç: {result}"
-		)
+		# SQL sorgusu tamamlandı
 		if not result:
 			# Veri yoksa örnek veri oluştur
-			frappe.logger().info("[API] Sorgudan veri gelmedi, örnek veri oluşturuluyor.")
+			# Sorgudan veri gelmedi, örnek veri oluşturuluyor
 			current_date = frappe.utils.getdate(from_date)
 			end_date = frappe.utils.getdate(to_date)
 			result = []
@@ -998,13 +1030,17 @@ def get_daily_cutting_matrix(from_date, to_date):
 					}
 				)
 				current_date = frappe.utils.add_days(current_date, 1)
-			frappe.logger().info(f"[API] Oluşturulan örnek veri: {result}")
+			# Örnek veri oluşturuldu
 		return result
 	except Exception as e:
 		frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
 		frappe.logger().error(frappe.get_traceback())
 		return []
 
+
+# ============================================================================
+# 9. KESİM PLANI (CUTTING PLAN)
+# ============================================================================
 
 @frappe.whitelist()
 def generate_cutting_plan(docname):
@@ -1113,6 +1149,10 @@ def delete_cutting_plans(docname):
 		return {"success": False, "message": f"Kesim Planı Silinemedi: {e!s}"}
 
 
+# ============================================================================
+# 10. STOK YÖNETİMİ (STOCK MANAGEMENT)
+# ============================================================================
+
 @frappe.whitelist()
 def get_profile_stock_panel(profil=None, depo=None, boy=None, scrap=None):
 	"""
@@ -1154,30 +1194,42 @@ def create_delivery_package(data):
 	"""
 	import json
 
-	if isinstance(data, str):
-		data = json.loads(data)
-	doc = frappe.new_doc("Accessory Delivery Package")
-	doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
-	doc.production_plan = data.get("production_plan")  # Üretim planı name'i
-	doc.sales_order = data.get("sales_order")
-	doc.delivered_to = data.get("delivered_to")
-	doc.delivered_by = frappe.session.user
-	doc.delivery_date = frappe.utils.now_datetime()
-	doc.notes = data.get("notes")
-	for item in data.get("item_list", []):
-		doc.append(
-			"item_list",
-			{
-				"item_code": item.get("item_code"),
-				"item_name": item.get("item_name"),
-				"qty": item.get("qty"),
-				"uom": item.get("uom"),
-			},
-		)
-	doc.save()
-	frappe.db.commit()
-	return {"name": doc.name}
+	try:
+		if isinstance(data, str):
+			data = json.loads(data)
+		
+		doc = frappe.new_doc("Accessory Delivery Package")
+		doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
+		doc.production_plan = data.get("production_plan")  # Üretim planı name'i
+		doc.sales_order = data.get("sales_order")
+		doc.delivered_to = data.get("delivered_to")
+		doc.delivered_by = frappe.session.user
+		doc.delivery_date = frappe.utils.now_datetime()
+		doc.notes = data.get("notes")
+		
+		for item in data.get("item_list", []):
+			doc.append(
+				"item_list",
+				{
+					"item_code": item.get("item_code"),
+					"item_name": item.get("item_name"),
+					"qty": item.get("qty"),
+					"uom": item.get("uom"),
+				},
+			)
+		
+		doc.save()
+		frappe.db.commit()
+		return {"name": doc.name}
+		
+	except Exception as e:
+		frappe.log_error(f"Delivery package oluşturma hatası: {str(e)}")
+		frappe.throw(_("Teslimat paketi oluşturulamadı: {0}").format(str(e)))
 
+
+# ============================================================================
+# 11. STOK ÖZETİ VE MALZEME YÖNETİMİ (STOCK SUMMARY & MATERIAL MANAGEMENT)
+# ============================================================================
 
 @frappe.whitelist()
 def get_total_stock_summary(profil=None, depo=None):
@@ -1233,32 +1285,41 @@ def get_total_stock_summary(profil=None, depo=None):
 @frappe.whitelist()
 def get_materials_by_opti(opti_no):
 	"""
-	Girdi: Production Plan'ın name (docname) değeri
-	Çıktı: Üretim planı, bağlı satış siparişleri, malzeme listesi (MLY entegrasyonu için placeholder)
+	Production Plan için malzeme bilgilerini döndürür.
+	MLY entegrasyonu için geliştirilmeye ihtiyaç duymaktadır.
 	"""
-	plan = frappe.get_doc("Production Plan", opti_no)
-	if not plan:
-		frappe.throw(_("Production Plan not found for OpTi No: {0}").format(opti_no))
-	# Child table'dan sales_orders listesini çek
-	sales_orders = [row.sales_order for row in plan.sales_orders if row.sales_order]
-	# Placeholder: Fetch MLY file materials (to be implemented)
-	materials = []  # Bu kısım API ile doldurulacak
-	return {
-		"production_plan": plan.name,
-		"sales_orders": sales_orders,
-		"materials": materials,
-	}
+	try:
+		plan = frappe.get_doc("Production Plan", opti_no)
+		if not plan:
+			frappe.throw(_("Production Plan not found for OpTi No: {0}").format(opti_no))
+		
+		# Child table'dan sales_orders listesini çek
+		sales_orders = [row.sales_order for row in plan.sales_orders if row.sales_order]
+		
+		# TODO: MLY entegrasyonu için geliştirilecek
+		materials = []
+		
+		return {
+			"production_plan": plan.name,
+			"sales_orders": sales_orders,
+			"materials": materials,
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Materials by opti hatası: {str(e)}")
+		frappe.throw(_("Malzeme bilgileri alınamadı: {0}").format(str(e)))
 
 
-# --- Accessory Delivery Package API ---
-
+# ============================================================================
+# 12. AKSESUAR TESLİMAT PAKETİ (ACCESSORY DELIVERY PACKAGE)
+# ============================================================================
 
 @frappe.whitelist()
 def get_sales_order_details(order_no):
 	try:
 		sales_order = frappe.get_doc("Sales Order", order_no)
 	except Exception as e:
-		print(f"An error occurred: {e}")
+		frappe.logger().error(f"Sales Order getirme hatası: {e}")
 		frappe.throw(_("Sales Order not found."))
 
 	return sales_order
@@ -1322,6 +1383,10 @@ def get_materials(opti_no, sales_order):
 	return result
 
 
+# ============================================================================
+# 13. OPTİ VE BOM MALZEMELERİ (OPTI & BOM MATERIALS)
+# ============================================================================
+
 @frappe.whitelist()
 def get_sales_orders_by_opti(opti):
 	try:
@@ -1329,7 +1394,7 @@ def get_sales_orders_by_opti(opti):
 	except frappe.DoesNotExistError:
 		frappe.throw(frappe._("Opti [{0}] not found").format(opti))
 	except Exception as e:
-		print(f"An error occured: {e!s}")
+		frappe.logger().error(f"Opti getirme hatası: {e!s}")
 		frappe.throw(frappe._("An error occured"))
 
 	return [so.sales_order for so in opti_doc.sales_orders if not so.delivered]
@@ -1350,9 +1415,6 @@ def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
 	import frappe
 
 	items = []
-	frappe.log_error(
-		f"[DEBUG] get_bom_materials_by_sales_order sales_order={sales_order}"
-	)
 	# 1. Onaylı Work Order
 	work_orders = frappe.get_all(
 		"Work Order",
@@ -1366,9 +1428,8 @@ def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
 			filters={"sales_order": sales_order},
 			fields=["name", "bom_no", "qty"],
 		)
-		frappe.log_error(f"[DEBUG] Onaysız Work Order arandı, bulunan: {work_orders}")
 	else:
-		frappe.log_error(f"[DEBUG] Onaylı Work Order bulundu: {work_orders}")
+		pass
 	for wo in work_orders:
 		if not wo.bom_no:
 			continue
@@ -1390,9 +1451,6 @@ def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
 				}
 			)
 	if items:
-		frappe.log_error(
-			f"[DEBUG] Work Order zincirinden malzeme bulundu, count={len(items)}"
-		)
 		return items
 	# 3. Production Plan üzerinden BOM bul (varsa)
 	plan_name = None
@@ -1425,45 +1483,13 @@ def get_bom_materials_by_sales_order(sales_order=None, **kwargs):
 						}
 					)
 		if items:
-			frappe.log_error(
-				f"[DEBUG] Production Plan zincirinden malzeme bulundu, count={len(items)}"
-			)
 			return items
-	frappe.log_error("[DEBUG] Hiçbir zincirden malzeme bulunamadı.")
 	return items
 
 
-@frappe.whitelist()
-def create_delivery_package(data):
-	"""
-	Verilen bilgilerle Accessory Delivery Package oluşturur (malzeme listesi, opti_no, teslim alan, notlar, vb).
-	"""
-	import json
-
-	if isinstance(data, str):
-		data = json.loads(data)
-	doc = frappe.new_doc("Accessory Delivery Package")
-	doc.opti_no = data.get("opti_no")  # Sadece gerçek OpTi No
-	doc.production_plan = data.get("production_plan")  # Üretim planı name'i
-	doc.sales_order = data.get("sales_order")
-	doc.delivered_to = data.get("delivered_to")
-	doc.delivered_by = frappe.session.user
-	doc.delivery_date = frappe.utils.now_datetime()
-	doc.notes = data.get("notes")
-	for item in data.get("item_list", []):
-		doc.append(
-			"item_list",
-			{
-				"item_code": item.get("item_code"),
-				"item_name": item.get("item_name"),
-				"qty": item.get("qty"),
-				"uom": item.get("uom"),
-			},
-		)
-	doc.save()
-	frappe.db.commit()
-	return {"name": doc.name}
-
+# ============================================================================
+# 14. PROFİL STOK YÖNETİMİ (PROFILE STOCK MANAGEMENT)
+# ============================================================================
 
 @frappe.whitelist()
 def get_reserved_raw_materials_for_profile(profil=None, depo=None):
@@ -1577,6 +1603,10 @@ def get_scrap_profile_entries(profile_code=None):
     return result
 
 
+# ============================================================================
+# 15. MONTAJ AKSESUARLARI (ASSEMBLY ACCESSORIES)
+# ============================================================================
+
 import json
 import frappe
 
@@ -1623,19 +1653,16 @@ def get_production_planning_data(filters=None):
 		else:
 			filters = {}
 
-		print("=== API BAŞLADI ===")
+		# API başladı
 		
 		# Planlanan üretim planları
 		planned_data = get_planned_production_data(filters)
-		print(f"Planlanan veri sayısı: {len(planned_data)}")
 		
 		# Planlanmamış satış siparişleri
 		unplanned_data = get_unplanned_sales_orders(filters)
-		print(f"Planlanmamış veri sayısı: {len(unplanned_data)}")
 		
 		# Özet verileri hesapla
 		summary = calculate_summary_data(planned_data, unplanned_data)
-		print(f"Özet: {summary}")
 		
 		result = {
 			"planned": planned_data,
@@ -1643,14 +1670,14 @@ def get_production_planning_data(filters=None):
 			"summary": summary
 		}
 		
-		print("=== API TAMAMLANDI ===")
+		# API tamamlandı
 		return result
 		
 	except Exception as e:
 		import traceback
 		error_msg = f"Üretim planlama verisi getirme hatası: {str(e)}\n{traceback.format_exc()}"
 		frappe.log_error(error_msg)
-		print(f"API HATASI: {error_msg}")
+		frappe.logger().error(f"API HATASI: {error_msg}")
 		return {"error": str(e)}
 
 def get_planned_production_data(filters):
@@ -1674,12 +1701,12 @@ def get_planned_production_data(filters):
 			}
 		)
 		
-		print(f"Production Plan sayısı: {len(production_plans)}")
+		# Production Plan'lar işleniyor
 		
 		planned_data = []
 		
 		for pp in production_plans:
-			print(f"İşleniyor: {pp.name}")
+			# Production Plan işleniyor
 			# Bu plana ait satış siparişlerini getir
 			sales_orders = get_sales_orders_for_production_plan(pp.name)
 			
@@ -1709,13 +1736,13 @@ def get_planned_production_data(filters):
 						"acil": is_urgent
 					})
 				except Exception as e:
-					print(f"SO işleme hatası: {so.get('name')} - {str(e)}")
+					frappe.logger().error(f"SO işleme hatası: {so.get('name')} - {str(e)}")
 					continue
 		
 		return planned_data
 		
 	except Exception as e:
-		print(f"get_planned_production_data hatası: {str(e)}")
+		frappe.logger().error(f"get_planned_production_data hatası: {str(e)}")
 		return []
 
 def get_unplanned_sales_orders(filters):
@@ -1731,7 +1758,6 @@ def get_unplanned_sales_orders(filters):
 		)
 		
 		planned_so_names = [item.sales_order for item in planned_so_list if item.sales_order]
-		print(f"Planlanmış SO sayısı: {len(planned_so_names)}")
 		
 		# Planlanmamış siparişleri getir
 		unplanned_orders = frappe.get_all(
@@ -1750,8 +1776,6 @@ def get_unplanned_sales_orders(filters):
 				"name": ["not in", planned_so_names] if planned_so_names else []
 			}
 		)
-		
-		print(f"Planlanmamış SO sayısı: {len(unplanned_orders)}")
 		
 		unplanned_data = []
 		
@@ -1786,17 +1810,17 @@ def get_unplanned_sales_orders(filters):
 							"acil": is_urgent
 						})
 					except Exception as e:
-						print(f"Item işleme hatası: {item.get('item_code')} - {str(e)}")
+						frappe.logger().error(f"Item işleme hatası: {item.get('item_code')} - {str(e)}")
 						continue
 						
 			except Exception as e:
-				print(f"SO detay hatası: {so.get('name')} - {str(e)}")
+				frappe.logger().error(f"SO detay hatası: {so.get('name')} - {str(e)}")
 				continue
 		
 		return unplanned_data
 		
 	except Exception as e:
-		print(f"get_unplanned_sales_orders hatası: {str(e)}")
+		frappe.logger().error(f"get_unplanned_sales_orders hatası: {str(e)}")
 		return []
 
 def get_sales_orders_for_production_plan(production_plan):
@@ -1829,13 +1853,13 @@ def get_sales_orders_for_production_plan(production_plan):
 						"description": so_item.description if so_item else ""
 					})
 				except Exception as e:
-					print(f"SO doc hatası: {item.sales_order} - {str(e)}")
+					frappe.logger().error(f"SO doc hatası: {item.sales_order} - {str(e)}")
 					continue
 		
 		return sales_orders
 		
 	except Exception as e:
-		print(f"get_sales_orders_for_production_plan hatası: {str(e)}")
+		frappe.logger().error(f"get_sales_orders_for_production_plan hatası: {str(e)}")
 		return []
 
 def get_week_number(date_str):
@@ -1870,7 +1894,7 @@ def check_urgent_status(sales_order):
 		return False
 		
 	except Exception as e:
-		print(f"check_urgent_status hatası: {str(e)}")
+		frappe.logger().error(f"check_urgent_status hatası: {str(e)}")
 		return False
 
 def calculate_mtul(sales_order):
@@ -1942,7 +1966,7 @@ def calculate_summary_data(planned_data, unplanned_data):
 			"acil": urgent_count
 		}
 	except Exception as e:
-		print(f"calculate_summary_data hatası: {str(e)}")
+		frappe.logger().error(f"calculate_summary_data hatası: {str(e)}")
 		return {
 			"planlanan": 0,
 			"planlanmamis": 0,
