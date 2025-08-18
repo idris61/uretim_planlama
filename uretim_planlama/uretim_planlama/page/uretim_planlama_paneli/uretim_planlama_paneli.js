@@ -1964,15 +1964,51 @@ class UretimPlanlamaPaneli {
 					<tbody>
 		`;
 
-		// İş istasyonu satırları
+		// OPERASYON BAZINDA TOPLAMA
+		// operationMap: { [operationName]: { daily: { [weekday]: { plannedMinutes, workMinutes, jobs } } } }
+		const operationMap = {};
 		workstations.forEach(ws => {
-			const workstationName = ws.workstation_name || ws.name || 'Bilinmiyor';
-			const operations = ws.operations ? ws.operations.join(', ') : '-';
+			const ops = ws.operations || [];
+			// Her istasyondaki operasyonları kayda al
+			ops.forEach(opName => {
+				if (!operationMap[opName]) {
+					operationMap[opName] = { name: opName, daily: {} };
+				}
+			});
 
+			// Gün bazında bu operasyonlar için plan ve kapasite biriktir
+			days.forEach(day => {
+				const date = new Date(day.date);
+				const dayOfWeek = date.getDay();
+				if (dayOfWeek === 0 || dayOfWeek === 6) return; // Hafta sonu atla
+				const weekday = day.weekday; // 'Pazartesi' vb.
+				const daySchedule = (ws.schedule?.[weekday] || []).filter(job => job && typeof job === 'object' && job.name && job.duration);
+
+				ops.forEach(opName => {
+					const jobsForOp = daySchedule.filter(job => job.operation === opName);
+					if (!operationMap[opName].daily[weekday]) {
+						operationMap[opName].daily[weekday] = { plannedMinutes: 0, workMinutes: 0, jobs: 0 };
+					}
+					let planned = 0;
+					jobsForOp.forEach(job => { if (typeof job.duration === 'number') planned += job.duration; });
+					operationMap[opName].daily[weekday].plannedMinutes += planned;
+					operationMap[opName].daily[weekday].jobs += jobsForOp.length;
+					// O gün bu operasyondan iş varsa, istasyonun günlük kapasitesini de ekle
+					if (jobsForOp.length > 0) {
+						const wm = ws.daily_info ? (ws.daily_info[weekday]?.work_minutes || 0) : 0;
+						operationMap[opName].daily[weekday].workMinutes += wm;
+					}
+				});
+			});
+		});
+
+		// Operasyon satırları
+		const operationNames = Object.keys(operationMap).sort();
+		operationNames.forEach(opName => {
 			tableHtml += `
 				<tr style="background: white;">
 					<td style="padding: 8px; text-align: left; color: #2c3e50; font-size: 12px; font-weight: 700; border-right: 2px solid #dee2e6;">
-						${operations}
+						${opName}
 					</td>
 			`;
 
@@ -1980,84 +2016,59 @@ class UretimPlanlamaPaneli {
 			days.forEach(day => {
 				const date = new Date(day.date);
 				const dayOfWeek = date.getDay(); // 0 = Pazar, 6 = Cumartesi
-				
-				// Hafta sonu değilse işle
-				if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-					const dayInfo = ws.daily_info ? ws.daily_info[day.weekday] : null;
-					let workMinutes = dayInfo ? dayInfo.work_minutes : 0;
-					let plannedMinutes = 0;
+				if (dayOfWeek === 0 || dayOfWeek === 6) return;
 
-					// Planlanan dakikaları hesapla
-					const validJobs = (ws.schedule?.[day.weekday] || []).filter(job => 
-						job && typeof job === 'object' && job.name && job.duration
-					);
-					validJobs.forEach(job => {
-						if (job.duration && typeof job.duration === 'number') {
-							plannedMinutes += job.duration;
-						}
-					});
+				const weekday = day.weekday;
+				const d = operationMap[opName].daily[weekday] || { plannedMinutes: 0, workMinutes: 0, jobs: 0 };
+				let workMinutes = d.workMinutes || 0;
+				let plannedMinutes = d.plannedMinutes || 0;
 
-					// Doluluk oranını hesapla - %100'den fazla olabilir
-					let doluluk = workMinutes > 0 ? Math.round((plannedMinutes / workMinutes) * 100) : 0;
-					// %100 sınırı kaldırıldı - kapasite aşımı gösterilebilir
-					
-					// Yüzde değerini güvenli hale getir
-					doluluk = isNaN(doluluk) ? 0 : doluluk;
-					doluluk = Math.max(0, doluluk); // Negatif değerleri engelle
-					const overPercent = Math.max(0, doluluk - 100);
-					
-					// Debug: Yüzde değerini kontrol et
-					console.log('Doluluk hesaplama:', {
-						workMinutes,
-						plannedMinutes,
-						doluluk,
-						workstation: ws.name || 'Bilinmiyor',
-						day: day.weekday
-					});
+				// Doluluk oranını hesapla - %100'den fazla olabilir
+				let doluluk = workMinutes > 0 ? Math.round((plannedMinutes / workMinutes) * 100) : 0;
+				doluluk = isNaN(doluluk) ? 0 : Math.max(0, doluluk);
+				const overPercent = Math.max(0, doluluk - 100);
 
-					// Renk kodlaması - %100'den fazla değerler için
-					let barColor, textColor;
-					if (doluluk < 60) {
-						barColor = '#28a745'; // Yeşil
-						textColor = '#155724';
-					} else if (doluluk < 90) {
-						barColor = '#ffc107'; // Sarı
-						textColor = '#856404';
-					} else if (doluluk <= 100) {
-						barColor = '#dc3545'; // Kırmızı
-						textColor = '#721c24';
-					} else {
-						barColor = '#dc3545'; // %100'den fazla için de kırmızı
-						textColor = '#ffffff';
-					}
+				// Renk kodlaması
+				let barColor, textColor;
+				if (doluluk < 60) {
+					barColor = '#28a745';
+					textColor = '#155724';
+				} else if (doluluk < 90) {
+					barColor = '#ffc107';
+					textColor = '#856404';
+				} else if (doluluk <= 100) {
+					barColor = '#dc3545';
+					textColor = '#721c24';
+				} else {
+					barColor = '#dc3545';
+					textColor = '#ffffff';
+				}
 
-					// Tatil günü kontrolü
-					const isHoliday = day.isHoliday;
-
-					if (isHoliday) {
-						tableHtml += `
-							<td style="padding: 8px; text-align: center; background: #f8f9fa; color: #6c757d; font-size: 11px; border-right: 1px solid #dee2e6;">
-								Tatil
-							</td>
-						`;
-					} else {
-						tableHtml += `
-							<td style="padding: 8px; text-align: center; border-right: 1px solid #dee2e6;">
-								<div style="margin-bottom: 4px; font-weight: 700; color: ${textColor}; font-size: 12px;">
-									${doluluk}%
-									${overPercent > 0 ? `<span class="badge" style="background:#ff9800; color:#fff; margin-left:6px; vertical-align:baseline;">+${overPercent}%</span>` : ''}
-								</div>
-								<div style="height: 16px; width: 100%; background: #e9ecef; border-radius: 8px; overflow: hidden; position: relative;">
-									<div style="width: ${Math.min(doluluk, 100)}%; height: 100%; background: ${barColor}; transition: width 0.5s;"></div>
-									${overPercent > 0 ? `<div style=\"position:absolute; right:4px; top:0; height:100%; display:flex; align-items:center; font-size:10px; color:#dc3545; font-weight:700;\">+${overPercent}%</div>` : ''}
-								</div>
-								<div style="margin-top: 4px; font-size: 10px; color: #6c757d; display:flex; justify-content: space-between; gap:8px;">
-									<span><i class="fa fa-clipboard-list" style="color:#17a2b8; margin-right:4px;"></i>${validJobs.length} kart</span>
-									<span>${Math.floor(plannedMinutes/60)}sa ${plannedMinutes%60}dk</span>
-								</div>
-							</td>
-						`;
-					}
+				// Tatil günü kontrolü
+				const isHoliday = day.isHoliday;
+				if (isHoliday) {
+					tableHtml += `
+						<td style="padding: 8px; text-align: center; background: #f8f9fa; color: #6c757d; font-size: 11px; border-right: 1px solid #dee2e6;">
+							Tatil
+						</td>
+					`;
+				} else {
+					tableHtml += `
+						<td style="padding: 8px; text-align: center; border-right: 1px solid #dee2e6;">
+							<div style="margin-bottom: 4px; font-weight: 700; color: ${textColor}; font-size: 12px;">
+								${doluluk}%
+								${overPercent > 0 ? `<span class="badge" style="background:#ff9800; color:#fff; margin-left:6px; vertical-align:baseline;">+${overPercent}%</span>` : ''}
+							</div>
+							<div style="height: 16px; width: 100%; background: #e9ecef; border-radius: 8px; overflow: hidden; position: relative;">
+								<div style="width: ${Math.min(doluluk, 100)}%; height: 100%; background: ${barColor}; transition: width 0.5s;"></div>
+								${overPercent > 0 ? `<div style=\"position:absolute; right:4px; top:0; height:100%; display:flex; align-items:center; font-size:10px; color:#dc3545; font-weight:700;\">+${overPercent}%</div>` : ''}
+							</div>
+							<div style="margin-top: 4px; font-size: 10px; color: #6c757d; display:flex; justify-content: space-between; gap:8px;">
+								<span><i class="fa fa-clipboard-list" style="color:#17a2b8; margin-right:4px;"></i>${d.jobs} kart</span>
+								<span>${Math.floor(plannedMinutes/60)}sa ${plannedMinutes%60}dk</span>
+							</div>
+						</td>
+					`;
 				}
 			});
 
@@ -2065,18 +2076,18 @@ class UretimPlanlamaPaneli {
 		});
 
 		tableHtml += `
-				</tbody>
-			</table>
-		</div>
-		</div>
-		`;
+						</tbody>
+					</table>
+				</div>
+				</div>
+			`;
 
 		container.innerHTML = tableHtml;
 
-		// Count badge'ini güncelle
+		// Count badge'ini güncelle (operasyon sayısı)
 		const countBadge = document.getElementById('utilization-count');
 		if (countBadge) {
-			countBadge.textContent = workstations.length;
+			countBadge.textContent = Object.keys(operationMap).length;
 		}
 	}
 
@@ -3464,13 +3475,13 @@ class UretimPlanlamaPaneli {
 				}
 			});
 
-			setTimeout(() => {
-				if (this.plannedTable.isLoading) {
-					this.plannedTable.isLoading = false;
-					this.hideTableLoading('planned');
-					this.showError('Planlanan veri yükleme zaman aşımı.');
-				}
-			}, 61000);
+			// setTimeout(() => {
+			// 	if (this.plannedTable.isLoading) {
+			// 		this.plannedTable.isLoading = false;
+			// 		this.hideTableLoading('planned');
+			// 		this.showError('Planlanan veri yükleme zaman aşımı.');
+			// 	}
+			// }, 61000);
 			
 		} catch (error) {
 			this.plannedTable.isLoading = false;
@@ -3547,13 +3558,13 @@ class UretimPlanlamaPaneli {
 				}
 			});
 
-			setTimeout(() => {
-				if (this.unplannedTable.isLoading) {
-					this.unplannedTable.isLoading = false;
-					this.hideTableLoading('unplanned');
-					this.showError('Planlanmamış veri yükleme zaman aşımı.');
-				}
-			}, 61000);
+			// setTimeout(() => {
+			// 	if (this.unplannedTable.isLoading) {
+			// 		this.unplannedTable.isLoading = false;
+			// 		this.hideTableLoading('unplanned');
+			// 		this.showError('Planlanmamış veri yükleme zaman aşımı.');
+			// 	}
+			// }, 61000);
 			
 		} catch (error) {
 			this.unplannedTable.isLoading = false;
@@ -3621,12 +3632,12 @@ class UretimPlanlamaPaneli {
 			});
 
 			// Timeout kontrolü
-			setTimeout(() => {
-				if ($('#loading-spinner').is(':visible')) {
-					this.hideLoading();
-					this.showError('Veri yükleme zaman aşımı. Lütfen tekrar deneyin.');
-				}
-			}, CONFIG.DATA_LOAD_TIMEOUT + 1000);
+			// setTimeout(() => {
+			// 	if ($('#loading-spinner').is(':visible')) {
+			// 		this.hideLoading();
+			// 		this.showError('Veri yükleme zaman aşımı. Lütfen tekrar deneyin.');
+			// 	}
+			// }, CONFIG.DATA_LOAD_TIMEOUT + 1000);
 			
 		} catch (error) {
 			this.hideLoading();

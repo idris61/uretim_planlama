@@ -12,7 +12,6 @@ app_license = "MIT"
 fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Page", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Workflow"},
 	# {"dt": "Workflow State"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
