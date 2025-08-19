@@ -41,9 +41,41 @@ doctype_js = {
 		"public/js/opti_plan_table.js",
 		"public/js/production_plan_po_items.js",
 	],
-	"Sales Order": "public/js/sales_order/sales_order.js",
+	"Sales Order": [
+		"public/js/sales_order/sales_order.js",
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
-	"Delivery Note": "public/js/delivery_note_assembly_accessory_html.js",
+	"Delivery Note": [
+		"public/js/delivery_note_assembly_accessory_html.js",
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
+	"Purchase Order": [
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
+	"Purchase Receipt": [
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
+	"Stock Entry": [
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
+	"Sales Invoice": [
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
+	"Purchase Invoice": [
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
+	"Material Request": [
+		"public/js/get_items_merge.js",
+		"public/js/uom_filter.js"
+	],
 }
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
