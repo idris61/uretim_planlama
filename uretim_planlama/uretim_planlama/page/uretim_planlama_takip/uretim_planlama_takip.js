@@ -753,17 +753,34 @@ const utils = {
     formatDate: (() => {
         const cache = new Map();
         return (dateStr) => {
-            if (!dateStr) return '-';
-            if (cache.has(dateStr)) return cache.get(dateStr);
-            
+            if (!dateStr || dateStr === '-' || dateStr === 'None' || dateStr === '') return '-';
+            const str = String(dateStr);
+            if (cache.has(str)) return cache.get(str);
+
+            // Eğer zaten dd.mm.yyyy formatındaysa, olduğu gibi göster
+            const dmyRegex = /^\d{2}\.\d{2}\.\d{4}$/;
+            if (dmyRegex.test(str)) {
+                cache.set(str, str);
+                return str;
+            }
+
             try {
-                const date = new Date(dateStr);
-                if (isNaN(date.getTime())) return dateStr;
+                // ISO veya parse edilebilir formatlar
+                // ISO'yu (yyyy-mm-dd) öncelikli parse et
+                const isoRegex = /^\d{4}-\d{2}-\d{2}/;
+                let date;
+                if (isoRegex.test(str)) {
+                    date = new Date(str);
+                } else {
+                    date = new Date(str);
+                }
+                if (isNaN(date.getTime())) return '-';
                 const formatted = date.toLocaleDateString('tr-TR');
-                cache.set(dateStr, formatted);
+                cache.set(str, formatted);
                 return formatted;
             } catch (e) {
-                return dateStr;
+                console.warn('formatDate error:', e, 'for date:', dateStr);
+                return '-';
             }
         };
     })(),
@@ -807,6 +824,59 @@ const utils = {
     truncateText: (text, maxLength = 20, suffix = '...') => {
         if (!text || text.length <= maxLength) return text;
         return text.substring(0, maxLength - suffix.length) + suffix;
+    },
+
+    // Enhanced delivery date logic
+    getDeliveryDate: (plannedEndDate, plannedStartDate) => {
+        try {
+            // Bitiş tarihi varsa doğrudan kullan
+            if (plannedEndDate && plannedEndDate !== 'None' && plannedEndDate !== '') {
+                // dd.mm.yyyy ise olduğu gibi, ISO ise formatla
+                const str = String(plannedEndDate);
+                const dmyRegex = /^\d{2}\.\d{2}\.\d{4}$/;
+                if (dmyRegex.test(str)) return str;
+                const d = new Date(str);
+                if (!isNaN(d.getTime())) {
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    return `${dd}.${mm}.${yyyy}`;
+                }
+            }
+
+            // Başlangıç tarihinden 4 iş günü ekle (hafta sonları hariç)
+            if (plannedStartDate && plannedStartDate !== 'None' && plannedStartDate !== '') {
+                const startStr = String(plannedStartDate);
+                const dmyRegex = /^(\d{2})\.(\d{2})\.(\d{4})$/;
+                let startDate;
+                if (dmyRegex.test(startStr)) {
+                    const [, dd, mm, yyyy] = startStr.match(dmyRegex);
+                    startDate = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+                } else {
+                    startDate = new Date(startStr);
+                }
+                if (isNaN(startDate.getTime())) return '-';
+
+                let workDaysAdded = 0;
+                const date = new Date(startDate);
+                while (workDaysAdded < 4) {
+                    date.setDate(date.getDate() + 1);
+                    const dow = date.getDay(); // 0=Sun,6=Sat
+                    if (dow !== 0 && dow !== 6) {
+                        workDaysAdded++;
+                    }
+                }
+                const dd2 = String(date.getDate()).padStart(2, '0');
+                const mm2 = String(date.getMonth() + 1).padStart(2, '0');
+                const yyyy2 = date.getFullYear();
+                return `${dd2}.${mm2}.${yyyy2}`;
+            }
+
+            return '-';
+        } catch (error) {
+            console.warn('getDeliveryDate error:', error);
+            return '-';
+        }
     }
 };
 
@@ -820,7 +890,7 @@ let debounceTimer = null;
 let dataCache = new Map();
 let lastCacheUpdate = 0;
 const CACHE_DURATION = 30000; // 30 saniye
-const DATA_LOAD_TIMEOUT = 10000; // 10 saniye timeout
+const DATA_LOAD_TIMEOUT = 120000; // 120 saniye timeout
 
 // Enhanced Modal Manager with better performance and error handling
 const modalManager = {
@@ -1115,6 +1185,7 @@ const apiService = {
                     frappe.call({
                         method: method,
                         args: args,
+                        timeout: Math.ceil(DATA_LOAD_TIMEOUT / 1000),
                         callback: (response) => {
                             clearTimeout(timeout);
                             if (response.exc) {
@@ -1206,14 +1277,13 @@ function loadProductionData() {
 function getFilters() {
     const showCompletedToggle = document.getElementById('showCompletedToggle');
     return {
-        optiNo: document.getElementById('optiNoFilter')?.value || '',
-        siparisNo: document.getElementById('siparisNoFilter')?.value || '',
+        opti_no: document.getElementById('optiNoFilter')?.value || '',
+        siparis_no: document.getElementById('siparisNoFilter')?.value || '',
         bayi: document.getElementById('bayiFilter')?.value || '',
         musteri: document.getElementById('musteriFilter')?.value || '',
         seri: document.getElementById('seriFilter')?.value || '',
         renk: document.getElementById('renkFilter')?.value || '',
-        uretimTipi: document.getElementById('durumFilter')?.value || 'tumu',
-        durum: document.getElementById('durumFilter')?.value || 'tumu',
+        tip: document.getElementById('durumFilter')?.value || 'tumu',
         showCompleted: showCompletedToggle ? showCompletedToggle.dataset.showCompleted === 'true' : true
     };
 }
@@ -1257,6 +1327,9 @@ function renderPlannedTable() {
                 <i class="fa fa-info-circle mr-2"></i>Henüz planlama bulunmuyor
             </td></tr>
         `;
+        // Toplam sayıyı 0 yap
+        const countBadgeEmpty = document.getElementById('planlanan-count');
+        if (countBadgeEmpty) countBadgeEmpty.textContent = '0';
         return;
     }
     
@@ -1268,8 +1341,6 @@ function renderPlannedTable() {
     if (!filters.showCompleted) {
         filteredData = allPlannedData.filter(item => item.plan_status !== 'Completed');
     }
-    
-
     
     // Opti numarasına göre gruplandır - Enhanced version
     const optiGroups = {};
@@ -1288,6 +1359,7 @@ function renderPlannedTable() {
                 total_cam: 0,
                 total_mtul: 0,
                 planlanan_baslangic_tarihi: order.planlanan_baslangic_tarihi,
+                planned_end_date: order.planned_end_date,
                 seri: order.seri,
                 renk: order.renk,
                 plan_status: order.plan_status,
@@ -1298,7 +1370,10 @@ function renderPlannedTable() {
                 renk_list: new Set()
             };
         }
-        optiGroups[optiNo].sales_orders.push(order.sales_order);
+        // Sipariş numarasını sadece bir kez ekle
+        if (!optiGroups[optiNo].sales_orders.includes(order.sales_order)) {
+            optiGroups[optiNo].sales_orders.push(order.sales_order);
+        }
         optiGroups[optiNo].total_pvc += order.pvc_count || 0;
         optiGroups[optiNo].total_cam += order.cam_count || 0;
         optiGroups[optiNo].total_mtul += order.toplam_mtul_m2 || 0;
@@ -1344,12 +1419,13 @@ function renderPlannedTable() {
     
     tbody.innerHTML = '';
     tbody.appendChild(fragment);
+    
+    // Toplam sayıyı güncelle (opti grubu sayısı)
+    const countBadge = document.getElementById('planlanan-count');
+    if (countBadge) countBadge.textContent = String(sortedOptiGroups.length);
+    
     bindTableEvents();
 }
-
-
-
-
 
 function createOptiRowElement(optiGroup) {
     const row = document.createElement('tr');
@@ -1379,6 +1455,15 @@ function createOptiRowElement(optiGroup) {
     const siparisText = optiGroup.sales_orders.join(', ');
     const truncatedSiparis = utils.truncateText(siparisText, 20);
     
+    // Teslim tarihi için enhanced logic
+    const plannedEndDate = optiGroup.planned_end_date && optiGroup.planned_end_date !== 'None' ? optiGroup.planned_end_date : null;
+    const plannedStartDate = optiGroup.planlanan_baslangic_tarihi && optiGroup.planlanan_baslangic_tarihi !== 'None' ? optiGroup.planlanan_baslangic_tarihi : null;
+    
+    const deliveryDate = utils.getDeliveryDate(plannedEndDate, plannedStartDate);
+    
+    // Güvenli tarih kontrolü
+    const safeDeliveryDate = deliveryDate && deliveryDate !== '-' ? deliveryDate : '-';
+    
     row.innerHTML = `
         <td class="text-center">
             <span class="badge badge-info">${utils.escapeHtml(optiGroup.hafta || '-')}</span>
@@ -1395,7 +1480,7 @@ function createOptiRowElement(optiGroup) {
             <span class="badge badge-warning">${utils.formatDate(optiGroup.siparis_tarihi)}</span>
         </td>
         <td class="text-center">
-            <span class="badge badge-danger">${utils.formatDate(optiGroup.bitis_tarihi)}</span>
+            <span class="badge badge-danger">${utils.formatDate(safeDeliveryDate)}</span>
         </td>
         <td class="text-center">
             <span class="badge badge-danger">${pvcCount}</span>
@@ -1459,7 +1544,7 @@ function updateCompletedToggle() {
 // Enhanced debounced filters with performance optimization
 const debouncedApplyFilters = utils.debounce(() => {
         loadProductionData();
-    }, 300);
+    }, 500);
 
 // Enhanced auto-update with better conditions
 function startAutoUpdate() {
@@ -1643,7 +1728,7 @@ function showOptiDetails(optiNo) {
         const modal = modalManager.createModal(
             modalId, 
             `Opti ${optiNo} - Sipariş Detayları`,
-            'modal-lg',
+            'modal-xl',
             '#dc3545'
         );
         if (modal) {
@@ -1651,13 +1736,13 @@ function showOptiDetails(optiNo) {
                 updateOptiDetailsModal(cachedData.data, modalId);
             }, 100);
         }
-                        return;
-                    }
+        return;
+    }
                     
     const modal = modalManager.createModal(
         modalId, 
         `Opti ${optiNo} - Sipariş Detayları`,
-        'modal-lg',
+        'modal-xl',
         '#dc3545'
     );
     
@@ -1711,14 +1796,14 @@ function showOrderDetails(salesOrder) {
     // Cache kontrolü
     const cachedData = modalCache.get(cacheKey);
     if (cachedData && (Date.now() - cachedData.timestamp) < MODAL_CACHE_DURATION) {
-        const modal = createModal(modalId, `Sipariş: ${salesOrder}`, 'modal-lg');
+        const modal = createModal(modalId, `Sipariş: ${salesOrder}`, 'modal-xl');
         setTimeout(() => {
             updateOrderDetailsModal(cachedData.data, modalId);
         }, 100);
         return;
     }
     
-    const modal = createModal(modalId, `Sipariş: ${salesOrder}`, 'modal-lg');
+    const modal = createModal(modalId, `Sipariş: ${salesOrder}`, 'modal-xl');
     
     // API çağrısı
     frappe.call({
@@ -1757,6 +1842,16 @@ function showWorkOrders(salesOrder) {
         return;
     }
     
+    // Eğer panel stilindeki modal fonksiyonu mevcutsa onu kullan
+    if (window.showWorkOrdersPaneli && typeof window.showWorkOrdersPaneli === 'function') {
+        try {
+            window.showWorkOrdersPaneli(salesOrder, null);
+            return;
+        } catch (e) {
+            console.warn('showWorkOrdersPaneli çağrısı başarısız, yerel modal kullanılacak:', e);
+        }
+    }
+    
     console.log('showWorkOrders called with salesOrder:', salesOrder);
     
     const modalId = 'work-orders-' + Date.now();
@@ -1769,11 +1864,11 @@ function showWorkOrders(salesOrder) {
         const modal = modalManager.createModal(
             modalId, 
             `İş Emirleri - ${salesOrder}`,
-            'modal-lg',
+            'modal-xl',
             '#28a745'
         );
         if (modal) {
-                            setTimeout(() => {
+            setTimeout(() => {
                 updateWorkOrdersModal(cachedData.data, modalId, salesOrder);
             }, 100);
         }
@@ -1783,7 +1878,7 @@ function showWorkOrders(salesOrder) {
     const modal = modalManager.createModal(
         modalId, 
         `İş Emirleri - ${salesOrder}`,
-        'modal-lg',
+        'modal-xl',
         '#28a745'
     );
     
@@ -1913,9 +2008,10 @@ function updateOptiDetailsModal(data, modalId) {
                                 <th style="border: none; padding: 8px 6px; width: 12%;">Müşteri</th>
                                 <th style="border: none; padding: 8px 6px; width: 10%;">Seri</th>
                                 <th style="border: none; padding: 8px 6px; width: 10%;">Renk</th>
-                                <th style="border: none; padding: 8px 6px; width: 8%;">Adet</th>
+                                <th style="border: none; padding: 8px 6px; width: 6%;">PVC</th>
+                                <th style="border: none; padding: 8px 6px; width: 6%;">Cam</th>
                                 <th style="border: none; padding: 8px 6px; width: 10%;">MTÜL/m²</th>
-                                <th style="border: none; padding: 8px 6px; width: 16%;">Durum & Açıklama</th>
+                                <th style="border: none; padding: 8px 6px; width: 18%;">Durum & Açıklama</th>
                                 <th style="border: none; padding: 8px 6px; width: 10%;">İşlemler</th>
                             </tr>
                         </thead>
@@ -1971,10 +2067,11 @@ function generateOptiOrderRows(orders) {
                 <td style="padding: 8px 6px;">
                     <span class="badge badge-warning" style="font-size: 0.7rem;">${utils.escapeHtml(order.renk || '-')}</span>
                 </td>
-                <td style="padding: 8px 6px;">
-                    ${pvcCount > 0 ? `<span class="badge badge-danger d-block mb-1" style="font-size: 0.65rem;">${pvcCount} P</span>` : ''}
-                    ${camCount > 0 ? `<span class="badge badge-primary d-block" style="font-size: 0.65rem;">${camCount} C</span>` : ''}
-                    ${pvcCount === 0 && camCount === 0 ? '<span class="badge badge-secondary" style="font-size: 0.65rem;">-</span>' : ''}
+                <td class="text-center" style="padding: 8px 6px;">
+                    <span class="badge badge-danger" style="font-size: 0.65rem;">${pvcCount}</span>
+                </td>
+                <td class="text-center" style="padding: 8px 6px;">
+                    <span class="badge badge-primary" style="font-size: 0.65rem;">${camCount}</span>
                 </td>
                 <td style="padding: 8px 6px;">
                     <span class="badge badge-success" style="font-size: 0.7rem;">${utils.formatNumber(mtul, 2)}</span>
@@ -1987,11 +2084,11 @@ function generateOptiOrderRows(orders) {
                     <div class="btn-group-vertical" style="width: 100%;">
                         <a href="/app/sales-order/${order.sales_order}" target="_blank" 
                            class="btn btn-sm btn-outline-primary mb-1" style="font-size: 0.65rem; padding: 2px 4px;">
-                            <i class="fa fa-external-link"></i>
+                            <i class="fa fa-external-link mr-1"></i>Sipariş
                         </a>
                         <button class="btn btn-sm btn-outline-success" 
                                 onclick="showWorkOrders('${order.sales_order}')" style="font-size: 0.65rem; padding: 2px 4px;">
-                            <i class="fa fa-cogs"></i>
+                            <i class="fa fa-cogs mr-1"></i>İş Emirleri
                         </button>
                     </div>
                 </td>
@@ -2293,6 +2390,7 @@ function getWorkOrderStatusBadge(status) {
         'Draft': { label: 'Taslak', class: 'secondary' },
         'Not Started': { label: 'Başlamadı', class: 'warning' },
         'In Process': { label: 'İşlemde', class: 'primary' },
+        'In Progress': { label: 'Devam Ediyor', class: 'primary' },
         'Completed': { label: 'Tamamlandı', class: 'success' },
         'Stopped': { label: 'Durduruldu', class: 'danger' },
         'Closed': { label: 'Kapatıldı', class: 'secondary' }
@@ -2722,7 +2820,7 @@ function updateWorkOrderOperationsModal(data, workOrderName, modalId) {
                         <strong>${op.operation || '-'}</strong>
                     </td>
                     <td>
-                        <span class="badge badge-${statusClass}">${statusText}</span>
+                        <span class="badge badge-${statusBadge.class}">${statusBadge.label}</span>
                     </td>
                     <td>
                         <span class="badge badge-success">${op.completed_qty || 0}</span>

@@ -74,6 +74,45 @@ def get_weekly_production_schedule(
 		"Workstation", filters=workstation_filters, fields=["name", "holiday_list"]
 	)
 
+	# Çalışma saatlerini toplu çek ve hazırla (N+1 azaltma)
+	ws_names = [ws["name"] for ws in workstations]
+	ws_work_hours_map = {}
+	if ws_names:
+		ws_work_hours_rows = []
+		# DocType isimleri sürüme göre değişebildiği için iki olası adı dene; yoksa fallback
+		try:
+			ws_work_hours_rows = frappe.get_all(
+				"Workstation Working Hour",
+				filters={"parent": ["in", ws_names], "enabled": 1},
+				fields=["parent", "start_time", "end_time"],
+			)
+		except Exception:
+			try:
+				ws_work_hours_rows = frappe.get_all(
+					"Workstation Working Hours",
+					filters={"parent": ["in", ws_names], "enabled": 1},
+					fields=["parent", "start_time", "end_time"],
+				)
+			except Exception:
+				ws_work_hours_rows = []
+		if ws_work_hours_rows:
+			for row in ws_work_hours_rows:
+				ws_work_hours_map.setdefault(row["parent"], []).append(
+					{"start_time": row["start_time"], "end_time": row["end_time"]}
+				)
+		else:
+			# Fallback: DocType bulunamazsa Workstation doc üzerinden child tabloyu oku
+			for ws in workstations:
+				try:
+					ws_doc = frappe.get_doc("Workstation", ws.name)
+					for row in getattr(ws_doc, "working_hours", []):
+						if getattr(row, "enabled", 1):
+							ws_work_hours_map.setdefault(ws.name, []).append(
+								{"start_time": row.start_time, "end_time": row.end_time}
+							)
+				except Exception:
+					continue
+
 	# Tüm operasyonları topluca çek
 	operation_filters = {
 		"planned_start_time": ["between", [str(start_date), f"{end_date!s} 23:59:59"]]
@@ -99,6 +138,14 @@ def get_weekly_production_schedule(
 			"completed_qty",
 		],
 	)
+	# Operasyonları istasyona göre grupla (O(N) tek geçiş)
+	ops_by_ws = {}
+	for op in all_operations:
+		wsn = op.get("workstation")
+		if not wsn:
+			continue
+		ops_by_ws.setdefault(wsn, []).append(op)
+
 	# Tüm work order isimlerini topla
 	work_order_names = list(set([op["work_order"] for op in all_operations]))
 	# Tüm work order'ları topluca çek
@@ -150,46 +197,23 @@ def get_weekly_production_schedule(
 
 	schedule = []
 	for ws in workstations:
-		ws_ops = [op for op in all_operations if op["workstation"] == ws.name]
-		# Çalışma saatlerini child table'dan çek
-		ws_doc = frappe.get_doc("Workstation", ws.name)
-		work_hours = []
-		for row in getattr(ws_doc, "working_hours", []):
-			if getattr(row, "enabled", 1):
-				work_hours.append(
-					{"start_time": row.start_time, "end_time": row.end_time}
-				)
+		ws_ops = ops_by_ws.get(ws.name, [])
+		# Çalışma saatleri map'ten al
+		work_hours = ws_work_hours_map.get(ws.name, [])
 		daily_work_minutes = {}
 		from datetime import datetime
 
-		for i in range(7):
-			total = 0
-			for wh in work_hours:
-				s = datetime.strptime(str(wh["start_time"]), "%H:%M:%S")
-				e = datetime.strptime(str(wh["end_time"]), "%H:%M:%S")
-				diff = (e - s).seconds // 60
-				total += diff
-			daily_work_minutes[i] = total
-		day_schedule = {}
-		ops_in_this_week = set()
-		total_hours = 0
-		total_operations = 0
-		daily_summary = {}
 		if work_hours:
 			for i in range(7):
 				total = 0
 				for wh in work_hours:
-					start = wh["start_time"]
-					end = wh["end_time"]
 					s = (
-						datetime.strptime(str(start), "%H:%M:%S")
-						if ":" in str(start)
-						else datetime.strptime(str(start), "%H:%M")
+						datetime.strptime(str(wh["start_time"]), "%H:%M:%S")
+						if ":" in str(wh["start_time"]) else datetime.strptime(str(wh["start_time"]), "%H:%M")
 					)
 					e = (
-						datetime.strptime(str(end), "%H:%M:%S")
-						if ":" in str(end)
-						else datetime.strptime(str(end), "%H:%M")
+						datetime.strptime(str(wh["end_time"]), "%H:%M:%S")
+						if ":" in str(wh["end_time"]) else datetime.strptime(str(wh["end_time"]), "%H:%M")
 					)
 					diff = (e - s).seconds // 60
 					total += diff
@@ -197,6 +221,11 @@ def get_weekly_production_schedule(
 		else:
 			for i in range(7):
 				daily_work_minutes[i] = 0
+		day_schedule = {}
+		ops_in_this_week = set()
+		total_hours = 0
+		total_operations = 0
+		daily_summary = {}
 		for op in ws_ops:
 			ops_in_this_week.add(op["operation"])
 			work_order = work_orders.get(op["work_order"], {})
@@ -208,22 +237,20 @@ def get_weekly_production_schedule(
 				op_status = "Devam Ediyor"
 			elif op["actual_start_time"]:
 				op_status = "Başladı"
-			start_dt = get_datetime(op["planned_start_time"])
-			end_dt = get_datetime(op["planned_end_time"])
-			time_in_mins = (
-				int((end_dt - start_dt).total_seconds() // 60)
-				if start_dt and end_dt
-				else 0
-			)
+			start_dt = get_datetime(op["planned_start_time"]) if op["planned_start_time"] else None
+			end_dt = get_datetime(op["planned_end_time"]) if op["planned_end_time"] else None
+			time_in_mins = int(op.get("time_in_mins") or 0)
+			if time_in_mins == 0 and start_dt and end_dt:
+				time_in_mins = int((end_dt - start_dt).total_seconds() // 60)
 			total_hours += time_in_mins / 60
 			total_operations += 1
-			daily_summary.setdefault(
-				day_name_tr[start_dt.strftime("%A")], {"planned_minutes": 0, "jobs": 0}
-			)
-			daily_summary[day_name_tr[start_dt.strftime("%A")]]["planned_minutes"] += (
-				time_in_mins
-			)
-			daily_summary[day_name_tr[start_dt.strftime("%A")]]["jobs"] += 1
+			if start_dt:
+				weekday_name = day_name_tr[start_dt.strftime("%A")]
+				daily_summary.setdefault(
+					weekday_name, {"planned_minutes": 0, "jobs": 0}
+				)
+				daily_summary[weekday_name]["planned_minutes"] += time_in_mins
+				daily_summary[weekday_name]["jobs"] += 1
 			# İlgili sales order'dan bayi ve müşteri bilgisini çek
 			so = (
 				sales_orders.get(work_order.get("sales_order"))
@@ -251,19 +278,20 @@ def get_weekly_production_schedule(
 					"work_order": op["work_order"],
 					"operation": op["operation"] or "Operasyon Yok",
 					"color": get_color_for_sales_order(work_order.get("sales_order", "")),
-					"start_time": start_dt.strftime("%Y-%m-%d %H:%M"),
-					"end_time": end_dt.strftime("%Y-%m-%d %H:%M"),
+					"start_time": start_dt.strftime("%Y-%m-%d %H:%M") if start_dt else "",
+					"end_time": end_dt.strftime("%Y-%m-%d %H:%M") if end_dt else "",
 					"expected_start_date": op["planned_start_time"],
 					"expected_end_date": op["planned_end_time"],
 					"actual_start_date": op["actual_start_time"],
 					"actual_end_date": op["actual_end_time"],
-					"total_time_in_mins": int((end_dt - start_dt).total_seconds() // 60),
-					"time": f"{start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}",
+					"total_time_in_mins": time_in_mins,
+					"time": f"{start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}" if (start_dt and end_dt) else "",
 					"employee": "",
 					"duration": time_in_mins,
 					"op_status": op_status,
 				}
 			)
+		# Günlük özetler
 		daily_info = {}
 		for i, day in enumerate(
 			["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
@@ -290,6 +318,7 @@ def get_weekly_production_schedule(
 					"daily_info": daily_info,
 				}
 			)
+
 	week_dates = get_week_dates(start_date)
 	# Sadece ilgili istasyonların holiday_list'leri ile holiday sorgusu
 	holiday_lists = list(
