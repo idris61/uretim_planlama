@@ -453,30 +453,62 @@ def get_sales_order_details_for_takip(sales_order: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_work_orders_for_takip(sales_order: str) -> Union[List[Dict], Dict[str, str]]:
+def get_work_orders_for_takip(sales_order: str, production_plan: str = None) -> Union[List[Dict], Dict[str, str]]:
     """
     Satış siparişi için iş emirlerini getirir - Enhanced version
+    Eğer production_plan belirtilmişse, sadece o üretim planına ait iş emirlerini getir
     """
     try:
-        # Sales Order'a bağlı iş emirlerini getir
-        work_orders = frappe.get_all(
-            "Work Order",
-            filters={"sales_order": sales_order},
-            fields=[
-                "name",
-                "production_item",
-                "qty",
-                "produced_qty",
-                "status",
-                "planned_start_date",
-                "planned_end_date",
-                "actual_start_date",
-                "actual_end_date",
-                "creation",
-                "modified"
-            ],
-            order_by="creation desc"
-        )
+        # Üretim planına göre filtreleme
+        if production_plan:
+            # Opti numarası ile Production Plan'ı bul
+            production_plans = frappe.get_all(
+                "Production Plan",
+                filters={
+                    "custom_opti_no": production_plan,
+                    "docstatus": ["in", [0, 1]]
+                },
+                fields=["name"],
+                limit=1
+            )
+            
+            if production_plans:
+                plan_name = production_plans[0].name
+                # Sadece belirtilen üretim planına ait iş emirlerini getir
+                work_orders = frappe.db.sql("""
+                    SELECT 
+                        wo.name, wo.status, wo.production_item, wo.qty, wo.produced_qty,
+                        wo.planned_start_date, wo.planned_end_date, wo.sales_order,
+                        wo.creation, wo.modified
+                    FROM `tabWork Order` wo
+                    INNER JOIN `tabProduction Plan Item` ppi ON wo.production_plan_item = ppi.name
+                    INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+                    WHERE wo.sales_order = %s AND pp.name = %s
+                    ORDER BY wo.creation DESC
+                """, (sales_order, plan_name), as_dict=1)
+            else:
+                # Opti bulunamadıysa boş liste döndür
+                work_orders = []
+        else:
+            # Tüm iş emirlerini getir (eski davranış)
+            work_orders = frappe.get_all(
+                "Work Order",
+                filters={"sales_order": sales_order},
+                fields=[
+                    "name",
+                    "production_item",
+                    "qty",
+                    "produced_qty",
+                    "status",
+                    "planned_start_date",
+                    "planned_end_date",
+                    "actual_start_date",
+                    "actual_end_date",
+                    "creation",
+                    "modified"
+                ],
+                order_by="creation desc"
+            )
         
         # Her iş emri için ek bilgileri ekle
         for wo in work_orders:

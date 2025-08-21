@@ -1402,12 +1402,12 @@ class UretimPlanlamaPaneli {
 									<th style="padding: 4px 2px;" data-column="sales_order">Sipariş No</th>
 									<th style="padding: 4px 2px;" data-column="bayi">Bayi</th>
 									<th style="padding: 4px 2px;" data-column="musteri">Müşteri</th>
-									<th style="padding: 4px 2px;" data-column="siparis_tarihi" class="sortable-header">Sipariş Tarihi <i class="fa fa-sort text-white-50 ml-1"></i></th>
-									<th style="padding: 4px 2px;" data-column="teslim_tarihi" class="sortable-header">Teslim Tarihi <i class="fa fa-sort text-white-50 ml-1"></i></th>
+									<th style="padding: 4px 2px;" data-column="siparis_tarihi">Sipariş Tarihi</th>
+									<th style="padding: 4px 2px;" data-column="teslim_tarihi">Teslim Tarihi</th>
 									<th style="padding: 4px 2px;" data-column="pvc_qty">PVC</th>
 									<th style="padding: 4px 2px;" data-column="cam_qty">Cam</th>
 									<th style="padding: 4px 2px;" data-column="total_mtul">MTUL/m²</th>
-									<th style="padding: 4px 2px;" data-column="baslangic_tarihi" class="sortable-header">Başlangıç <i class="fa fa-sort text-white-50 ml-1"></i></th>
+									<th style="padding: 4px 2px; cursor:pointer;" data-column="baslangic_tarihi" class="sortable-header">Başlangıç <i class="fa fa-sort text-white-50 ml-1"></i></th>
 									<th style="padding: 4px 2px;" data-column="seri">Seri</th>
 									<th style="padding: 4px 2px;" data-column="renk">Renk</th>
 								</tr>
@@ -4395,6 +4395,7 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 				const statusClass = wo.status === 'Completed' ? 'badge-success' : 'badge-warning';
 				const statusText = wo.status === 'Completed' ? 'Tamamlandı' : 'Devam Ediyor';
 				const accordionId = `wo-${index}`;
+				const pozLabel = (wo.production_item || wo.sales_order_item || wo.so_detail || wo.item_name || wo.item_code || '').toString();
 				
 				html += `
 					<div class="card mb-2">
@@ -4404,6 +4405,7 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 								<div class="d-flex align-items-center">
 									<i class="fa fa-chevron-down mr-2" id="icon-${accordionId}"></i>
 									<strong>${wo.name}</strong>
+									${pozLabel ? `<span class='badge badge-primary ml-2' style='font-size:0.75rem;'>${pozLabel}</span>` : ''}
 									<span class="badge ${statusClass} ml-2">${statusText}</span>
 								</div>
 								<div class="text-muted">
@@ -4454,14 +4456,10 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 	const icon = $(`#icon-${accordionId}`);
 	const operationsContainer = $(`#operations-container-${accordionId}`);
 	
-	// Bootstrap collapse toggle
-	collapseElement.collapse('toggle');
-	
-	// Mevcut durumu kontrol et
-	const isCurrentlyOpen = collapseElement.hasClass('show');
-	
-	// Icon değiştir ve operasyonları yükle
-	if (!isCurrentlyOpen) {
+	// Mevcut durumu kontrol et ve güvenilir toggle
+	const isOpen = collapseElement.hasClass('show');
+	if (!isOpen) {
+		collapseElement.collapse('show');
 		// Açılıyor - operasyonları yükle
 		icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
 		
@@ -4538,6 +4536,7 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 			}
 		});
 	} else {
+		collapseElement.collapse('hide');
 		icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
 		operationsContainer.hide();
 	}
