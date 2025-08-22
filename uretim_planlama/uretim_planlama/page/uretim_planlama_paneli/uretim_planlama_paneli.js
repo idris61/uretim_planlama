@@ -2373,7 +2373,7 @@ class UretimPlanlamaPaneli {
 			let camBadge = '';
 			
 			if (pvcCount > 0) {
-				profileBadge = `<span class="badge" style="background: #dc3545; color: white; margin-right: 2px;">${pvcCount} Profil</span>`;
+				profileBadge = `<span class="badge" style="background: #dc3545; color: white; margin-right: 2px;">${pvcCount} PVC</span>`;
 			}
 			if (camCount > 0) {
 				camBadge = `<span class="badge" style="background: #007bff; color: white;">${camCount} Cam</span>`;
@@ -2419,7 +2419,7 @@ class UretimPlanlamaPaneli {
 								<i class="fa fa-external-link mr-1"></i>Sipariş
 							</button>
 							<button class="btn btn-sm work-orders-btn" data-sales-order="${order.sales_order}" 
-								style="background: #ffc107; color: black; border: none; font-size: 11px;">
+								style="background: #ffc107; color: black; border: none; font-size:11px;">
 								<i class="fa fa-cogs mr-1"></i>İş Emirleri
 							</button>
 						</div>
@@ -2588,7 +2588,7 @@ class UretimPlanlamaPaneli {
 			let camBadge = '';
 			
 			if (pvcCount > 0) {
-				profileBadge = `<span class="badge" style="background: #dc3545; color: white; margin-right: 2px;">${pvcCount} Profil</span>`;
+				profileBadge = `<span class="badge" style="background: #dc3545; color: white; margin-right: 2px;">${pvcCount} PVC</span>`;
 			}
 			if (camCount > 0) {
 				camBadge = `<span class="badge" style="background: #007bff; color: white;">${camCount} Cam</span>`;
@@ -4327,7 +4327,7 @@ function updateOptiDetailsModal(data) {
 				<div class="card bg-danger text-white">
 					<div class="card-body text-center">
 						<h3 class="mb-0">${data.summary.total_pvc}</h3>
-						<small>Toplam Profil</small>
+						<small>Toplam PVC</small>
 					</div>
 				</div>
 			</div>
@@ -4391,7 +4391,7 @@ function updateOptiDetailsModal(data) {
 					<span class="badge badge-warning">${order.renk || '-'}</span>
 				</td>
 				<td>
-					${order.pvc_qty > 0 ? `<span class="badge badge-danger d-block mb-1">${order.pvc_qty} Profil</span>` : ''}
+					${order.pvc_qty > 0 ? `<span class="badge badge-danger d-block mb-1">${order.pvc_qty} PVC</span>` : ''}
 					${order.cam_qty > 0 ? `<span class="badge badge-primary d-block">${order.cam_qty} Cam</span>` : ''}
 				</td>
 				<td>

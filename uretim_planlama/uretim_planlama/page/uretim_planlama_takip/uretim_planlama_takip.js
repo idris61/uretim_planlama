@@ -2185,7 +2185,7 @@ function generateGroupedOrderRows(groupedOrders, optiNoForOrders = '') {
         const pvcCount = parseInt(order.pvc_count || 0);
         const camCount = parseInt(order.cam_count || 0);
         const mtul = parseFloat(order.total_mtul || 0);
-        const adetText = pvcCount > 0 ? `${pvcCount} Profil` : `${camCount} Cam`;
+        const adetText = pvcCount > 0 ? `${pvcCount} PVC` : `${camCount} Cam`;
 
         const seriText = order.seri_text || '-';
         const renkText = order.renk_text || '-';
