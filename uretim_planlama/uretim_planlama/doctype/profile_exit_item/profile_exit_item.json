@@ -11,7 +11,13 @@
   "output_quantity",
   "length",
   "total_length",
-  "opt_no"
+  "opt_no",
+  "reference_type",
+  "reference_doc",
+  "warehouse",
+  "cost_center",
+  "production_order",
+  "work_order"
  ],
  "fields": [
   {
@@ -30,7 +36,8 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Output Quantity",
-   "reqd": 1
+   "reqd": 1,
+   "min": 1
   },
   {
    "fieldname": "length",
@@ -48,13 +55,51 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Total Lenght",
-   "read_only": 1
+   "label": "Total Length (m)",
+   "read_only": 1,
+   "precision": 3
   },
   {
    "fieldname": "opt_no",
    "fieldtype": "Data",
    "label": "OPT No"
+  },
+  {
+   "fieldname": "reference_type",
+   "fieldtype": "Select",
+   "label": "Reference Type",
+   "options": "Production Order\nWork Order\nSales Order\nMaterial Request\nManual Exit",
+   "default": "Manual Exit"
+  },
+  {
+   "fieldname": "reference_doc",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Document",
+   "options": "reference_type"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "production_order",
+   "fieldtype": "Link",
+   "label": "Production Order",
+   "options": "Production Order"
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "options": "Work Order"
   }
  ],
  "grid_page_length": 50,

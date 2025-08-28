@@ -15,6 +15,7 @@ OPTIMIZE EDİLMİŞ VERSİYON - Modern Python patterns + Enhanced Performance
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union
+import time
 
 # Frappe imports
 import frappe
@@ -42,6 +43,27 @@ CONSTANTS = {
     'DEFAULT_MTUL_PVC': 11.35,
     'MAX_QUERY_LIMIT': 0  # 0 = sınırsız
 }
+
+# Lightweight cache helpers (Redis-backed via frappe.cache)
+def _cache_get(key: str, ttl_seconds: int = 300):
+    try:
+        cache = frappe.cache()
+        cached = cache.get_value(key)
+        if not cached:
+            return None
+        ts = cached.get('ts', 0)
+        if (time.time() - float(ts)) <= ttl_seconds:
+            return cached.get('data')
+        return None
+    except Exception:
+        return None
+
+def _cache_set(key: str, data: Any):
+    try:
+        cache = frappe.cache()
+        cache.set_value(key, {"data": data, "ts": time.time()})
+    except Exception:
+        pass
 
 def validate_filters(filters: Dict) -> Dict:
     """Filter validation ve sanitization - Enhanced version"""
@@ -130,15 +152,23 @@ def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> 
         filters = json.loads(filters) if isinstance(filters, str) else (filters or {})
         filters = validate_filters(filters)
         
+        # Cache kontrolü
+        cache_key = f"upt:planned:{json.dumps(filters, sort_keys=True)}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+        
         # Optimize edilmiş veri çekme
         planned_data = get_optimized_planned_data(filters)
         
-        return {
+        result = {
             "success": True,
             "planned": planned_data,
             "total_planned": len(planned_data),
             "filters": filters
         }
+        _cache_set(cache_key, result)
+        return result
         
     except Exception as e:
         frappe.log_error(f"Üretim Takip Paneli Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
@@ -283,6 +313,12 @@ def get_opti_details_for_takip(opti_no: str) -> Dict[str, Any]:
     Modern ve optimize edilmiş - N+1 Query problemi çözüldü.
     """
     try:
+        # Cache kontrolü
+        cache_key = f"upt:opti:{opti_no}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+
         # Opti numarasına göre üretim planlarını getir
         production_plans = frappe.get_all(
             "Production Plan",
@@ -324,6 +360,36 @@ def get_opti_details_for_takip(opti_no: str) -> Dict[str, Any]:
             ]
         )
         
+        # Tüm sales order ve item kodlarını topla
+        sales_order_names = list(set(item.sales_order for item in plan_items))
+        item_codes = list(set(item.item_code for item in plan_items))
+        
+        # Sales Order'ları toplu çek - N+1 Query çözümü
+        sales_orders_data = {}
+        if sales_order_names:
+            sales_orders = frappe.get_all(
+                "Sales Order",
+                filters={"name": ["in", sales_order_names]},
+                fields=[
+                    "name", "customer", "custom_end_customer", "transaction_date", 
+                    "delivery_date", "custom_remarks", "custom_acil_durum"
+                ]
+            )
+            sales_orders_data = {so.name: so for so in sales_orders}
+        
+        # Item'ları toplu çek - N+1 Query çözümü
+        items_data = {}
+        if item_codes:
+            items = frappe.get_all(
+                "Item",
+                filters={"name": ["in", item_codes]},
+                fields=[
+                    "name", "item_group", "custom_serial", "custom_color", 
+                    "custom_total_main_profiles_mtul"
+                ]
+            )
+            items_data = {item.name: item for item in items}
+        
         # Her sipariş için detaylı bilgileri topla
         orders = []
         total_mtul = 0
@@ -331,37 +397,39 @@ def get_opti_details_for_takip(opti_no: str) -> Dict[str, Any]:
         total_cam = 0
         
         for item in plan_items:
-            # Sales Order bilgilerini al
-            sales_order = frappe.get_doc("Sales Order", item.sales_order)
+            # Sales Order bilgilerini al (cache'den)
+            sales_order_data = sales_orders_data.get(item.sales_order, {})
             
-            # Item bilgilerini al
-            item_doc = frappe.get_doc("Item", item.item_code)
+            # Item bilgilerini al (cache'den)
+            item_data = items_data.get(item.item_code, {})
             
             # MTÜL hesaplama
             mtul_value = 0
-            if item_doc.item_group == "Camlar":
+            item_group = item_data.get('item_group', '')
+            
+            if item_group == "Camlar":
                 mtul_value = item.planned_qty * (item.custom_mtul_per_piece or CONSTANTS['DEFAULT_MTUL_CAM'])
                 total_cam += item.planned_qty
             else:
-                mtul_value = item.planned_qty * (item_doc.custom_total_main_profiles_mtul or 0)
-                if item_doc.item_group == "PVC":
+                mtul_value = item.planned_qty * (item_data.get('custom_total_main_profiles_mtul', 0) or 0)
+                if item_group == "PVC":
                     total_pvc += item.planned_qty
             
             total_mtul += mtul_value
             
             order_info = {
                 "sales_order": item.sales_order,
-                "bayi": sales_order.customer,
-                "musteri": sales_order.custom_end_customer,
-                "siparis_tarihi": format_date_for_takip(sales_order.transaction_date),
-                "bitis_tarihi": format_date_for_takip(sales_order.delivery_date),
-                "seri": item.custom_serial or item_doc.custom_serial,
-                "renk": item.custom_color or item_doc.custom_color,
-                "pvc_qty": item.planned_qty if item_doc.item_group == "PVC" else 0,
-                "cam_qty": item.planned_qty if item_doc.item_group == "Camlar" else 0,
+                "bayi": sales_order_data.get('customer', ''),
+                "musteri": sales_order_data.get('custom_end_customer', ''),
+                "siparis_tarihi": format_date_for_takip(sales_order_data.get('transaction_date', '')),
+                "bitis_tarihi": format_date_for_takip(sales_order_data.get('delivery_date', '')),
+                "seri": item.custom_serial or item_data.get('custom_serial', ''),
+                "renk": item.custom_color or item_data.get('custom_color', ''),
+                "pvc_qty": item.planned_qty if item_group == "PVC" else 0,
+                "cam_qty": item.planned_qty if item_group == "Camlar" else 0,
                 "total_mtul": mtul_value,
-                "acil": bool(sales_order.custom_acil_durum),
-                "siparis_aciklama": sales_order.custom_remarks,
+                "acil": bool(sales_order_data.get('custom_acil_durum', 0)),
+                "siparis_aciklama": sales_order_data.get('custom_remarks', ''),
                 "uretim_plani_durumu": latest_plan.status,
                 "produced_qty": item.produced_qty or 0,
                 "progress": round((item.produced_qty / item.planned_qty * 100) if item.planned_qty > 0 else 0, 1)
@@ -369,7 +437,7 @@ def get_opti_details_for_takip(opti_no: str) -> Dict[str, Any]:
             
             orders.append(order_info)
         
-        return {
+        result = {
             "opti_no": opti_no,
             "uretim_plani": latest_plan.name,
             "orders": orders,
@@ -384,6 +452,8 @@ def get_opti_details_for_takip(opti_no: str) -> Dict[str, Any]:
                 "total_cam": total_cam
             }
         }
+        _cache_set(cache_key, result)
+        return result
         
     except Exception as e:
         frappe.log_error(f"Opti Detay Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
@@ -396,6 +466,12 @@ def get_sales_order_details_for_takip(sales_order: str) -> Dict[str, Any]:
     Satış siparişi detaylarını getirir - Enhanced version
     """
     try:
+        # Cache kontrolü
+        cache_key = f"upt:so:{sales_order}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+
         # Sales Order bilgilerini al
         so_doc = frappe.get_doc("Sales Order", sales_order)
         
@@ -412,26 +488,43 @@ def get_sales_order_details_for_takip(sales_order: str) -> Dict[str, Any]:
             ]
         )
         
+        # Tüm item kodlarını topla
+        item_codes = [item.item_code for item in items]
+        
+        # Item'ları toplu çek - N+1 Query çözümü
+        items_data = {}
+        if item_codes:
+            items_result = frappe.get_all(
+                "Item",
+                filters={"name": ["in", item_codes]},
+                fields=[
+                    "name", "item_group", "custom_total_main_profiles_mtul", 
+                    "custom_mtul_per_piece"
+                ]
+            )
+            items_data = {item.name: item for item in items_result}
+        
         # MTÜL hesaplama
         total_mtul = 0
         pvc_count = 0
         cam_count = 0
         
         for item in items:
-            item_doc = frappe.get_doc("Item", item.item_code)
+            item_data = items_data.get(item.item_code, {})
+            item_group = item_data.get('item_group', '')
             
-            if item_doc.item_group == "PVC":
+            if item_group == "PVC":
                 pvc_count += item.qty
-                mtul = item.qty * (item_doc.custom_total_main_profiles_mtul or 0)
-            elif item_doc.item_group == "Camlar":
+                mtul = item.qty * (item_data.get('custom_total_main_profiles_mtul', 0) or 0)
+            elif item_group == "Camlar":
                 cam_count += item.qty
-                mtul = item.qty * (item_doc.custom_mtul_per_piece or CONSTANTS['DEFAULT_MTUL_CAM'])
+                mtul = item.qty * (item_data.get('custom_mtul_per_piece', CONSTANTS['DEFAULT_MTUL_CAM']) or CONSTANTS['DEFAULT_MTUL_CAM'])
             else:
                 mtul = 0
             
             total_mtul += mtul
         
-        return {
+        result = {
             "sales_order": sales_order,
             "bayi": so_doc.customer,
             "musteri": so_doc.custom_end_customer,
@@ -446,6 +539,8 @@ def get_sales_order_details_for_takip(sales_order: str) -> Dict[str, Any]:
             "acil": bool(so_doc.custom_acil_durum),
             "aciklama": so_doc.custom_remarks
         }
+        _cache_set(cache_key, result)
+        return result
         
     except Exception as e:
         frappe.log_error(f"Sipariş Detay Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
@@ -459,6 +554,12 @@ def get_work_orders_for_takip(sales_order: str, production_plan: str = None) -> 
     Eğer production_plan belirtilmişse, sadece o üretim planına ait iş emirlerini getir
     """
     try:
+        # Cache kontrolü
+        cache_key = f"upt:wo:{sales_order}:{production_plan or 'all'}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+
         # Üretim planına göre filtreleme
         if production_plan:
             # Opti numarası ile Production Plan'ı bul
@@ -522,6 +623,7 @@ def get_work_orders_for_takip(sales_order: str, production_plan: str = None) -> 
                 
             wo["status_badge"] = get_status_badge_for_takip(wo.get("status", ""))
         
+        _cache_set(cache_key, work_orders)
         return work_orders
             
     except Exception as e:
@@ -535,6 +637,12 @@ def get_autocomplete_data_for_takip(field: str, search: str) -> List[str]:
     Autocomplete için optimize edilmiş veri getirme - Enhanced version
     """
     try:
+        # Cache kontrolü (autocomplete için kısa TTL)
+        cache_key = f"upt:autocomplete:{field}:{search}"
+        cached = _cache_get(cache_key, ttl_seconds=60)  # 1 dakika
+        if cached:
+            return cached
+
         search_term = f"%{search}%"
         
         field_queries = {
@@ -584,7 +692,9 @@ def get_autocomplete_data_for_takip(field: str, search: str) -> List[str]:
             return []
             
         result = frappe.db.sql(field_queries[field], [search_term], as_list=True)
-        return [row[0] for row in result if row[0]]
+        result_list = [row[0] for row in result if row[0]]
+        _cache_set(cache_key, result_list)
+        return result_list
         
     except Exception as e:
         frappe.log_error(f"Autocomplete Hatası: {str(e)}", "Uretim Planlama Takip Paneli")
@@ -619,28 +729,45 @@ def get_work_order_operations_for_takip(work_order_name: str) -> Dict[str, Any]:
             order_by="idx"
         )
         
+        # Tüm operasyon ve workstation kodlarını topla
+        operation_names = list(set(op.operation for op in operations if op.operation))
+        workstation_names = list(set(op.workstation for op in operations if op.workstation))
+        
+        # Operasyon bilgilerini toplu çek - N+1 Query çözümü
+        operations_data = {}
+        if operation_names:
+            operations_result = frappe.get_all(
+                "Operation",
+                filters={"name": ["in", operation_names]},
+                fields=["name", "description"]
+            )
+            operations_data = {op.name: op for op in operations_result}
+        
+        # Workstation bilgilerini toplu çek - N+1 Query çözümü
+        workstations_data = {}
+        if workstation_names:
+            workstations_result = frappe.get_all(
+                "Workstation",
+                filters={"name": ["in", workstation_names]},
+                fields=["name", "workstation_name"]
+            )
+            workstations_data = {ws.name: ws for ws in workstations_result}
+        
         # Her operasyon için ek bilgileri al
         for op in operations:
-            # Operasyon bilgilerini al
+            # Operasyon bilgilerini al (cache'den)
             if op.operation:
-                try:
-                    operation_doc = frappe.get_doc("Operation", op.operation)
-                    op["operation_description"] = operation_doc.description
-                    op["operation_time"] = operation_doc.time_in_mins
-                except:
-                    op["operation_description"] = ""
-                    op["operation_time"] = 0
+                operation_data = operations_data.get(op.operation, {})
+                op["operation_description"] = operation_data.get('description', '')
+                op["operation_time"] = 0  # time_in_mins sütunu yok
             else:
                 op["operation_description"] = ""
                 op["operation_time"] = 0
             
-            # İş istasyonu bilgilerini al
+            # İş istasyonu bilgilerini al (cache'den)
             if op.workstation:
-                try:
-                    workstation_doc = frappe.get_doc("Workstation", op.workstation)
-                    op["workstation_description"] = workstation_doc.workstation_name
-                except:
-                    op["workstation_description"] = ""
+                workstation_data = workstations_data.get(op.workstation, {})
+                op["workstation_description"] = workstation_data.get('workstation_name', '')
             else:
                 op["workstation_description"] = ""
             

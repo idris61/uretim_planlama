@@ -1182,38 +1182,7 @@ def delete_cutting_plans(docname):
 # 10. STOK YÖNETİMİ (STOCK MANAGEMENT)
 # ============================================================================
 
-@frappe.whitelist()
-def get_profile_stock_panel(profil=None, depo=None, boy=None, scrap=None):
-	"""
-	Profil stok paneli için tablo bazında veri seti döner.
-	- depo_stoklari: ERPNext anlık stok (mtül), rezerv, kullanılabilir (mtül)
-	- boy_bazinda_stok: Boy bazında stok (adet, mtül, rezerv)
-	- scrap_profiller: Parça profil kayıtları (açıklama, tarih, vs)
-	- hammadde_rezervleri: Rezerve hammaddeler (profil ve depo bazında, ana depo ise alt depolar dahil)
-	Filtreler: profil, depo, boy, scrap (opsiyonel)
-	"""
-	depo_stoklari = []
-	boy_bazinda_stok = []
-	scrap_profiller = []
-	hammadde_rezervleri = []
 
-	# "Sadece Parça" seçiliyse, sadece parça verilerini çek
-	if scrap:
-		scrap_profiller = get_scrap_profile_entries(profile_code=profil)
-	else:
-		# "Sadece Parça" seçili değilse, tüm ilgili verileri çek
-		depo_stoklari = get_total_stock_summary(profil=profil, depo=depo)
-		boy_bazinda_stok = get_profile_stock_by_length(profil=profil, boy=boy, scrap=0)
-		scrap_profiller = get_scrap_profile_entries(profile_code=profil)
-	# Hammadde rezervleri ürün ve depo filtresine göre gelsin
-	hammadde_rezervleri = get_reserved_raw_materials_for_profile(profil=profil, depo=depo) or []
-
-	return {
-		"depo_stoklari": depo_stoklari,
-		"boy_bazinda_stok": boy_bazinda_stok,
-		"scrap_profiller": scrap_profiller,
-		"hammadde_rezervleri": hammadde_rezervleri,
-	}
 
 
 @frappe.whitelist()
@@ -1537,99 +1506,7 @@ def get_reserved_raw_materials_for_profile(profil=None, depo=None):
 	return reserved
 
 
-@frappe.whitelist()
-def get_profile_stock_by_length(profil=None, boy=None, scrap=None):
-	"""
-	Profile Stock Ledger'dan boy bazında stokları döndürür.
-	Ayrıca Rezerved Raw Materials doctype'ından toplam rezerv (mtül) değerini ekler.
-	"""
-	filters = {}
-	if profil:
-		filters["profile_type"] = profil
-	if boy:
-		try:
-			filters["length"] = float(boy)
-		except:
-			filters["length"] = boy
-	if scrap is not None:
-		filters["is_scrap_piece"] = int(scrap)
-	ledgers = frappe.get_all(
-		"Profile Stock Ledger",
-		filters=filters,
-		fields=[
-			"profile_type",
-			"length",
-			"qty",
-			"total_length",
-			"is_scrap_piece",
-			"modified",
-		],
-	)
-	# item_name ekle
-	item_names = {}
-	if ledgers:
-		item_codes = list(set([l["profile_type"] for l in ledgers]))
-		for item in frappe.get_all(
-			"Item",
-			filters={"item_code": ["in", item_codes]},
-			fields=["item_code", "item_name"],
-		):
-			item_names[item["item_code"]] = item["item_name"]
-	# Rezervleri çek (mtül bazında)
-	rezervler = frappe.get_all("Rezerved Raw Materials", fields=["item_code", "quantity"])
-	rezerv_map = {}
-	for r in rezervler:
-		rezerv_map.setdefault(r["item_code"], 0)
-		rezerv_map[r["item_code"]] += float(r["quantity"] or 0)
-	result = []
-	for l in ledgers:
-		rezerv = rezerv_map.get(l["profile_type"], 0)
-		result.append(
-			{
-				"profil": l["profile_type"],
-				"profil_adi": item_names.get(l["profile_type"], ""),
-				"boy": l["length"],
-				"adet": l["qty"],
-				"mtul": l["total_length"],
-				"rezerv": rezerv,
-				"guncelleme": l["modified"],
-			}
-		)
-	return result
 
-
-@frappe.whitelist()
-def get_scrap_profile_entries(profile_code=None):
-    """
-    Scrap Profile Entry kayıtlarını döndürür (sadece seçilen profile_code için).
-    """
-    filters = {}
-    if profile_code:
-        filters["profile_code"] = profile_code
-    entries = frappe.get_all(
-        "Scrap Profile Entry",
-        filters=filters,
-        fields=["name", "profile_code", "length", "qty", "total_length", "description", "entry_date", "modified"]
-    )
-    # item_name ekle
-    item_names = {}
-    if entries:
-        item_codes = list(set([e["profile_code"] for e in entries]))
-        for item in frappe.get_all("Item", filters={"item_code": ["in", item_codes]}, fields=["item_code", "item_name"]):
-            item_names[item["item_code"]] = item["item_name"]
-    result = []
-    for e in entries:
-        result.append({
-            "profil": e["profile_code"],
-            "profil_adi": item_names.get(e["profile_code"], ""),
-            "boy": e["length"],
-            "adet": e["qty"],
-            "mtul": e["total_length"],
-            "aciklama": e["description"],
-            "tarih": e["entry_date"],
-            "guncelleme": e["modified"]
-        })
-    return result
 
 
 # ============================================================================

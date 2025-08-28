@@ -9,9 +9,13 @@
  "field_order": [
   "item_code",
   "received_quantity",
-  "lenght",
+  "length",
+  "total_length",
   "purchase_receipt",
-  "total_length"
+  "reference_type",
+  "reference_doc",
+  "warehouse",
+  "cost_center"
  ],
  "fields": [
   {
@@ -30,7 +34,8 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Received Quantity",
-   "reqd": 1
+   "reqd": 1,
+   "min": 1
   },
   {
    "bold": 1,
@@ -39,8 +44,9 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Total Lenght",
-   "read_only": 1
+   "label": "Total Length (m)",
+   "read_only": 1,
+   "precision": 3
   },
   {
    "fieldname": "purchase_receipt",
@@ -49,13 +55,38 @@
    "options": "Purchase Receipt"
   },
   {
-   "fieldname": "lenght",
+   "fieldname": "length",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Length (m)",
    "options": "Boy",
    "reqd": 1
+  },
+  {
+   "fieldname": "reference_type",
+   "fieldtype": "Select",
+   "label": "Reference Type",
+   "options": "Purchase Receipt\nPurchase Invoice\nStock Entry\nMaterial Transfer\nManual Entry",
+   "default": "Manual Entry"
+  },
+  {
+   "fieldname": "reference_doc",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Document",
+   "options": "reference_type"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
   }
  ],
  "grid_page_length": 50,

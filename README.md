@@ -1,136 +1,204 @@
-### Uretim Planlama
+# Üretim Planlama (Uretim Planlama)
 
-ERPNext tabanlı gelişmiş üretim planlama ve uzun vadeli rezerv yönetim sistemi.
+ERPNext tabanlı üretim planlama uygulaması
 
-### Installation
+## 🚀 **YENİ ÖZELLİK: PROFESYONEL PROFİL STOK YÖNETİMİ**
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+### **Genel Bakış**
+Bu uygulama, profil ürünlerinin hem ERPNext orijinal stok takibinde (mtül) hem de özel boy bazında stok takibinde senkronize olarak yönetilmesini sağlar.
 
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app uretim_planlama
+### **Temel Özellikler**
+- ✅ **Merkezi Profil Stok Yönetimi**: Tüm profil stok işlemleri tek yerden yönetilir
+- ✅ **ERPNext Stok Senkronizasyonu**: Orijinal ERPNext stok sistemi ile tam uyumlu
+- ✅ **Boy Bazında Detaylı Takip**: Her profil boy için ayrı stok takibi
+- ✅ **Çoklu Doküman Desteği**: Tüm ERPNext dokümanlarında profil stok yönetimi
+- ✅ **Otomatik Stok Güncelleme**: Giriş/çıkış işlemlerinde otomatik stok güncelleme
+- ✅ **Hata Yönetimi ve Loglama**: Kapsamlı hata takibi ve loglama sistemi
+
+### **Desteklenen Dokümanlar**
+| Doküman Türü | Stok Girişi | Stok Çıkışı | Rezervasyon | Doğrulama |
+|---------------|--------------|-------------|-------------|-----------|
+| **Alış İrsaliyesi** | ✅ | ✅ (İptal) | - | ✅ |
+| **Satınalma Faturası** | ✅ | - | - | ✅ |
+| **Stok Girişi** | ✅ | - | - | ✅ |
+| **Satış Siparişi** | - | - | ✅ | ✅ |
+| **Sevk İrsaliyesi** | ✅ (İptal) | ✅ | - | ✅ |
+| **Satış Faturası** | ✅ (İptal) | ✅ | - | ✅ |
+| **Stok Çıkışı** | ✅ (İptal) | ✅ | - | ✅ |
+| **Malzeme Talebi** | - | - | ✅ | ✅ |
+
+### **Teknik Mimari**
+
+#### **1. Merkezi Profil Stok Yönetici (`profile_stock_manager.py`)**
+- Profil ürün kontrolü
+- MTÜL hesaplama
+- ERPNext stok güncelleme
+- Profile Stock Ledger güncelleme
+- Hata yönetimi ve loglama
+
+#### **2. Event Handler'lar (`doctype_events.py`)**
+- Tüm dokümanlar için profil stok event'leri
+- Giriş/çıkış işlemleri
+- İptal işlemleri
+- Doğrulama işlemleri
+
+#### **3. API Fonksiyonları (`profile_stock_api.py`)**
+- Stok özeti
+- Boy bazında stok bilgisi
+- Stok yeterlilik kontrolü
+- Hareket geçmişi
+- Stok uyarıları
+
+### **Kullanım Senaryoları**
+
+#### **Alış İşlemi (Stok Girişi)**
+1. Alış irsaliyesi oluşturulur
+2. Profil ürünler için `custom_is_profile` işaretlenir
+3. `custom_profile_length_m` (boy) ve `custom_profile_length_qty` (adet) girilir
+4. Doküman onaylandığında:
+   - ERPNext stok sistemi güncellenir (mtül)
+   - Profile Stock Ledger güncellenir (boy bazında)
+   - Her iki sistem senkronize olur
+
+#### **Satış İşlemi (Stok Çıkışı)**
+1. Sevk irsaliyesi oluşturulur
+2. Profil ürünler için boy ve adet bilgileri girilir
+3. Doküman onaylandığında:
+   - ERPNext stok sistemi güncellenir (mtül)
+   - Profile Stock Ledger güncellenir (boy bazında)
+   - Stok yeterliliği kontrol edilir
+
+#### **Stok Kontrolü**
+- API fonksiyonları ile gerçek zamanlı stok kontrolü
+- Boy bazında stok yeterliliği
+- Düşük stok uyarıları
+- Hareket geçmişi takibi
+
+### **Kurulum ve Konfigürasyon**
+
+#### **1. Custom Field'lar**
+Aşağıdaki custom field'lar otomatik olarak yüklenir:
+- `custom_is_profile`: Profil ürün kontrolü
+- `custom_profile_length_m`: Boy bilgisi
+- `custom_profile_length_qty`: Adet bilgisi
+
+#### **2. Event Hook'ları**
+`hooks.py` dosyasında tüm gerekli event hook'ları tanımlanmıştır.
+
+#### **3. Profil Ürün Grupları**
+Varsayılan olarak `PVC` ve `Camlar` ürün grupları profil olarak kabul edilir.
+
+### **API Kullanımı**
+
+#### **Stok Özeti**
+```python
+import frappe
+result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_profile_stock_overview')
 ```
 
-### Contributing
-
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
-
-```bash
-cd apps/uretim_planlama
-pre-commit install
+#### **Stok Yeterlilik Kontrolü**
+```python
+result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.check_profile_availability', 
+                    item_code='PROFIL-001', 
+                    required_length=5.0, 
+                    required_qty=10)
 ```
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+#### **Hareket Geçmişi**
+```python
+result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_profile_transaction_history',
+                    profile_type='PROFIL-001',
+                    from_date='2025-01-01',
+                    to_date='2025-12-31')
+```
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
+### **Hata Yönetimi**
+- Tüm işlemler try-catch blokları ile korunur
+- Hatalar `frappe.log_error` ile loglanır
+- Kullanıcıya anlaşılır hata mesajları gösterilir
+- İşlem başarısı/başarısızlığı detaylı olarak raporlanır
 
-### License
+### **Performans Optimizasyonu**
+- Gereksiz veritabanı sorguları minimize edilir
+- Batch işlemler için optimize edilmiş fonksiyonlar
+- Cache mekanizmaları ile hızlı erişim
+- Asenkron işlem desteği
 
-mit
+### **Güvenlik**
+- Tüm API fonksiyonları `@frappe.whitelist()` ile korunur
+- Kullanıcı yetki kontrolü
+- SQL injection koruması
+- Veri doğrulama ve sanitizasyon
+
+### **Test ve Doğrulama**
+- Her doküman türü için ayrı test senaryoları
+- Stok tutarlılığı kontrolü
+- Hata durumları test edilir
+- Performans testleri
+
+### **Gelecek Geliştirmeler**
+- [ ] Dashboard widget'ları
+- [ ] E-posta uyarıları
+- [ ] Mobil uygulama desteği
+- [ ] Gelişmiş raporlama
+- [ ] API rate limiting
+- [ ] Webhook desteği
 
 ---
 
-## Özellikler ve Geliştirmeler (ERPNext v15 Uyumlu)
+## 📋 **Genel Uygulama Özellikleri**
 
-### 1. Gerekli Hammaddeler ve Stoklar Tablosu
-- **Dinamik Tablo**: Satış Siparişi formunda, siparişe bağlı tüm hammaddelerin ihtiyaç, stok, rezerve, açık miktar, uzun vadeli rezerv ve tedarik durumunu gösteren gerçek zamanlı tablo
-- **Otomatik Güncelleme**: BOM ve stok kayıtlarından otomatik veri çekme ve güncelleme
-- **Toplu İşlemler**: Eksik hammaddeler için tek tıkla Satınalma Talebi (Material Request) oluşturma
-- **Gelişmiş UI**: Kullanıcı dostu uyarılar, renk kodları, scroll bar ve sabit başlık satırı
-- **Detay Görüntüleme**: Modal pencereler ile belge detayları ve linkler
+### **Üretim Planlama Paneli**
+- Haftalık üretim planı görünümü
+- Opti numarası bazında planlama
+- Kaynak yönetimi ve iş yükü dağılımı
 
-### 2. Uzun Vadeli Rezerv Sistemi
-- **Otomatik Tespit**: Teslim tarihi 30+ gün sonrası olan satış siparişlerindeki hammaddeler "Uzun Vadeli Rezerv" olarak otomatik tespit
-- **Akıllı Öneriler**: Stok açığı olan hammaddeler için uzun vadeli rezervden kullanım önerisi
-- **Toplu Kullanım**: Modal pencerede önerilen miktarları görüntüleme ve toplu rezerv kullanımı
-- **Kayıt Sistemi**: Kullanımlar "Long Term Reserve Usage" doctype'ında detaylı loglama
-- **Güvenlik**: Aynı satış siparişi ve hammadde için birden fazla kez uzun vadeli rezerv kullanımı engelleme
-- **Otomatik Temizlik**: Satış siparişi iptal edildiğinde ilgili uzun vadeli rezerv kayıtları otomatik silme
-- **Yenileme Sistemi**: Uzun vadeli rezervden kullanılan miktarlar için otomatik satınalma talebi oluşturma
+### **Üretim Takip Sistemi**
+- Gerçek zamanlı üretim durumu
+- İş emri takibi
+- Performans metrikleri
 
-### 3. Parent-Child Sipariş Yönetimi
-- **Ana Sipariş Rezervi**: Parent siparişlerde uzun vadeli rezerv oluşturma
-- **Child Sipariş Kullanımı**: Alt siparişlerde ana rezervden kullanım ve takip
-- **Akıllı Hesaplama**: Child siparişlerde açık miktarın stok durumuna bakılmaksızın ihtiyacın tamamı olarak hesaplanması
-- **Özet Görüntüleme**: Ana sipariş ve alt siparişlerdeki rezerv kullanım özeti
-- **Temizleme Butonu**: "Kalan Uzun Vadeli Rezervi Temizle" butonu ile manuel temizlik
+### **Stok Yönetimi**
+- Hammadde rezervasyonu
+- Stok yeterlilik analizi
+- Profil stok takibi (boy bazında)
 
-### 4. Backend Fonksiyonları
-- `get_sales_order_raw_materials(sales_order)`: Siparişe bağlı tüm hammaddelerin detaylı stok ve ihtiyaç analizi
-- `create_material_request_for_shortages(sales_order)`: Eksik hammaddeler ve rezerv yenilemeleri için toplu satınalma talebi
-- `get_long_term_reserve_qty(item_code)`: Uzun vadeli rezerv miktarını hesaplama
-- `check_long_term_reserve_availability(sales_order)`: Uzun vadeli rezervden kullanılabilir hammaddeleri ve önerilen miktarları listeleme
-- `use_long_term_reserve_bulk(sales_order, usage_data)`: Toplu uzun vadeli rezerv kullanımı, tekrar kullanım engelleme
-- `get_long_term_reserve_usage_summary(parent_sales_order)`: Ana sipariş rezerv kullanım özeti
-- **Otomatik Temizlik**: Satış siparişi iptalinde ilgili rezerv ve uzun vadeli rezerv kayıtları otomatik silme
-- **Stok Hareketi Entegrasyonu**: Stock Entry işlemlerinde rezerv kullanımı otomatik güncelleme
-
-### 5. Frontend (JavaScript) Özellikleri
-- **Dinamik Tablo**: Satış Siparişi formunda özel butonlar ve gerçek zamanlı tablo rendering
-- **Modal Sistemleri**: "Detayları Gör", "Uzun Vadeli Rezervden Kullan" gibi kullanıcı dostu modal pencereler
-- **Akıllı Kontroller**: Tablo ve butonlar sadece kayıtlı siparişlerde aktif, kaydedilmemiş siparişlerde uyarı
-- **Otomatik Yenileme**: Tüm işlemlerden sonra tablo otomatik güncelleme
-- **Responsive Tasarım**: Scroll bar, sabit başlık satırı ve optimize edilmiş tablo yüksekliği
-
-### 6. Doctype'lar ve Yapılar
-- **Long Term Reserve Usage**: Uzun vadeli rezerv kullanım kayıtları
-- **Deleted Long Term Reserve**: Silinen rezervler için kalıcı kayıt sistemi
-- **Rezerved Raw Materials**: Mevcut rezerv sistemini destekleyen yapı
-- **Parent-Child İlişkisi**: Ana sipariş ve alt siparişler arasında rezerv paylaşımı
-
-### 7. Raporlama ve Takip
-- **Long Term Reserve Usage Report**: Uzun vadeli rezerv kullanımları için detaylı rapor
-- **Dashboard Widget**: Genel durum görüntüleme
-- **Kullanım Özeti**: Ana sipariş ve alt siparişlerdeki rezerv kullanım özeti
-- **Detaylı Loglama**: Tüm işlemlerin izlenebilir ve raporlanabilir olması
-
-### 8. Güvenlik ve Doğrulama
-- **Backend Doğrulama**: Tüm kritik işlemler (rezerv kullanımı, talep oluşturma, silme) backend'de doğrulanır
-- **Hata Yönetimi**: Kullanıcı hatalarına karşı uyarı ve engelleme mekanizmaları
-- **İzlenebilirlik**: Tüm işlemler loglanır ve raporlanabilir
-- **Veri Tutarlılığı**: Parent-child ilişkilerinde veri tutarlılığı kontrolü
-
-### 9. Performans Optimizasyonları
-- **SQL Optimizasyonu**: Veritabanı sorgularında performans iyileştirmeleri
-- **Bellek Yönetimi**: Büyük veri setlerinde bellek kullanımı optimizasyonu
-- **Caching**: Sık kullanılan veriler için önbellekleme
-- **Batch İşlemler**: Toplu işlemler için optimize edilmiş algoritmalar
-
-### 10. Kurulum ve Test
-- **Standart Kurulum**: Frappe/ERPNext uygulama kurulum adımları
-- **Migration Sistemi**: Veritabanı değişiklikleri için otomatik migration
-- **Test Suite**: Uzun vadeli rezerv sistemi için kapsamlı testler
-- **Örnek Veri**: Test ve demo için örnek veri setleri
-
-### 11. Çeviri Desteği
-- **Türkçe Çeviriler**: Tüm kullanıcı arayüzü metinleri Türkçe çevirileri ile
-- **Dinamik Çeviri**: Yeni eklenen özellikler için otomatik çeviri desteği
-- **Çoklu Dil**: Gelecekte çoklu dil desteği için hazır yapı
-
----
-
-## Teknik Detaylar
-
-### Sistem Gereksinimleri
-- ERPNext v15+
-- Python 3.10+
-- MariaDB 10.6+
-- Node.js 18+
-
-### Veritabanı Yapısı
-- Uzun vadeli rezerv hesaplamaları için optimize edilmiş SQL sorguları
-- Parent-child ilişkileri için özel indeksler
-- Performans için materialized view'lar
-
-### API Endpoints
-- RESTful API desteği
+### **Entegrasyon**
+- ERPNext ile tam uyumluluk
+- REST API desteği
 - Webhook entegrasyonları
-- Third-party sistem entegrasyonları
 
----
+## 🛠️ **Kurulum**
 
-Daha fazla bilgi ve teknik detay için `README_LONG_TERM_RESERVE.md` dosyasına bakınız.
+```bash
+# Uygulamayı yükle
+bench get-app uretim_planlama
+
+# Uygulamayı kur
+bench install-app uretim_planlama
+
+# Migrate
+bench migrate
+```
+
+## 📚 **Dokümantasyon**
+
+Detaylı dokümantasyon için [Wiki](link-to-wiki) sayfasını ziyaret edin.
+
+## 🤝 **Katkıda Bulunma**
+
+1. Fork yapın
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Commit yapın (`git commit -m 'Add amazing feature'`)
+4. Push yapın (`git push origin feature/amazing-feature`)
+5. Pull Request oluşturun
+
+## 📄 **Lisans**
+
+Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `license.txt` dosyasına bakın.
+
+## 📞 **İletişim**
+
+- **Geliştirici**: idris
+- **E-posta**: idris@example.com
+- **Proje Linki**: [GitHub Repository](link-to-repo)

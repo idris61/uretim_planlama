@@ -13,6 +13,7 @@ OPTIMIZE EDİLMİŞ VERSİYON - N+1 Query problemleri çözüldü
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union
+import time
 
 # Frappe imports
 import frappe
@@ -54,6 +55,27 @@ CONSTANTS = {
     'DEFAULT_MTUL_PVC': 11.35,
     'MAX_QUERY_LIMIT': 0  # 0 = sınırsız
 }
+
+# Lightweight cache helpers (Redis-backed via frappe.cache)
+def _cache_get(key: str, ttl_seconds: int = 300):
+    try:
+        cache = frappe.cache()
+        cached = cache.get_value(key)
+        if not cached:
+            return None
+        ts = cached.get('ts', 0)
+        if (time.time() - float(ts)) <= ttl_seconds:
+            return cached.get('data')
+        return None
+    except Exception:
+        return None
+
+def _cache_set(key: str, data: Any):
+    try:
+        cache = frappe.cache()
+        cache.set_value(key, {"data": data, "ts": time.time()})
+    except Exception:
+        pass
 
 def validate_filters(filters: Dict) -> Dict:
     """Filter validation ve sanitization"""
@@ -152,10 +174,17 @@ def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> 
         filters = json.loads(filters) if isinstance(filters, str) else (filters or {})
         filters = validate_filters(filters)
 
+        # Cache kontrolü (planned + unplanned birlikte)
+        cache_key = f"upp:planned-unplanned:{json.dumps(filters, sort_keys=True)}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+
         # Tüm verileri tek seferde çek
         planned, unplanned = get_optimized_data_v2(filters)
         
         result = {"planned": planned, "unplanned": unplanned}
+        _cache_set(cache_key, result)
         return result
     except Exception as e:
         frappe.log_error(f"Üretim Paneli Hatası: {str(e)}")
@@ -406,11 +435,7 @@ def format_planned_data(planned_data: List[Dict]) -> List[Dict]:
             # İlk ürünü temel al (sipariş bilgileri için)
             first_item = group_data['items'][0]
             
-            # Debug: planned_end_date alanını kontrol et
-            frappe.logger().info(f"Opti {first_item.get('opti_no')} - planned_end_date: {first_item.get('planned_end_date')} (type: {type(first_item.get('planned_end_date'))})")
-            frappe.logger().info(f"Opti {first_item.get('opti_no')} - planlanan_baslangic_tarihi: {first_item.get('planlanan_baslangic_tarihi')} (type: {type(first_item.get('planlanan_baslangic_tarihi'))})")
-            frappe.logger().info(f"Opti {first_item.get('opti_no')} - first_item keys: {list(first_item.keys())}")
-            frappe.logger().info(f"Opti {first_item.get('opti_no')} - first_item raw: {first_item}")
+            # Debug loglar kaldırıldı (performans için)
             
             # Gruplandırılmış verilerden formatlanmış veri oluştur
             sales_order = group_data['sales_order']
@@ -579,8 +604,15 @@ def get_unplanned_data(filters: Optional[Union[str, Dict]] = None) -> Dict[str, 
         # Zorla sadece "Onaylandı" durumundaki siparişleri getir
         filters["workflow_state"] = "Onaylandı"
         
+        # Cache kontrolü (yalnızca unplanned)
+        cache_key = f"upp:unplanned:{json.dumps(filters, sort_keys=True)}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached is not None:
+            return {"unplanned": cached, "error": None}
+
         # Sadece planlanmamış verileri çek
         _, unplanned = get_optimized_data_v2(filters)
+        _cache_set(cache_key, unplanned)
         
         return {"unplanned": unplanned, "error": None}
     except Exception as e:
@@ -643,6 +675,12 @@ def get_sales_order_details_v2(order_no: str) -> Dict[str, Any]:
     N+1 Query problemi çözüldü
     """
     try:
+        # Cache kontrolü
+        cache_key = f"upp:so:{order_no}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+
         # Sales Order'ı bir kerede çek
         sales_order = frappe.get_doc("Sales Order", order_no)
         
@@ -702,7 +740,7 @@ def get_sales_order_details_v2(order_no: str) -> Dict[str, Any]:
         seri_text = ", ".join(seri_list) if seri_list else getattr(sales_order, 'custom_seri', '')
         renk_text = ", ".join(renk_list) if renk_list else getattr(sales_order, 'custom_renk', '')
         
-        return {
+        result = {
             "sales_order": sales_order.name,
             "bayi": sales_order.customer,
             "musteri": sales_order.custom_end_customer,
@@ -720,6 +758,8 @@ def get_sales_order_details_v2(order_no: str) -> Dict[str, Any]:
             "total_mtul": total_mtul,
             "aciklama": getattr(sales_order, 'custom_remarks', '') or ""
         }
+        _cache_set(cache_key, result)
+        return result
     except Exception as e:
         frappe.log_error(f"Satış Siparişi Detayları Hatası: {str(e)}")
         return {"error": str(e)}
@@ -798,7 +838,7 @@ def get_work_order_operations(work_order: str) -> List[Dict]:
             SELECT 
                 name, operation, workstation, status, completed_qty,
                 planned_start_time, planned_end_time, actual_start_time, 
-                actual_end_time, description, time_in_mins as time_required
+                actual_end_time, description
             FROM `tabWork Order Operation`
             WHERE parent = %s
             ORDER BY idx
@@ -812,7 +852,7 @@ def get_work_order_operations(work_order: str) -> List[Dict]:
             if bom_no:
                 bom_operations = frappe.db.sql("""
                     SELECT 
-                        operation, workstation, description, time_in_mins
+                        operation, workstation, description
                     FROM `tabBOM Operation`
                     WHERE parent = %s
                     ORDER BY idx
@@ -831,7 +871,7 @@ def get_work_order_operations(work_order: str) -> List[Dict]:
                         "actual_start_time": None,
                         "actual_end_time": None,
                         "description": bom_op.description,
-                        "time_required": bom_op.time_in_mins
+                        "time_required": 0  # time_in_mins sütunu yok
                     })
         
         # Job Card'ları toplu olarak çek - Optimize edilmiş
@@ -879,6 +919,12 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
     N+1 Query problemi çözüldü
     """
     try:
+        # Cache kontrolü
+        cache_key = f"upp:opti:{opti_no}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        if cached:
+            return cached
+
         # Opti numarasına göre üretim planlarını getir
         production_plans = frappe.get_all(
             "Production Plan",
@@ -1053,7 +1099,7 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
         # Plan status badge
         plan_status_badge = get_status_badge(latest_plan.status)
         
-        return {
+        result = {
             "opti_no": opti_no,
             "production_plan": latest_plan.name,
             "plan_status": latest_plan.status,
@@ -1061,6 +1107,8 @@ def get_opti_details(opti_no: str) -> Dict[str, Any]:
             "orders": orders,
             "summary": summary
         }
+        _cache_set(cache_key, result)
+        return result
         
     except Exception as e:
         frappe.log_error(f"get_opti_details hatası: {str(e)}")

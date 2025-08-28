@@ -8,6 +8,12 @@
   "length",
   "qty",
   "total_length",
+  "scrap_reason",
+  "scrap_category",
+  "warehouse",
+  "cost_center",
+  "reference_type",
+  "reference_doc",
   "description",
   "entry_date",
   "amended_from"
@@ -26,24 +32,68 @@
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Length (m)",
-   "reqd": 1
+   "reqd": 1,
+   "min": 0.1,
+   "precision": 3
   },
   {
    "fieldname": "qty",
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "Quantity",
-   "reqd": 1
+   "reqd": 1,
+   "min": 1
   },
   {
    "fieldname": "total_length",
    "fieldtype": "Float",
    "label": "Total Length (m)",
-   "read_only": 1
+   "read_only": 1,
+   "precision": 3
+  },
+  {
+   "fieldname": "scrap_reason",
+   "fieldtype": "Select",
+   "label": "Scrap Reason",
+   "options": "Production Defect\nCutting Error\nQuality Issue\nTransport Damage\nStorage Damage\nOther",
+   "reqd": 1,
+   "default": "Production Defect"
+  },
+  {
+   "fieldname": "scrap_category",
+   "fieldtype": "Select",
+   "label": "Scrap Category",
+   "options": "Minor\nMajor\nCritical",
+   "default": "Minor"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "reference_type",
+   "fieldtype": "Select",
+   "label": "Reference Type",
+   "options": "Production Order\nWork Order\nSales Order\nMaterial Request\nManual Entry",
+   "default": "Manual Entry"
+  },
+  {
+   "fieldname": "reference_doc",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Document",
+   "options": "reference_type"
   },
   {
    "fieldname": "description",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Description"
   },
   {
@@ -65,7 +115,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2025-06-24 14:32:04.422796",
+ "modified": "2025-06-24 14:32:04.744753",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Scrap Profile Entry",

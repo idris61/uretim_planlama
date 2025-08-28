@@ -115,7 +115,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom"],
+			keyFields: ["item_code", "uom", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -155,7 +155,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -166,7 +166,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -177,7 +177,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -188,7 +188,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -199,7 +199,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse"],
+			keyFields: ["item_code", "uom", "warehouse", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
 			qtyField: "qty",
 			// Material Request may not maintain stock_qty consistently; sum qty only
 		});

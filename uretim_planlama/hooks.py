@@ -44,37 +44,45 @@ doctype_js = {
 	"Sales Order": [
 		"public/js/sales_order/sales_order.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
 	"Delivery Note": [
 		"public/js/delivery_note_assembly_accessory_html.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Purchase Order": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Purchase Receipt": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Stock Entry": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Sales Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Purchase Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 	"Material Request": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_quantity_calculator.js"
 	],
 }
 
@@ -94,6 +102,8 @@ doc_events = {
 			"uretim_planlama.sales_order_hooks.raw_materials.delete_long_term_reserve_usage_on_cancel",
 		],
 		"before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit",
+		"before_save": "uretim_planlama.custom_hooks.sales_order.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.sales_order.profile_quantity_validation.validate"
 	},
 	
 	"Profile Stock Ledger": {
@@ -109,8 +119,37 @@ doc_events = {
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
 	},
 	"Purchase Receipt": {
-		"on_submit": "uretim_planlama.uretim_planlama.purchase_receipt_events.on_submit"
+		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit"
 	},
+	"Delivery Note": {
+		"before_save": "uretim_planlama.custom_hooks.delivery_note.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.delivery_note.profile_quantity_validation.validate"
+	},
+	"Purchase Order": {
+		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+	},
+	"Purchase Receipt": {
+		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+	},
+	"Stock Entry": {
+		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+	},
+	"Sales Invoice": {
+		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+	},
+	"Purchase Invoice": {
+		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+	},
+	"Material Request": {
+		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
+		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+	},
+
 }
 
 # after_import işlemi

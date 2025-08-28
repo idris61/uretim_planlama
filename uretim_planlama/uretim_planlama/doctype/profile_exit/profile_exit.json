@@ -1,11 +1,15 @@
 {
  "actions": [],
- "creation": "2025-06-23 10:28:45.113758",
+ "creation": "2025-06-23 16:33:07.089265",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "date",
+  "warehouse",
+  "cost_center",
   "items",
+  "total_output_length",
+  "total_output_qty",
   "remarks",
   "amended_from"
  ],
@@ -18,9 +22,48 @@
    "reqd": 1
   },
   {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Warehouse",
+   "options": "Warehouse",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Profile Exit Item"
+  },
+  {
+   "bold": 1,
+   "description": "Toplam çıkış yapılan uzunluk",
+   "fieldname": "total_output_length",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total Output Length (m)",
+   "read_only": 1,
+   "precision": 3
+  },
+  {
+   "bold": 1,
+   "description": "Toplam çıkış yapılan adet",
+   "fieldname": "total_output_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total Output Quantity",
+   "read_only": 1
   },
   {
    "fieldname": "amended_from",
@@ -31,17 +74,11 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
-  },
-  {
-   "fieldname": "items",
-   "fieldtype": "Table",
-   "label": "Items",
-   "options": "Profile Exit Item"
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2025-06-24 14:29:34.426536",
+ "modified": "2025-06-24 14:32:04.122796",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Profile Exit",

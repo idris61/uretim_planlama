@@ -3930,11 +3930,17 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 		return;
 	}
 	
-	// Bootstrap collapse event'lerini temizle ve yeniden tanımla
-	collapseElement.off('shown.bs.collapse hidden.bs.collapse');
+	// Accordion durumunu kontrol et
+	const isCollapsed = collapseElement.hasClass('show');
 	
-	collapseElement.on('shown.bs.collapse', function() {
-		console.log('Accordion açıldı:', accordionId);
+	if (isCollapsed) {
+		// Accordion açıksa kapat
+		collapseElement.removeClass('show');
+		icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+		operationsContainer.hide();
+	} else {
+		// Accordion kapalıysa aç
+		collapseElement.addClass('show');
 		icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
 		
 		// Operasyonlar container'ını göster
@@ -3942,11 +3948,11 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 		
 		// Operasyonları sadece bir kez yükle
 		if (!operationsContainer.data('loaded')) {
-		operationsContainer.html('<div class="text-center p-2"><small>Operasyonlar yükleniyor...</small></div>');
-		
-		frappe.call({
-			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
-			args: { work_order: woName },
+			operationsContainer.html('<div class="text-center p-2"><small>Operasyonlar yükleniyor...</small></div>');
+			
+			frappe.call({
+				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
+				args: { work_order: woName },
 				timeout: 30000,
 			callback: function(r) {
 				if (r.message && r.message.length > 0) {
@@ -4017,21 +4023,6 @@ window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
 			}
 			});
 		}
-	});
-	
-	collapseElement.on('hidden.bs.collapse', function() {
-		console.log('Accordion kapandı:', accordionId);
-		icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-		// Operasyonlar container'ını gizle
-		operationsContainer.hide();
-	});
-	
-	// Toggle işlemi
-	const isOpen = collapseElement.hasClass('show');
-	if (isOpen) {
-		collapseElement.collapse('hide');
-	} else {
-		collapseElement.collapse('show');
 	}
 };
 
