@@ -8,12 +8,6 @@
   "length",
   "qty",
   "total_length",
-  "scrap_reason",
-  "scrap_category",
-  "warehouse",
-  "cost_center",
-  "reference_type",
-  "reference_doc",
   "description",
   "entry_date",
   "amended_from"
@@ -50,46 +44,6 @@
    "label": "Total Length (m)",
    "read_only": 1,
    "precision": 3
-  },
-  {
-   "fieldname": "scrap_reason",
-   "fieldtype": "Select",
-   "label": "Scrap Reason",
-   "options": "Production Defect\nCutting Error\nQuality Issue\nTransport Damage\nStorage Damage\nOther",
-   "reqd": 1,
-   "default": "Production Defect"
-  },
-  {
-   "fieldname": "scrap_category",
-   "fieldtype": "Select",
-   "label": "Scrap Category",
-   "options": "Minor\nMajor\nCritical",
-   "default": "Minor"
-  },
-  {
-   "fieldname": "warehouse",
-   "fieldtype": "Link",
-   "label": "Warehouse",
-   "options": "Warehouse"
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center"
-  },
-  {
-   "fieldname": "reference_type",
-   "fieldtype": "Select",
-   "label": "Reference Type",
-   "options": "Production Order\nWork Order\nSales Order\nMaterial Request\nManual Entry",
-   "default": "Manual Entry"
-  },
-  {
-   "fieldname": "reference_doc",
-   "fieldtype": "Dynamic Link",
-   "label": "Reference Document",
-   "options": "reference_type"
   },
   {
    "fieldname": "description",

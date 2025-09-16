@@ -102,8 +102,8 @@ doc_events = {
 			"uretim_planlama.sales_order_hooks.raw_materials.delete_long_term_reserve_usage_on_cancel",
 		],
 		"before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit",
-		"before_save": "uretim_planlama.custom_hooks.sales_order.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.sales_order.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	
 	"Profile Stock Ledger": {
@@ -118,36 +118,37 @@ doc_events = {
 	"Work Order": {
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
 	},
-	"Purchase Receipt": {
-		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit"
-	},
 	"Delivery Note": {
-		"before_save": "uretim_planlama.custom_hooks.delivery_note.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.delivery_note.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate",
+		"on_submit": "uretim_planlama.delivery_note_events.on_submit",
+		"on_cancel": "uretim_planlama.delivery_note_events.on_cancel"
 	},
 	"Purchase Order": {
-		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
+	# Purchase Receipt: tüm eventleri TEK blokta topla (çift tanımı engelle)
 	"Purchase Receipt": {
-		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit",
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Stock Entry": {
-		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Sales Invoice": {
-		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Purchase Invoice": {
-		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Material Request": {
-		"before_save": "uretim_planlama.custom_hooks.common.profile_quantity_validation.before_save",
-		"validate": "uretim_planlama.custom_hooks.common.profile_quantity_validation.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 
 }
@@ -164,4 +165,10 @@ modules = {
 	}
 }
 
+
+scheduler_events = {
+	"daily": [
+		"uretim_planlama.uretim_planlama.api.reorder.profile_reorder_sweep",
+	]
+}
 

@@ -4,6 +4,10 @@
 import frappe
 from frappe.model.document import Document
 from uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger import update_profile_stock, get_profile_stock
+from uretim_planlama.uretim_planlama.utils import (
+    parse_length, validate_profile_item, calculate_total_length, 
+    validate_warehouse, log_profile_operation, show_operation_result
+)
 from frappe import _
 
 class ProfileExit(Document):
@@ -11,7 +15,7 @@ class ProfileExit(Document):
 		"""Profil çıkışı doğrulama"""
 		self.validate_items()
 		self.calculate_totals()
-		self.validate_warehouse()
+		self.warehouse = validate_warehouse(self.warehouse)
 		self.check_stock_availability()
 	
 	def validate_items(self):
@@ -30,10 +34,7 @@ class ProfileExit(Document):
 				frappe.throw(_("Satır {0}: Geçersiz çıkış adedi. Minimum 1 olmalıdır.").format(item.idx), title=_("Doğrulama Hatası"))
 			
 			# Ürünün profil olup olmadığını kontrol et
-			item_group = frappe.db.get_value("Item", item.item_code, "item_group")
-			if item_group not in ['PVC', 'Camlar']:
-				frappe.throw(_("Satır {0}: {1} ürünü profil değildir. Sadece PVC ve Camlar grubundaki ürünler çıkış yapılabilir.").format(
-					item.idx, item.item_code), title=_("Doğrulama Hatası"))
+			validate_profile_item(item.item_code, item.idx)
 	
 	def calculate_totals(self):
 		"""Toplam uzunlukları hesapla"""
@@ -42,51 +43,41 @@ class ProfileExit(Document):
 		
 		for item in self.items:
 			try:
-				# Boy değerini float'a çevir
-				length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
-				item.total_length = length_float * item.output_quantity
+				# Boy uzunluğunu güvenle hesapla: önce total_length/qty, yoksa field'dan parse
+				if getattr(item, "total_length", 0) and getattr(item, "output_quantity", 0):
+					length_float = float(item.total_length) / float(item.output_quantity)
+				else:
+					length_float = parse_length(item.length)
+				item.total_length = calculate_total_length(length_float, item.output_quantity)
 				total_length += item.total_length
 				total_qty += item.output_quantity
-			except ValueError:
-				frappe.throw(_("Satır {0}: Geçersiz boy formatı: {1}").format(item.idx, item.length), title=_("Doğrulama Hatası"))
+			except Exception as e:
+				frappe.throw(_("Satır {0}: {1}").format(item.idx, str(e)), title=_("Hesaplama Hatası"))
 		
 		# Ana dokümana toplam değerleri ekle
 		self.total_output_length = total_length
 		self.total_output_qty = total_qty
 	
-	def validate_warehouse(self):
-		"""Depo bilgisini doğrula"""
-		if not self.warehouse:
-			# Varsayılan depo ayarla
-			default_warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
-			if default_warehouse:
-				self.warehouse = default_warehouse
-			else:
-				frappe.throw(_("Depo bilgisi belirtilmelidir."), title=_("Doğrulama Hatası"))
-	
 	def check_stock_availability(self):
 		"""Stok yeterliliğini kontrol et"""
 		for item in self.items:
 			try:
-				# Boy değerini float'a çevir
-				length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
+				# Boy uzunluğunu güvenle hesapla: önce total_length/qty, yoksa field'dan parse
+				if getattr(item, "total_length", 0) and getattr(item, "output_quantity", 0):
+					length_float = float(item.total_length) / float(item.output_quantity)
+				else:
+					length_float = parse_length(item.length)
 				
 				# Mevcut stok kontrolü
-				available_stock = get_profile_stock(item.item_code)
-				available_qty = 0
-				
-				for stock in available_stock:
-					if stock.length == length_float:
-						available_qty = stock.qty
-						break
+				available_qty = get_profile_stock(item.item_code, length_float)
 				
 				if available_qty < item.output_quantity:
 					frappe.throw(_("Satır {0}: Yetersiz stok! {1} {2}m profilden {3} adet çıkış yapılamaz. Mevcut stok: {4} adet").format(
 						item.idx, item.item_code, length_float, item.output_quantity, available_qty), 
 						title=_("Yetersiz Stok Hatası"))
 						
-			except ValueError:
-				frappe.throw(_("Satır {0}: Geçersiz boy formatı: {1}").format(item.idx, item.length), title=_("Doğrulama Hatası"))
+			except Exception as e:
+				frappe.throw(_("Satır {0}: {1}").format(item.idx, str(e)), title=_("Stok Kontrol Hatası"))
 	
 	def before_save(self):
 		"""Kaydetmeden önce işlemler"""
@@ -100,45 +91,29 @@ class ProfileExit(Document):
 			
 			for item in self.items:
 				try:
-					# Boy değerini float'a çevir
-					length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
+					# Boy uzunluğunu güvenle hesapla: önce total_length/qty, yoksa field'dan parse
+					if getattr(item, "total_length", 0) and getattr(item, "output_quantity", 0):
+						length_float = float(item.total_length) / float(item.output_quantity)
+					else:
+						length_float = parse_length(item.length)
 					
 					# Stok güncelle
 					update_profile_stock(
 						profile_type=item.item_code,
 						length=length_float,
 						qty=item.output_quantity,
-						action="out"
+						action="subtract"
 					)
 					
 					success_count += 1
-					
-					# Log kaydı
-					frappe.logger().info(f"Profile Exit: {item.item_code} {length_float}m {item.output_quantity}adet stok çıkışı yapıldı")
+					log_profile_operation("Exit", item.item_code, length_float, item.output_quantity, "out")
 					
 				except Exception as e:
 					error_count += 1
 					frappe.log_error(f"Profile Exit stok güncelleme hatası: {str(e)}", "Profile Exit Stock Error")
 			
 			# Sonuç bildirimi
-			if error_count == 0:
-				frappe.msgprint(
-					f"✅ Profil stokları başarıyla güncellendi!\n"
-					f"📊 Toplam {success_count} satır işlendi\n"
-					f"📏 Toplam uzunluk: {self.total_output_length:.3f} m\n"
-					f"📦 Toplam adet: {self.total_output_qty}",
-					title=_("Stok Güncelleme Başarılı"),
-					indicator="green"
-				)
-			else:
-				frappe.msgprint(
-					f"⚠️ Profil stok güncellemesi kısmen başarısız!\n"
-					f"✅ Başarılı: {success_count} satır\n"
-					f"❌ Hatalı: {error_count} satır\n"
-					f"📋 Hata detayları için logları kontrol edin",
-					title=_("Stok Güncelleme Kısmen Başarısız"),
-					indicator="orange"
-				)
+			show_operation_result(success_count, error_count, self.total_output_length, self.total_output_qty, "Exit")
 				
 		except Exception as e:
 			frappe.log_error(f"Profile Exit on_submit hatası: {str(e)}", "Profile Exit Submit Error")
@@ -152,21 +127,18 @@ class ProfileExit(Document):
 			
 			for item in self.items:
 				try:
-					# Boy değerini float'a çevir
-					length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
+					length_float = parse_length(item.length)
 					
 					# Stok güncelle (geri ekle)
 					update_profile_stock(
 						profile_type=item.item_code,
 						length=length_float,
 						qty=item.output_quantity,
-						action="in"
+						action="add"
 					)
 					
 					success_count += 1
-					
-					# Log kaydı
-					frappe.logger().info(f"Profile Exit Cancel: {item.item_code} {length_float}m {item.output_quantity}adet stok geri eklendi")
+					log_profile_operation("Exit Cancel", item.item_code, length_float, item.output_quantity, "in")
 					
 				except Exception as e:
 					error_count += 1

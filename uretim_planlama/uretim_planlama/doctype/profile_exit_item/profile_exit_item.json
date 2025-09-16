@@ -14,9 +14,6 @@
   "opt_no",
   "reference_type",
   "reference_doc",
-  "warehouse",
-  "cost_center",
-  "production_order",
   "work_order"
  ],
  "fields": [
@@ -68,7 +65,7 @@
    "fieldname": "reference_type",
    "fieldtype": "Select",
    "label": "Reference Type",
-   "options": "Production Order\nWork Order\nSales Order\nMaterial Request\nManual Exit",
+   "options": "Work Order\nSales Order\nMaterial Request\nManual Exit",
    "default": "Manual Exit"
   },
   {
@@ -76,24 +73,6 @@
    "fieldtype": "Dynamic Link",
    "label": "Reference Document",
    "options": "reference_type"
-  },
-  {
-   "fieldname": "warehouse",
-   "fieldtype": "Link",
-   "label": "Warehouse",
-   "options": "Warehouse"
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center"
-  },
-  {
-   "fieldname": "production_order",
-   "fieldtype": "Link",
-   "label": "Production Order",
-   "options": "Production Order"
   },
   {
    "fieldname": "work_order",

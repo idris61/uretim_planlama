@@ -200,8 +200,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             args: args,
             callback: function(r) {
                 const data = r.message || {};
-                // Debug: API cevabını konsola yaz
-                console.log('Profil Stok Paneli API cevabı:', data);
+                // Debug log kaldırıldı
                 // Her tabloya özel veri
                 render_erpnext_stok_tablo(data.depo_stoklari || []);
                 render_boy_bazinda_tablo(data.boy_bazinda_stok || []);

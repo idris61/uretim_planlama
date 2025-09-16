@@ -4,6 +4,11 @@
 import frappe
 from frappe.model.document import Document
 from uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger import update_profile_stock
+from uretim_planlama.uretim_planlama.utils import (
+    parse_length, validate_profile_item, calculate_total_length, 
+    validate_warehouse, log_profile_operation, show_operation_result,
+    parse_and_format_length
+)
 from frappe import _
 
 class ProfileEntry(Document):
@@ -28,17 +33,18 @@ class ProfileEntry(Document):
 			if not item.received_quantity or item.received_quantity < 1:
 				frappe.throw(_("Satır {0}: Geçersiz adet bilgisi. Minimum 1 olmalıdır.").format(item.idx), title=_("Doğrulama Hatası"))
 			
-			# Ürünün profil olup olmadığını kontrol et
-			item_group = frappe.db.get_value("Item", item.item_code, "item_group")
-			allowed_groups = [
-				'PVC', 'Camlar', 
-				'Pvc Hat1 Ana Profiller', 'Pvc Hat2 Ana Profiller', 'Destek Sacı, Profiller',
-				'Pvc Destek Sacları', 'Pvc Hat1 Destek Sacları', 'Pvc Hat1 Yardımcı Profiller',
-				'Pvc Hat2 Yardımcı Profiller', 'Yardımcı Profiller'
-			]
-			if item_group not in allowed_groups:
-				frappe.throw(_("Satır {0}: {1} ürünü profil değildir. Sadece profil gruplarındaki ürünler eklenebilir.").format(
-					item.idx, item.item_code), title=_("Doğrulama Hatası"))
+			# Ürünün profil olup olmadığını kontrol et (yalnızca manuel girişlerde)
+			if not getattr(self.flags, 'bypass_group_check', False):
+				item_group = frappe.db.get_value("Item", item.item_code, "item_group")
+				allowed_groups = [
+					'PVC', 'Camlar', 
+					'Pvc Hat1 Ana Profiller', 'Pvc Hat2 Ana Profiller', 'Destek Sacı, Profiller',
+					'Pvc Destek Sacları', 'Pvc Hat1 Destek Sacları', 'Pvc Hat1 Yardımcı Profiller',
+					'Pvc Hat2 Yardımcı Profiller', 'Yardımcı Profiller'
+				]
+				if item_group not in allowed_groups:
+					frappe.throw(_("Satır {0}: {1} ürünü profil değildir. Sadece profil gruplarındaki ürünler eklenebilir.").format(
+						item.idx, item.item_code), title=_("Doğrulama Hatası"))
 	
 	def calculate_totals(self):
 		"""Toplam uzunlukları hesapla"""
@@ -46,14 +52,12 @@ class ProfileEntry(Document):
 		total_qty = 0
 		
 		for item in self.items:
-			try:
-				# Boy değerini float'a çevir
-				length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
-				item.total_length = length_float * item.received_quantity
-				total_length += item.total_length
-				total_qty += item.received_quantity
-			except ValueError:
-				frappe.throw(_("Satır {0}: Geçersiz boy formatı: {1}").format(item.idx, item.length), title=_("Doğrulama Hatası"))
+			# Boy değerini float'a çevir ve standart formata getir
+			length_float, fixed_str = parse_and_format_length(item.length, decimals=1)
+			item.length = fixed_str
+			item.total_length = length_float * item.received_quantity
+			total_length += item.total_length
+			total_qty += item.received_quantity
 		
 		# Ana dokümana toplam değerleri ekle
 		self.total_received_length = total_length
@@ -81,15 +85,16 @@ class ProfileEntry(Document):
 			
 			for item in self.items:
 				try:
-					# Boy değerini float'a çevir
-					length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
+					# Boy değerini float'a çevir ve standart formata getir
+					length_float, fixed_str = parse_and_format_length(item.length, decimals=1)
+					item.length = fixed_str
 					
 					# Stok güncelle
 					update_profile_stock(
 						profile_type=item.item_code,
 						length=length_float,
 						qty=item.received_quantity,
-						action="in"
+						action="add"
 					)
 					
 					success_count += 1
@@ -133,15 +138,16 @@ class ProfileEntry(Document):
 			
 			for item in self.items:
 				try:
-					# Boy değerini float'a çevir
-					length_float = float(str(item.length).replace(' m', '').replace(',', '.'))
+					# Boy değerini float'a çevir ve standart formata getir
+					length_float, fixed_str = parse_and_format_length(item.length, decimals=1)
+					item.length = fixed_str
 					
 					# Stok güncelle (geri al)
 					update_profile_stock(
 						profile_type=item.item_code,
 						length=length_float,
 						qty=item.received_quantity,
-						action="out"
+						action="subtract"
 					)
 					
 					success_count += 1
@@ -151,7 +157,7 @@ class ProfileEntry(Document):
 					
 				except Exception as e:
 					error_count += 1
-					frappe.log_error(f"Profile Entry cancel stok güncelleme hatası: {str(e)}", "Profile Entry Cancel Stock Error")
+					frappe.log_error(f"Profile Entry cancel stok hatası: {str(e)[:100]}", "Profile Entry Cancel Error")
 			
 			# Sonuç bildirimi
 			if error_count == 0:
@@ -171,5 +177,5 @@ class ProfileEntry(Document):
 				)
 				
 		except Exception as e:
-			frappe.log_error(f"Profile Entry on_cancel hatası: {str(e)}", "Profile Entry Cancel Error")
-			frappe.throw(f"Profil stok geri alma işlemi sırasında hata oluştu: {str(e)}", title=_("Sistem Hatası"))
+			frappe.log_error(f"Profile Entry on_cancel hatası: {str(e)[:100]}", "Profile Entry Cancel Error")
+			frappe.throw(f"Profil stok geri alma hatası: {str(e)[:100]}", title=_("Sistem Hatası"))

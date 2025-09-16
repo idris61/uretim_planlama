@@ -181,7 +181,6 @@ function showLongTermReserveModal(frm, recommendations) {
                             <tbody>`;
 	recommendations.forEach((item, index) => {
 		const maxKullanilabilir = Number(item.kullanilabilir_uzun_vadeli);
-		console.log("Max Kullanilabili:", maxKullanilabilir);
 		// Eğer usage kaydı varsa input'u pasif yap
 		const isUsed = Number(item.kullanilan_rezerv) > 0;
 		modalHtml += `

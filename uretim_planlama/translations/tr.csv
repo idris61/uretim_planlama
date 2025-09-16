@@ -6,6 +6,12 @@
 "Scrap Profile Entry","Parça Profil Girişi"
 "Rezerved Raw Materials","Rezerve Edilmiş Hammaddeler"
 
+"Profile Reorder Rule","Profil Yeniden Sipariş Kuralı"
+"Minimum Quantity","Asgari Miktar"
+"Reorder Quantity","Yeniden Sipariş Miktarı"
+"Default Supplier","Varsayılan Tedarikçi"
+"Last Request On","Son Talep Tarihi"
+
 "Profile Code","Profil Kodu"
 "Length (m)","Boy (m)"
 "Quantity","Adet"

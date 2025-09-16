@@ -1,0 +1,37 @@
+{
+  "actions": [],
+  "allow_import": 1,
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "profile_type",
+    "length",
+    "min_qty",
+    "reorder_qty",
+    "default_supplier",
+    "active",
+    "last_request_on"
+  ],
+  "fields": [
+    {"fieldname": "profile_type", "fieldtype": "Link", "in_list_view": 1, "label": "Profile Type", "options": "Item", "reqd": 1},
+    {"fieldname": "length", "fieldtype": "Link", "in_list_view": 1, "label": "Length (m)", "options": "Boy", "reqd": 1},
+    {"fieldname": "min_qty", "fieldtype": "Int", "in_list_view": 1, "label": "Minimum Quantity", "reqd": 1},
+    {"fieldname": "reorder_qty", "fieldtype": "Int", "label": "Reorder Quantity", "reqd": 1},
+    {"fieldname": "default_supplier", "fieldtype": "Link", "label": "Default Supplier", "options": "Supplier"},
+    {"default": "1", "fieldname": "active", "fieldtype": "Check", "in_list_view": 1, "label": "Active"},
+    {"fieldname": "last_request_on", "fieldtype": "Datetime", "label": "Last Request On", "read_only": 1}
+  ],
+  "links": [],
+  "module": "Uretim Planlama",
+  "name": "Profile Reorder Rule",
+  "permissions": [
+    {"create": 1, "delete": 1, "read": 1, "write": 1, "role": "System Manager"},
+    {"read": 1, "write": 1, "role": "Manufacturing Manager"},
+    {"read": 1, "role": "Manufacturing User"}
+  ],
+  "row_format": "Dynamic",
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "translated_doctype": 1
+}

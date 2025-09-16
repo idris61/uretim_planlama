@@ -1,16 +1,16 @@
 # Copyright (c) 2025, idris and contributors
 # For license information, please see license.txt
 
-# import frappe
 from frappe.model.document import Document
+from uretim_planlama.uretim_planlama.utils import parse_length, calculate_total_length
 
 
 class ProfileExitItem(Document):
     def validate(self):
-        # length alanı string ise float'a çevir
+        """Satır doğrulama ve hesaplama"""
         try:
-            length = float(str(self.length).replace(' m', '').replace(',', '.'))
+            length = parse_length(self.length)
+            qty = self.output_quantity or 0
+            self.total_length = calculate_total_length(length, qty)
         except Exception:
-            length = 0
-        qty = self.output_quantity or 0
-        self.total_length = round(length * qty, 3)
+            self.total_length = 0

@@ -68,6 +68,10 @@
   {
    "read": 1,
    "role": "Manufacturing User"
+  },
+  {
+   "read": 1,
+   "role": "All"
   }
  ],
  "row_format": "Dynamic",

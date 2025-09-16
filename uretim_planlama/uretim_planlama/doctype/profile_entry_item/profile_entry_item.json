@@ -13,9 +13,7 @@
   "total_length",
   "purchase_receipt",
   "reference_type",
-  "reference_doc",
-  "warehouse",
-  "cost_center"
+  "reference_doc"
  ],
  "fields": [
   {
@@ -75,18 +73,6 @@
    "fieldtype": "Dynamic Link",
    "label": "Reference Document",
    "options": "reference_type"
-  },
-  {
-   "fieldname": "warehouse",
-   "fieldtype": "Link",
-   "label": "Warehouse",
-   "options": "Warehouse"
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center"
   }
  ],
  "grid_page_length": 50,

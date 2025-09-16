@@ -1,5 +1,5 @@
 import frappe
-from .utils import normalize_profile_length, normalize_profile_quantity
+from uretim_planlama.uretim_planlama.utils import normalize_profile_length, normalize_profile_quantity, get_or_create_boy_record
 
 def on_submit(doc, method=None):
     """Purchase Receipt on_submit event handler for profile items"""
@@ -20,24 +20,10 @@ def on_submit(doc, method=None):
         if not length or not qty or float(qty) < 1:
             continue
             
-        # Boy kaydını bul veya oluştur
-        try:
-            # Boy kaydını lenght field'ına göre ara
-            boy_records = frappe.get_list("Boy", filters={"lenght": length.replace('.', ',')}, fields=["name"])
-            
-            if boy_records:
-                boy_name = boy_records[0].name
-            else:
-                # Yeni Boy kaydı oluştur (virgüllü olarak)
-                boy_doc = frappe.get_doc({
-                    "doctype": "Boy",
-                    "lenght": length.replace('.', ',')
-                })
-                boy_doc.insert()
-                boy_name = boy_doc.name
-                
-        except Exception as e:
-            frappe.log_error(f"Boy kaydı oluşturulamadı: {str(e)}", "Purchase Receipt Boy Error")
+        # Boy kaydını bul veya oluştur (duplicate önleyici)
+        boy_name = get_or_create_boy_record(length)
+        if not boy_name:
+            frappe.log_error(f"Boy kaydı bulunamadı/oluşturulamadı: {length}", "Purchase Receipt Boy Error")
             continue
             
         try:
@@ -56,6 +42,9 @@ def on_submit(doc, method=None):
                     "purchase_receipt": doc.name
                 }]
             })
+
+            # PR kaynaklı olduğu için grup kontrolünü atla
+            profile_entry.flags.bypass_group_check = True
             
             profile_entry.insert()
             profile_entry.submit()

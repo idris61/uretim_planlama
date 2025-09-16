@@ -2,7 +2,7 @@ import frappe
 
 
 def on_cancel(doc, method):
-	print("\n\n-- Uretim Plani - Production Plan - On Cancel-- (START)\n")
+	# Uretim Plani - Production Plan - On Cancel (START)
 
 	existing_opti_name = frappe.db.exists("Opti", doc.custom_opti_no)
 	if not existing_opti_name:
@@ -10,4 +10,4 @@ def on_cancel(doc, method):
 	else:
 		frappe.delete_doc("Opti", existing_opti_name)
 
-	print("\n-- Uretim Plani - Production Plan - On Cancel-- (END)\n")
+	# Uretim Plani - Production Plan - On Cancel (END)

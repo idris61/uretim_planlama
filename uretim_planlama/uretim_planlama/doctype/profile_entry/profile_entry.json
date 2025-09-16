@@ -6,8 +6,6 @@
  "field_order": [
   "date",
   "supplier",
-  "warehouse",
-  "cost_center",
   "items",
   "total_received_length",
   "total_received_qty",
@@ -30,20 +28,6 @@
    "in_list_view": 1,
    "label": "Supplier",
    "options": "Supplier"
-  },
-  {
-   "fieldname": "warehouse",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Warehouse",
-   "options": "Warehouse",
-   "reqd": 1
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center"
   },
   {
    "fieldname": "remarks",

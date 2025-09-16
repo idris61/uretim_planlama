@@ -42,7 +42,7 @@ class AccessoryDeliveryPackage(Document):
 		except frappe.DoesNotExistError:
 			frappe.throw(frappe._("Opti [{0}] not found").format(self.opti))
 		except Exception as e:
-			print(f"An error occurred: {e}")
+			frappe.log_error(f"Opti document error: {str(e)}", "Accessory Delivery Package Error")
 			frappe.throw(frappe._("An error occured"))
 
 		return opti_doc
@@ -60,7 +60,7 @@ class AccessoryDeliveryPackage(Document):
 				)
 			)
 		except Exception as e:
-			print(f"An error occurred: {e}")
+			frappe.log_error(f"Sales Order Item error: {str(e)}", "Accessory Delivery Package Error")
 			frappe.throw(frappe._("An error occured"))
 
 		return so_item_doc

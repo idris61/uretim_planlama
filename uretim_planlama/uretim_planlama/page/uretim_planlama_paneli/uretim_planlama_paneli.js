@@ -1,3 +1,98 @@
+// Modal yönetimi fonksiyonları - Enhanced
+const modalManager = {
+    activeModals: new Set(),
+    modalCache: new Map(),
+    CACHE_DURATION: 60000,
+
+    closeAllModals() {
+        // Tüm modal'ları hızlıca kapat ve DOM'dan kaldır
+        $('.modal').each(function() {
+            const modal = $(this);
+            modal.modal('hide');
+            // Modal tamamen kapandıktan sonra DOM'dan kaldır
+            modal.on('hidden.bs.modal', function() {
+                modal.remove();
+            });
+        });
+        this.activeModals.clear();
+    },
+
+    closeOtherModals(currentModalId) {
+        // Diğer modal'ları hızlıca kapat ve DOM'dan kaldır
+        $('.modal').not(`#${currentModalId}`).each(function() {
+            const otherModal = $(this);
+            otherModal.modal('hide');
+            // Modal tamamen kapandıktan sonra DOM'dan kaldır
+            otherModal.on('hidden.bs.modal', function() {
+                otherModal.remove();
+                modalManager.activeModals.delete(otherModal.attr('id'));
+            });
+        });
+    },
+
+    createModal(modalId, title, size = 'modal-lg') {
+        this.closeOtherModals(modalId);
+        
+        const modalHtml = `
+            <div class="modal" id="${modalId}" tabindex="-1" data-backdrop="static" data-keyboard="false">
+                <div class="modal-dialog ${size}">
+                    <div class="modal-content" style="background: white; border: none;">
+                        <div class="modal-header" style="background: #dc3545; color: white; border: none;">
+                            <h5 class="modal-title">
+                                <i class="fa fa-spinner fa-spin mr-2"></i>${title}
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body" style="max-height: 70vh; overflow-y: scroll; background: white; color: #333;">
+                            <div id="modal-content-${modalId}" class="modal-content-inner">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+                                    <p class="mt-2 text-muted">Yükleniyor...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        try {
+            $('body').append(modalHtml);
+            const modal = $(`#${modalId}`);
+            
+            if (!modal.length) {
+                return null;
+            }
+            
+            modal.on('hidden.bs.modal', function() {
+                $(this).remove();
+                modalManager.activeModals.delete(modalId);
+            });
+            
+            this.activeModals.add(modalId);
+            // Modal'ı hızlıca göster
+            modal.modal({
+                show: true,
+                backdrop: 'static',
+                keyboard: false
+            });
+            
+            return modal;
+        } catch (error) {
+            console.error('Modal oluşturma hatası:', error);
+            return null;
+        }
+    },
+
+    clearCache() {
+        this.modalCache.clear();
+        this.activeModals.clear();
+        this.closeAllModals();
+    }
+};
+
 // Utility functions - Global scope'ta
 const utils = {
 	// Table sorting utilities
@@ -124,6 +219,8 @@ const utils = {
         return isNaN(parsed) ? '0' : parsed.toFixed(decimals);
     },
 
+    // (removed duplicate older delegate implementation)
+
     // getStatusBadge utility kaldırıldı - kullanılmıyor
 
     // Row class utility for modern coloring - Optimized
@@ -232,13 +329,11 @@ const uiComponents = {
     // Loading state management - Kaldırıldı
     setLoading: (isLoading) => {
         // setLoading fonksiyonu kaldırıldı - kontroller alanı artık yok
-        console.log('setLoading kaldırıldı - loading state yönetilmeyecek');
     },
 
     // Update summary cards - Kaldırıldı
     updateSummary: (data) => {
         // updateSummary fonksiyonu kaldırıldı - özet kartlar artık kullanılmıyor
-        console.log('uiComponents.updateSummary kaldırıldı');
     }
 };
 
@@ -275,107 +370,12 @@ const state = {
     // Update methods - Sadece kullanılanlar
     setPlannedData: (data) => {
         // Bu fonksiyon kullanılmıyor ama referans ediliyor
-        console.log('state.setPlannedData çağrıldı:', data);
+        
     },
     
     setUnplannedData: (data) => {
         // Bu fonksiyon kullanılmıyor ama referans ediliyor
-        console.log('state.setUnplannedData çağrıldı:', data);
-    }
-};
-
-// Modal yönetimi fonksiyonları - Enhanced
-const modalManager = {
-    activeModals: new Set(),
-    modalCache: new Map(),
-    CACHE_DURATION: 60000,
-
-    closeAllModals() {
-        // Tüm modal'ları hızlıca kapat ve DOM'dan kaldır
-        $('.modal').each(function() {
-            const modal = $(this);
-            modal.modal('hide');
-            // Modal tamamen kapandıktan sonra DOM'dan kaldır
-            modal.on('hidden.bs.modal', function() {
-                modal.remove();
-            });
-        });
-        this.activeModals.clear();
-    },
-
-    closeOtherModals(currentModalId) {
-        // Diğer modal'ları hızlıca kapat ve DOM'dan kaldır
-        $('.modal').not(`#${currentModalId}`).each(function() {
-            const otherModal = $(this);
-            otherModal.modal('hide');
-            // Modal tamamen kapandıktan sonra DOM'dan kaldır
-            otherModal.on('hidden.bs.modal', function() {
-                otherModal.remove();
-                modalManager.activeModals.delete(otherModal.attr('id'));
-            });
-        });
-    },
-
-    createModal(modalId, title, size = 'modal-lg') {
-        this.closeOtherModals(modalId);
         
-        const modalHtml = `
-            <div class="modal" id="${modalId}" tabindex="-1" data-backdrop="static" data-keyboard="false">
-                <div class="modal-dialog ${size}">
-                    <div class="modal-content" style="background: white; border: none;">
-                        <div class="modal-header" style="background: #dc3545; color: white; border: none;">
-                            <h5 class="modal-title">
-                                <i class="fa fa-spinner fa-spin mr-2"></i>${title}
-                            </h5>
-                            <button type="button" class="close text-white" data-dismiss="modal">
-                                <span>&times;</span>
-                            </button>
-                        </div>
-                        <div class="modal-body" style="max-height: 70vh; overflow-y: scroll; background: white; color: #333;">
-                            <div id="modal-content-${modalId}" class="modal-content-inner">
-                                <div class="text-center p-4">
-                                    <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
-                                    <p class="mt-2 text-muted">Yükleniyor...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        try {
-            $('body').append(modalHtml);
-            const modal = $(`#${modalId}`);
-            
-            if (!modal.length) {
-                return null;
-            }
-            
-            modal.on('hidden.bs.modal', function() {
-                $(this).remove();
-                modalManager.activeModals.delete(modalId);
-            });
-            
-            this.activeModals.add(modalId);
-            // Modal'ı hızlıca göster
-            modal.modal({
-                show: true,
-                backdrop: 'static',
-                keyboard: false
-            });
-            
-            return modal;
-        } catch (error) {
-            errorHandler.log(error, 'modalManager.createModal');
-            return null;
-        }
-    },
-
-    clearCache() {
-        this.modalCache.clear();
-        this.activeModals.clear();
-        this.closeAllModals();
     }
 };
 
@@ -467,7 +467,7 @@ class UretimPlanlamaPaneli {
 					// Local storage'da açık durumu kaydet
 					localStorage.setItem('sidebar_collapsed', '0');
 				} catch (e) {
-					console.log('Sidebar toggle hatası:', e);
+					// ignore
 				}
 			}
 		}, 500);
@@ -827,6 +827,7 @@ class UretimPlanlamaPaneli {
 				flex: 1;
 				min-width: 0;
 			}
+			.filter-input-item.button-item { flex: 0 0 auto; }
 
 			.filter-input-item input,
 			.filter-input-item select {
@@ -851,23 +852,7 @@ class UretimPlanlamaPaneli {
 				display: none !important;
 			}
 			
-			/* Container ve row düzenlemesi */
-			.container-fluid {
-				width: 100% !important;
-				max-width: 100% !important;
-				padding: 0 !important;
-				margin: 0 !important;
-			}
-			
-			.row {
-				margin: 0 !important;
-				width: 100% !important;
-			}
-			
-			.col-12, .col-md-4, .col-md-6 {
-				padding: 5px !important;
-				margin: 0 !important;
-			}
+			/* Container ve row düzenlemesi - yinelenen kurallar kaldırıldı */
 			
 			/* Responsive */
 			@media (max-width: 768px) {
@@ -956,6 +941,12 @@ class UretimPlanlamaPaneli {
 									</select>
 								</div>
 								<div class="filter-input-item">
+									<input id="planlanan-from-date" class="form-control" type="text" placeholder="Başlangıç Tarihi">
+								</div>
+								<div class="filter-input-item">
+									<input id="planlanan-to-date" class="form-control" type="text" placeholder="Bitiş Tarihi">
+								</div>
+								<div class="filter-input-item button-item">
 									<button class="btn btn-danger" id="planlanan-clear-btn">
 										× TEMİZLE
 									</button>
@@ -965,7 +956,7 @@ class UretimPlanlamaPaneli {
 					</div>
 					
 					<div class="table-container">
-						<table class="table table-hover mb-0" style="font-size: 0.8rem;">
+						<table id="planned-table" class="table table-hover mb-0" style="font-size: 0.8rem;">
 							<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem;">
 								<tr>
 									<th style="padding: 4px 2px;" data-column="hafta">Hafta</th>
@@ -978,7 +969,7 @@ class UretimPlanlamaPaneli {
 									<th style="padding: 4px 2px;" data-column="pvc_qty">PVC</th>
 									<th style="padding: 4px 2px;" data-column="cam_qty">Cam</th>
 									<th style="padding: 4px 2px;" data-column="total_mtul">MTUL/m²</th>
-									<th style="padding: 4px 2px; cursor:pointer;" data-column="baslangic_tarihi" class="sortable-header">Başlangıç <i class="fa fa-sort text-white-50 ml-1"></i></th>
+									<th style="padding: 4px 2px; cursor:pointer;" data-column="planlanan_baslangic_tarihi" class="sortable-header">Başlangıç <i class="fa fa-sort text-white-50 ml-1"></i></th>
 									<th style="padding: 4px 2px;" data-column="seri">Seri</th>
 									<th style="padding: 4px 2px;" data-column="renk">Renk</th>
 								</tr>
@@ -1034,8 +1025,14 @@ class UretimPlanlamaPaneli {
 								<div class="filter-input-item">
 									<input id="planlanmamis-renk-filter" class="form-control" placeholder="Renk...">
 								</div>
-
 								<div class="filter-input-item">
+									<input id="planlanmamis-delivery-from-date" class="form-control" type="text" placeholder="Teslim Başlangıç">
+								</div>
+								<div class="filter-input-item">
+									<input id="planlanmamis-delivery-to-date" class="form-control" type="text" placeholder="Teslim Bitiş">
+								</div>
+
+								<div class="filter-input-item button-item">
 									<select id="planlanmamis-acil-filter" class="form-control">
 										<option value="">Acil Durum</option>
 										<option value="ACİL">ACİL</option>
@@ -1049,7 +1046,7 @@ class UretimPlanlamaPaneli {
 										<option value="Cam">Cam</option>
 									</select>
 								</div>
-								<div class="filter-input-item">
+								<div class="filter-input-item button-item">
 									<button class="btn btn-danger" id="planlanmamis-clear-btn">
 										<i class="fa fa-times"></i> TEMİZLE
 									</button>
@@ -1266,6 +1263,7 @@ class UretimPlanlamaPaneli {
 			case 'cutting':
 				const container = document.getElementById('cutting-matrix-table');
 				if (container) {
+					message = 'Kesim planı verileri yükleniyor...';
 					container.innerHTML = `
 						<div class="text-center p-4">
 							<div class="spinner-border text-primary" role="status">
@@ -1419,33 +1417,76 @@ class UretimPlanlamaPaneli {
 		// İş İstasyonu Doluluk Oranları Tablosunu Yükle
 	async loadWorkstationUtilization(selectedDate = null) {
 		try {
-			// Seçilen tarih veya bugünün tarihini al
+			// Basit hafta önbelleği
+			this._utilCache = this._utilCache || new Map();
+			// Seçilen tarih yoksa bugünün tarihini kullan
 			const targetDate = selectedDate || new Date();
 			const weekStart = this.getMonday(targetDate);
 			const weekEnd = new Date(weekStart);
-			weekEnd.setDate(weekStart.getDate() + 6);
+			weekEnd.setDate(weekStart.getDate() + 6); // Haftanın son günü (Pazartesi + 6)
 
-			const weekStartStr = weekStart.toISOString().split('T')[0];
-			const weekEndStr = weekEnd.toISOString().split('T')[0];
-
-			// API'den iş istasyonu doluluk verilerini al
-			const response = await frappe.call({
-				method: 'uretim_planlama.uretim_planlama.api.get_weekly_production_schedule',
-				args: {
-					week_start: weekStartStr,
-					week_end: weekEndStr
-				},
-				timeout: 60000
-			});
-
-			if (response.exc) {
-				console.error('Doluluk verileri yüklenirken hata:', response.exc);
+			// Timezone sorunu için local tarih formatını kullan
+			const weekStartStr = weekStart.getFullYear() + '-' + 
+				String(weekStart.getMonth() + 1).padStart(2, '0') + '-' + 
+				String(weekStart.getDate()).padStart(2, '0');
+			const weekEndStr = weekEnd.getFullYear() + '-' + 
+				String(weekEnd.getMonth() + 1).padStart(2, '0') + '-' + 
+				String(weekEnd.getDate()).padStart(2, '0');
+			
+			const cacheKey = weekStartStr + ':' + weekEndStr;
+			if (this._utilCache.has(cacheKey)) {
+				const cached = this._utilCache.get(cacheKey);
+				this.renderWorkstationUtilization(cached.workstations, cached.days, weekStart, weekEnd);
 				return;
 			}
 
-			const data = response.message;
-			if (data && data.workstations) {
-				this.renderWorkstationUtilization(data.workstations, data.days, weekStart, weekEnd);
+			// API'den iş istasyonu doluluk verilerini al (geri düşüş: geçmiş haftaları dene)
+			const fetchForRange = async (start, end) => {
+				return await frappe.call({
+					method: 'uretim_planlama.uretim_planlama.api.get_weekly_production_schedule',
+					args: { week_start: start, week_end: end },
+					timeout: 60000
+				});
+			};
+
+			let resp = await fetchForRange(weekStartStr, weekEndStr);
+			if (!resp.exc && resp.message && Array.isArray(resp.message.workstations) && resp.message.workstations.length > 0) {
+				this._utilCache.set(cacheKey, { workstations: resp.message.workstations, days: resp.message.days });
+				this.renderWorkstationUtilization(resp.message.workstations, resp.message.days, weekStart, weekEnd);
+			} else {
+				let found = false;
+				let probeStart = new Date(weekStart);
+				let probeEnd = new Date(weekEnd);
+				for (let i = 1; i <= 8; i++) { // en fazla 8 hafta geriye bak
+					probeStart.setDate(probeStart.getDate() - 7);
+					probeEnd.setDate(probeEnd.getDate() - 7);
+					const ps = probeStart.getFullYear() + '-' + String(probeStart.getMonth() + 1).padStart(2, '0') + '-' + String(probeStart.getDate()).padStart(2, '0');
+					const pe = probeEnd.getFullYear() + '-' + String(probeEnd.getMonth() + 1).padStart(2, '0') + '-' + String(probeEnd.getDate()).padStart(2, '0');
+					const probeKey = ps + ':' + pe;
+					if (this._utilCache.has(probeKey)) {
+						const cached = this._utilCache.get(probeKey);
+						this.renderWorkstationUtilization(cached.workstations, cached.days, probeStart, probeEnd);
+						found = true;
+						break;
+					}
+					resp = await fetchForRange(ps, pe);
+					if (!resp.exc && resp.message && Array.isArray(resp.message.workstations) && resp.message.workstations.length > 0) {
+						this._utilCache.set(probeKey, { workstations: resp.message.workstations, days: resp.message.days });
+						this.renderWorkstationUtilization(resp.message.workstations, resp.message.days, probeStart, probeEnd);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					const container = document.getElementById('workstation-utilization-table');
+					if (container) {
+						container.innerHTML = `
+							<div class="text-center text-muted p-4">
+								<i class="fa fa-info-circle mr-2"></i>İş istasyonu doluluk verisi bulunamadı
+							</div>
+						`;
+					}
+				}
 			}
 
 		} catch (error) {
@@ -1679,7 +1720,32 @@ class UretimPlanlamaPaneli {
 				});
 			}
 		});
-		
+		// Tarih filtreleri (placeholder için text/date toggle)
+		const setupAdaptiveDateInput = (id) => {
+			const el = document.getElementById(id);
+			if (!el) return;
+			const toDate = () => { el.type = 'date'; };
+			const toTextIfEmpty = () => { if (!el.value) el.type = 'text'; };
+			toTextIfEmpty();
+			el.addEventListener('focus', toDate);
+			el.addEventListener('blur', toTextIfEmpty);
+		};
+		['planlanan-from-date','planlanan-to-date','planlanmamis-delivery-from-date','planlanmamis-delivery-to-date'].forEach(setupAdaptiveDateInput);
+
+		// Planlanan tarih filtreleri değişince veriyi yenile
+		const planlananFrom = document.getElementById('planlanan-from-date');
+		const planlananTo = document.getElementById('planlanan-to-date');
+		if (planlananFrom) {
+			planlananFrom.addEventListener('change', () => {
+				this.debouncedLoadPlannedData();
+			});
+		}
+		if (planlananTo) {
+			planlananTo.addEventListener('change', () => {
+				this.debouncedLoadPlannedData();
+			});
+		}
+
 		// Planlanan table filter dropdown - Anında tepki için
 		const planlananTipFilter = document.getElementById('planlanan-tip-filter');
 		if (planlananTipFilter) {
@@ -1687,7 +1753,7 @@ class UretimPlanlamaPaneli {
 				this.debouncedLoadPlannedData();
 			});
 		}
-		
+
 		// Planlanmamış table filter inputs - Anında tepki için
 		['siparis', 'bayi', 'musteri', 'seri', 'renk', 'tip'].forEach(filter => {
 			const element = document.getElementById('planlanmamis-' + filter + '-filter');
@@ -1697,17 +1763,19 @@ class UretimPlanlamaPaneli {
 				});
 			}
 		});
-		
-		// Planlanmamış table filter dropdowns - Anında tepki için
-		['acil', 'tip'].forEach(filter => {
-			const element = document.getElementById('planlanmamis-' + filter + '-filter');
-			if (element) {
-				element.addEventListener('change', () => {
-					this.debouncedLoadUnplannedData();
-				});
-			}
-		});
-		
+		const unplannedFrom = document.getElementById('planlanmamis-delivery-from-date');
+		const unplannedTo = document.getElementById('planlanmamis-delivery-to-date');
+		if (unplannedFrom) {
+			unplannedFrom.addEventListener('change', () => {
+				this.debouncedLoadUnplannedData();
+			});
+		}
+		if (unplannedTo) {
+			unplannedTo.addEventListener('change', () => {
+				this.debouncedLoadUnplannedData();
+			});
+		}
+
 		// Toggle completed button - Only affects planned table
 		const toggleCompletedBtn = document.getElementById('toggle-completed-btn');
 		if (toggleCompletedBtn) {
@@ -1716,7 +1784,7 @@ class UretimPlanlamaPaneli {
 				this.renderPlannedTable();
 			});
 		}
-		
+
 		// Planlanan table clear button
 		const planlananClearBtn = document.getElementById('planlanan-clear-btn');
 		if (planlananClearBtn) {
@@ -1725,7 +1793,7 @@ class UretimPlanlamaPaneli {
 				this.loadPlannedData();
 			});
 		}
-		
+
 		// Planlanmamış table clear button
 		const planlanmamisClearBtn = document.getElementById('planlanmamis-clear-btn');
 		if (planlanmamisClearBtn) {
@@ -1734,17 +1802,15 @@ class UretimPlanlamaPaneli {
 				this.loadUnplannedData();
 			});
 		}
-		
+
 		// Refresh button - Kaldırıldı
 		// refreshBtn event binding kaldırıldı - kontroller alanı artık yok
-		
-		// Modal event'leri
-		this.bindPlannedTableEvents();
-		this.bindUnplannedTableEvents();
-		
+
+		// Modal event'leri - tekil delegation yöntemi kullanılacak (bindTableEvents)
+
 		// Sıralama event'leri
 		this.bindSortingEvents();
-		
+
 		// Overview summary events
 		this.bindOverviewEvents();
 
@@ -1879,6 +1945,15 @@ class UretimPlanlamaPaneli {
 
 	// Get planlanan filters
 	getPlanlananFilters() {
+		const normalizeDate = (val) => {
+			if (!val) return '';
+			// dd.mm.yyyy -> yyyy-mm-dd
+			if (val.includes('.')) {
+				const [d, m, y] = val.split('.');
+				if (d && m && y) return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+			}
+			return val; // native date input already yyyy-mm-dd
+		};
 		return {
 			opti_no: $('#planlanan-opti-filter').val(),
 			siparis_no: $('#planlanan-siparis-filter').val(),
@@ -1887,6 +1962,8 @@ class UretimPlanlamaPaneli {
 			seri: $('#planlanan-seri-filter').val(),
 			renk: $('#planlanan-renk-filter').val(),
 			tip: $('#planlanan-tip-filter').val(),
+			from_date: normalizeDate($('#planlanan-from-date').val()),
+			to_date: normalizeDate($('#planlanan-to-date').val()),
 			limit: 200
 		};
 	}
@@ -1900,6 +1977,10 @@ class UretimPlanlamaPaneli {
 				element.value = '';
 			}
 		});
+		const fromEl = document.getElementById('planlanan-from-date');
+		const toEl = document.getElementById('planlanan-to-date');
+		if (fromEl) fromEl.value = '';
+		if (toEl) toEl.value = '';
 		
 		// Toggle state'leri de sıfırla
 		const toggleBtn = document.getElementById('toggle-completed-btn');
@@ -1917,9 +1998,21 @@ class UretimPlanlamaPaneli {
 				element.value = '';
 			}
 		});
+		const unFrom = document.getElementById('planlanmamis-delivery-from-date');
+		const unTo = document.getElementById('planlanmamis-delivery-to-date');
+		if (unFrom) unFrom.value = '';
+		if (unTo) unTo.value = '';
 	}
 
 	getPlanlanmamisFilters() {
+		const normalizeDate = (val) => {
+			if (!val) return '';
+			if (val.includes('.')) {
+				const [d, m, y] = val.split('.');
+				if (d && m && y) return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+			}
+			return val;
+		};
 		return {
 			siparis_no: $('#planlanmamis-siparis-filter').val(),
 			bayi: $('#planlanmamis-bayi-filter').val(),
@@ -1927,7 +2020,9 @@ class UretimPlanlamaPaneli {
 			acil_durum: $('#planlanmamis-acil-filter').val(),
 			tip: $('#planlanmamis-tip-filter').val(),
 			seri: $('#planlanmamis-seri-filter').val(),
-			renk: $('#planlanmamis-renk-filter').val()
+			renk: $('#planlanmamis-renk-filter').val(),
+			delivery_from_date: normalizeDate($('#planlanmamis-delivery-from-date').val()),
+			delivery_to_date: normalizeDate($('#planlanmamis-delivery-to-date').val())
 		};
 	}
 
@@ -2008,26 +2103,25 @@ class UretimPlanlamaPaneli {
 			group.renk_list = Array.from(group.renk_list);
 		});
 		
-		// Sıralama: Tamamlananlar üstte, sonra planlama tarihine göre
-		const sortedOptiGroups = Object.values(optiGroups).sort((a, b) => {
-			// Önce tamamlanan durumuna göre sırala (tamamlananlar üstte)
-			const aCompleted = a.plan_status === 'Completed';
-			const bCompleted = b.plan_status === 'Completed';
-			
-			if (aCompleted && !bCompleted) return -1;
-			if (!aCompleted && bCompleted) return 1;
-			
-			// Sonra planlama tarihine göre sırala (eski tarihler üstte)
-			const aDate = new Date(a.planlanan_baslangic_tarihi || '1900-01-01');
-			const bDate = new Date(b.planlanan_baslangic_tarihi || '1900-01-01');
-			
-			return aDate - bDate;
-		});
+		// Grupları, filteredData içindeki ilk görünme sırasına göre diz (kullanıcı sıralamasını koru)
+		const seen = new Set();
+		const orderedGroups = [];
+		for (const item of filteredData) {
+			const key = item.opti_no;
+			if (!seen.has(key) && optiGroups[key]) {
+				seen.add(key);
+				orderedGroups.push(optiGroups[key]);
+			}
+		}
+		// Stabil şekilde Completed grupları üstte getir
+		const completedGroups = orderedGroups.filter(g => g.plan_status === 'Completed');
+		const otherGroups = orderedGroups.filter(g => g.plan_status !== 'Completed');
+		const finalGroups = [...completedGroups, ...otherGroups];
 		
 		// Performans için DocumentFragment kullan
 		const fragment = document.createDocumentFragment();
 		
-		sortedOptiGroups.forEach((optiGroup, index) => {
+		finalGroups.forEach((optiGroup, index) => {
 			const optiRow = this.createOptiRowElement(optiGroup);
 			fragment.appendChild(optiRow);
 		});
@@ -2129,7 +2223,7 @@ class UretimPlanlamaPaneli {
 		}
 		
 		// Modal'ı hızlıca göster
-		modal.modal({
+		$(modal).modal({
 			show: true,
 			backdrop: 'static',
 			keyboard: false
@@ -2140,30 +2234,91 @@ class UretimPlanlamaPaneli {
 		if (contentDiv && !contentDiv.dataset.loaded) {
 			frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
-				args: { order_no: salesOrderId },
+				args: { sales_order: salesOrderId },
 				timeout: 30000, // 30 saniye timeout
 				callback: (r) => {
 					if (r.exc) {
-						errorHandler.show('Sipariş detayları yüklenirken hata: ' + r.exc);
+						console.error('Sipariş detayları yüklenirken hata:', r.exc);
 						return;
 					}
 					
 					const data = r.message;
 					if (data.error) {
-						errorHandler.show(data.error);
+						console.error('API Hatası:', data.error);
 						return;
 					}
 					
 					// Veriyi yüklendi olarak işaretle
 					contentDiv.dataset.loaded = 'true';
 					// Mevcut updateOrderDetailsModal fonksiyonunu kullan
-					updateOrderDetailsModal(data);
+					this.updateOrderDetailsModal(data, modal);
 				},
 				error: (err) => {
-					errorHandler.show('Bağlantı hatası: ' + err);
+					console.error('Bağlantı hatası:', err);
 				}
 			});
 		}
+	}
+
+	// Modal içeriğini güncelle
+	updateOrderDetailsModal(data, modal) {
+		if (!data || !modal) return;
+		
+		const salesOrder = data.sales_order || {};
+		const items = data.items || [];
+		
+		// İlk item'dan seri ve renk bilgilerini al
+		const firstItem = items[0] || {};
+		const serial = firstItem.serial || '-';
+		const color = firstItem.color || '-';
+		
+		let modalContent = `
+			<div class="row">
+				<div class="col-md-6">
+					<div class="card">
+						<div class="card-header bg-info text-white">
+							<h6 class="mb-0"><i class="fa fa-shopping-cart mr-2"></i>Sipariş Bilgileri</h6>
+						</div>
+						<div class="card-body">
+							<table class="table table-sm table-borderless">
+								<tr><td><strong>Sipariş No:</strong></td><td><span class="badge badge-dark">${data.sales_order || '-'}</span></td></tr>
+								<tr><td><strong>Bayi:</strong></td><td>${data.customer || '-'}</td></tr>
+								<tr><td><strong>Müşteri:</strong></td><td>${data.end_customer || data.customer_name || '-'}</td></tr>
+								<tr><td><strong>Sipariş Tarihi:</strong></td><td>${utils.formatDate(data.transaction_date)}</td></tr>
+								<tr><td><strong>Teslim Tarihi:</strong></td><td>${utils.formatDate(data.delivery_date)}</td></tr>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6">
+					<div class="card">
+						<div class="card-header bg-success text-white">
+							<h6 class="mb-0"><i class="fa fa-cogs mr-2"></i>Ürün Bilgileri</h6>
+						</div>
+						<div class="card-body">
+							<table class="table table-sm table-borderless">
+								<tr><td><strong>Seri:</strong></td><td><span class="badge badge-info">${serial}</span></td></tr>
+								<tr><td><strong>Renk:</strong></td><td><span class="badge badge-warning">${color}</span></td></tr>
+								<tr><td><strong>PVC:</strong></td><td>ADET: <span class="badge badge-danger">${data.total_pvc || 0}</span> MTÜL: <span class="badge badge-warning">${data.total_mtul ? data.total_mtul.toFixed(2) : '0.00'}</span></td></tr>
+								<tr><td><strong>CAM:</strong></td><td>ADET: <span class="badge badge-secondary">${data.total_cam || 0}</span> M2: <span class="badge badge-info">${data.total_cam_m2 ? data.total_cam_m2.toFixed(2) : '0.00'}</span></td></tr>
+								<tr><td><strong>Acil:</strong></td><td><span class="badge badge-success">NORMAL</span></td></tr>
+								<tr><td><strong>Açıklama:</strong></td><td>${data.remarks || '-'}</td></tr>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<div class="row mt-3">
+				<div class="col-12 text-center">
+					<button class="btn btn-primary btn-lg" onclick="window.open('/app/sales-order/${data.sales_order}', '_blank')">
+						<i class="fa fa-eye mr-2"></i>Siparişi Görüntüle
+					</button>
+				</div>
+			</div>
+		`;
+		
+		$(modal).find('.modal-body').html(modalContent);
 	}
 
 	showOptiDetails(optiNo) {
@@ -2499,7 +2654,7 @@ class UretimPlanlamaPaneli {
 		});
 
 		// Modal filtre event'lerini ekle
-		this.bindModalFilters(modal, orders);
+		this.bindModalFilters(modal, orders, productionPlan);
 	}
 
 	// Üretim planı bilgisini Opti numarasından al
@@ -2514,7 +2669,7 @@ class UretimPlanlamaPaneli {
 
 
 	// Modal filtre fonksiyonları
-	bindModalFilters(modal, orders) {
+	bindModalFilters(modal, orders, productionPlan) {
 		const originalOrders = [...orders]; // Orijinal veriyi kopyala
 		
 		// Filtre input'ları
@@ -2544,7 +2699,7 @@ class UretimPlanlamaPaneli {
 			});
 			
 			// Filtrelenmiş verileri tabloda göster
-			this.renderFilteredModalTable(modal, filteredOrders);
+			this.renderFilteredModalTable(modal, filteredOrders, productionPlan);
 		};
 		
 		// Input event'leri
@@ -2564,7 +2719,7 @@ class UretimPlanlamaPaneli {
 	}
 	
 	// Filtrelenmiş modal tablosunu render et
-	renderFilteredModalTable(modal, filteredOrders) {
+	renderFilteredModalTable(modal, filteredOrders, productionPlan) {
 		const tbody = modal.find('tbody');
 		if (!tbody.length) return;
 		
@@ -2646,11 +2801,11 @@ class UretimPlanlamaPaneli {
 		});
 		
 		// Event listener'ları yeniden bağla
-		this.bindModalRowEvents(modal);
+		this.bindModalRowEvents(modal, productionPlan);
 	}
 	
 	// Modal satır event'lerini bağla
-	bindModalRowEvents(modal) {
+	bindModalRowEvents(modal, productionPlan) {
 		// Sipariş butonu - Satış siparişi formunu yeni pencerede aç
 		modal.find('.sales-order-btn').off('click').on('click', function(e) {
 			e.preventDefault();
@@ -2662,7 +2817,7 @@ class UretimPlanlamaPaneli {
 				window.open(url, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
 			}, 300);
 		});
-
+	
 		// İş Emirleri butonu - İş emirlerini göster
 		modal.find('.work-orders-btn').off('click').on('click', function(e) {
 			e.preventDefault();
@@ -2671,7 +2826,7 @@ class UretimPlanlamaPaneli {
 			modal.modal('hide');
 			setTimeout(() => {
 				// Üretim planı bilgisini geç
-				window.showWorkOrdersPaneli(salesOrder, productionPlan);
+				window.showWorkOrdersPaneli(salesOrder, productionPlan || null);
 			}, 300);
 		});
 		
@@ -2682,7 +2837,7 @@ class UretimPlanlamaPaneli {
 				modal.modal('hide');
 				setTimeout(() => {
 					// Üretim planı bilgisini geç
-					window.showWorkOrdersPaneli(salesOrder, productionPlan);
+					window.showWorkOrdersPaneli(salesOrder, productionPlan || null);
 				}, 300);
 			}
 		});
@@ -2701,14 +2856,12 @@ class UretimPlanlamaPaneli {
 			
 		} catch (error) {
 			console.error('Overview summary yükleme hatası:', error);
-			console.log('PVC-CAM tablosu güncellenirken hata oluştu:', error);
 		}
 	}
 	
 	updateOverviewStats(plannedData, unplannedData) {
 		// Sadece PVC-CAM tablosu için gerekli - 6 kart kaldırıldı
 		// Bu fonksiyon artık boş çünkü üst kartlar kaldırıldı
-		console.log('Overview stats güncellemesi - sadece PVC-CAM tablosu aktif');
 	}
 	
 	// generateWeeklyOverview fonksiyonu kaldırıldı - haftalık tablo artık yok
@@ -3042,7 +3195,8 @@ class UretimPlanlamaPaneli {
 				error: (err) => {
 					this.plannedTable.isLoading = false;
 					this.hideTableLoading('planned');
-					this.showError('Planlanan veri bağlantı hatası: ' + err);
+					const errorMessage = err.message || err.exc || JSON.stringify(err);
+					this.showError('Planlanan veri bağlantı hatası: ' + errorMessage);
 				}
 			});
 
@@ -3108,7 +3262,7 @@ class UretimPlanlamaPaneli {
 						return;
 					}
 					
-					this.unplannedTable.data = data.unplanned || [];
+					this.unplannedTable.data = data.unplanned_orders || [];
 					
 					// Cache'e kaydet - daha uzun süre
 					this.dataCache.set(cacheKey, {
@@ -3125,7 +3279,8 @@ class UretimPlanlamaPaneli {
 				error: (err) => {
 					this.unplannedTable.isLoading = false;
 					this.hideTableLoading('unplanned');
-					this.showError('Planlanmamış veri bağlantı hatası: ' + err);
+					const errorMessage = err.message || err.exc || JSON.stringify(err);
+					this.showError('Planlanmamış veri bağlantı hatası: ' + errorMessage);
 				}
 			});
 
@@ -3154,8 +3309,8 @@ class UretimPlanlamaPaneli {
 		const cachedData = this.dataCache.get(cacheKey);
 		if (cachedData && (now - cachedData.timestamp) < CONFIG.CACHE_DURATION) {
 			this.plannedTable.data = cachedData.data;
-			this.updateSummary(cachedData.data);
-			uiComponents.renderTableRows('planlanan-tbody', cachedData.data);
+			// legacy özet kaldırıldı; doğrudan tabloyu oluştur
+			this.renderPlannedTable();
 			this.updateCompletedToggle();
 			return;
 		}
@@ -3192,13 +3347,14 @@ class UretimPlanlamaPaneli {
 						timestamp: now
 					});
 					
-					this.updateSummary(data);
-					uiComponents.renderTableRows('planlanan-tbody', this.plannedTable.data);
+					// legacy özet kaldırıldı; doğrudan tabloyu oluştur
+					this.renderPlannedTable();
 					this.updateCompletedToggle();
 				},
 				error: (err) => {
 					this.hideLoading();
-					this.showError('Bağlantı hatası: ' + err);
+					const errorMessage = err.message || err.exc || JSON.stringify(err);
+					this.showError('Bağlantı hatası: ' + errorMessage);
 				}
 			});
 
@@ -3284,6 +3440,7 @@ class UretimPlanlamaPaneli {
 		const tbody = document.getElementById('planlanmamis-tbody');
 		if (!tbody) return;
 
+
 		if (!this.unplannedTable.data || this.unplannedTable.data.length === 0) {
 			tbody.innerHTML = `
 				<tr><td colspan="13" class="text-center text-muted">
@@ -3292,6 +3449,8 @@ class UretimPlanlamaPaneli {
 			`;
 			return;
 		}
+
+		// İlk 5 veri logları kaldırıldı
 
 		// Tüm onaylanmış siparişleri göster
 		let filteredData = this.unplannedTable.data;
@@ -3361,7 +3520,7 @@ class UretimPlanlamaPaneli {
 
 		// Row class'ını ayarla
 		row.className = `${rowClass} ${urgentClass} cursor-pointer`;
-		row.dataset.id = item.sales_order || '';
+		row.dataset.id = item.sales_order || 'unknown';
 
 		row.innerHTML = `
 			<td title="${utils.escapeHtml(item.sales_order || '-')}">
@@ -3483,7 +3642,7 @@ class UretimPlanlamaPaneli {
 	// Update summary cards - Kaldırıldı
 	updateSummary(data) {
 		// updateSummary fonksiyonu kaldırıldı - özet kartlar artık kullanılmıyor
-		console.log('updateSummary kaldırıldı - özet kartlar güncellenmeyecek');
+		// özet kartlar kullanılmıyor
 	}
 
 	updateCompletedToggle() {
@@ -3613,17 +3772,27 @@ class UretimPlanlamaPaneli {
 	// Duplicate createOptiRowElement fonksiyonu kaldırıldı - zaten 3657. satırda tanımlı
 
 	bindTableEvents() {
-		// Use event delegation for better performance
-		const tbody = document.getElementById('planlanan-tbody');
-		if (!tbody) return;
+		// event binding
 		
-		utils.delegate(tbody, 'tr[data-opti]', 'click', (e, target) => {
-			if (!e.target.closest('button') && !e.target.closest('a')) {
-				this.showOptiDetails(target.dataset.opti);
-			}
-		});
+		// Planlanan tablo için event binding
+		const plannedTbody = document.getElementById('planlanan-tbody');
+		if (plannedTbody) {
+			utils.delegate(plannedTbody, 'tr[data-opti]', 'click', (e, target) => {
+				if (!e.target.closest('button') && !e.target.closest('a')) {
+					this.showOptiDetails(target.dataset.opti);
+				}
+			});
+		}
 		
-
+		// Planlanmamış tablo için event binding
+		const unplannedTbody = document.getElementById('planlanmamis-tbody');
+		if (unplannedTbody) {
+			utils.delegate(unplannedTbody, 'tr[data-id]', 'click', (e, target) => {
+				if (!e.target.closest('button') && !e.target.closest('a')) {
+					this.showOrderDetails(target.dataset.id);
+				}
+			});
+		}
 	}
 
 	startAutoRefresh() {
@@ -3756,7 +3925,7 @@ let appInstance = null;
 
 // Global functions kaldırıldı - kullanılmıyor
 
-// Work Orders Modal - STABLE VERSION
+// Work Orders Modal - Takip sayfasındaki çalışan mantığa göre düzeltildi
 window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 	if (!salesOrderId) {
 		frappe.show_alert({
@@ -3804,14 +3973,14 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 
 	modal.show();
 
-	// API çağrısı
+	// API çağrısı - production_plan parametresini null yap ki tüm iş emirlerini getirsin
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_orders_for_sales_order',
 		args: { 
 			sales_order: salesOrderId,
-			production_plan: productionPlan 
+			production_plan: null  // Tüm iş emirlerini getir
 		},
-		timeout: 30000, // 30 saniye timeout
+		timeout: 10000, // 10 saniye timeout
 		callback: function(r) {
 			const contentDiv = modal.fields_dict.work_orders_content.$wrapper;
 			
@@ -3825,7 +3994,7 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 				return;
 			}
 
-			if (!r.message || r.message.length === 0) {
+			if (!r.message || !r.message.work_orders || r.message.work_orders.length === 0) {
 				contentDiv.html(`
 					<div class="alert alert-info">
 						<i class="fa fa-info-circle mr-2"></i>
@@ -3848,47 +4017,42 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 				}
 			};
 
-			// İş emirleri accordion şeklinde
+			// İş emirleri accordion şeklinde - Takip sayfasındaki mantık
 			let html = `
-				<div class="accordion" id="workOrdersAccordion">
+				<div class="wo-accordion">
 			`;
 
-			r.message.forEach((wo, index) => {
-				const statusClass = wo.status === 'Completed' ? 'badge-success' : 'badge-warning';
-				const statusText = wo.status === 'Completed' ? 'Tamamlandı' : 'Devam Ediyor';
-				const accordionId = `wo-${index}`;
+			r.message.work_orders.forEach((wo, index) => {
+				const statusBadge = getWorkOrderStatusBadge(wo.status);
+				const safeId = makeSafeId(wo.name);
 				const pozLabel = (wo.production_item || wo.sales_order_item || wo.so_detail || wo.item_name || wo.item_code || '').toString();
 				
 				html += `
-					<div class="card mb-2">
-						<div class="card-header" id="heading-${accordionId}" style="background-color: #f8f9fa; cursor: pointer;"
-							 onclick="toggleWorkOrderAccordion('${accordionId}', '${wo.name}', ${index})">
-							<div class="d-flex justify-content-between align-items-center">
-								<div class="d-flex align-items-center">
-									<i class="fa fa-chevron-down mr-2" id="icon-${accordionId}"></i>
-									<strong>${wo.name}</strong>
-									${pozLabel ? `<span class='badge badge-primary ml-2' style='font-size:0.75rem;'>${pozLabel}</span>` : ''}
-									<span class="badge ${statusClass} ml-2">${statusText}</span>
-								</div>
-								<div class="text-muted">
-									<small>Miktar: ${wo.qty || 0} | Üretilen: ${wo.produced_qty || 0}</small>
-								</div>
+					<div class="card mb-3" style="border: 1px solid #e9ecef; border-radius: 8px;">
+						<div class="d-flex justify-content-between align-items-center" 
+							 style="background:#f8f9fa; border-radius:8px 8px 0 0; padding:10px 12px; cursor:pointer;"
+							 onclick="toggleWorkOrderSection('${safeId}', '${wo.name}')">
+							<div class="d-flex align-items-center">
+								<i class="fa fa-chevron-right mr-2" id="wo-chevron-${safeId}"></i>
+								<span class="font-weight-bold">${wo.name}</span>
+								${pozLabel ? `<span class='badge badge-primary ml-2' style='font-size:0.75rem;'>${pozLabel}</span>` : ''}
+								<span class="badge badge-${statusBadge.class} ml-2">${statusBadge.label}</span>
+							</div>
+							<div class="text-muted">
+								<small>Miktar: ${wo.qty || 0} | Üretilen: ${wo.produced_qty || 0}</small>
 							</div>
 						</div>
-						<div class="collapse" id="collapse-${accordionId}">
-							<div class="card-body">
-								<div class="row mb-3">
-									<div class="col-md-6">
-										<strong>Plan Başlangıç:</strong> ${formatDateTime(wo.planned_start_date) || '-'}
-									</div>
-									<div class="col-md-6">
-										<strong>Plan Bitiş:</strong> ${formatDateTime(wo.planned_end_date) || '-'}
-									</div>
-								</div>
-								<div id="operations-container-${accordionId}" style="display: none;">
-									<div class="text-center p-2">
-										<small class="text-muted">Operasyonlar yükleniyor...</small>
-									</div>
+						<div id="wo-body-${safeId}" style="display:none;">
+							<div class="d-flex justify-content-between align-items-center p-2" style="border-bottom:1px solid #eee;">
+								<div><strong>Plan Başlangıç:</strong> ${formatDateTime(wo.planned_start_date) || '-'}</div>
+								<div><strong>Plan Bitiş:</strong> ${formatDateTime(wo.planned_end_date) || '-'}</div>
+								<div class="text-muted">Miktar: ${wo.qty || 0} | Üretilen: ${wo.produced_qty || 0}</div>
+							</div>
+							<div class="px-2 pt-2"><i class="fa fa-cogs mr-2"></i><strong>Operasyonlar</strong></div>
+							<div id="operations-content-${safeId}" class="p-2">
+								<div class="text-center p-2">
+									<div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+									<span class="ml-2 text-muted">Operasyonlar yükleniyor...</span>
 								</div>
 							</div>
 						</div>
@@ -3912,361 +4076,191 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 	});
 };
 
-// Yeni accordion toggle fonksiyonu - GLOBAL
-window.toggleWorkOrderAccordion = function(accordionId, woName, index) {
-	console.log('Toggle çağrıldı:', accordionId, woName, index);
+// Helper fonksiyonlar - Takip sayfasından kopyalandı
+function getWorkOrderStatusBadge(status) {
+	const statusMap = {
+		'Draft': { label: 'Taslak', class: 'secondary' },
+		'Not Started': { label: 'Başlamadı', class: 'warning' },
+		'In Process': { label: 'İşlemde', class: 'primary' },
+		'In Progress': { label: 'Devam Ediyor', class: 'primary' },
+		'Pending': { label: 'Bekliyor', class: 'secondary' },
+		'Completed': { label: 'Tamamlandı', class: 'success' },
+		'Stopped': { label: 'Durduruldu', class: 'danger' },
+		'Closed': { label: 'Kapatıldı', class: 'secondary' }
+	};
 	
-	const collapseElement = $(`#collapse-${accordionId}`);
-	const icon = $(`#icon-${accordionId}`);
-	const operationsContainer = $(`#operations-container-${accordionId}`);
-	
-	// Element kontrolü
-	if (!collapseElement.length || !icon.length || !operationsContainer.length) {
-		console.error('Toggle elementleri bulunamadı:', {
-			collapse: collapseElement.length,
-			icon: icon.length,
-			operations: operationsContainer.length
-		});
-		return;
-	}
-	
-	// Accordion durumunu kontrol et
-	const isCollapsed = collapseElement.hasClass('show');
-	
-	if (isCollapsed) {
-		// Accordion açıksa kapat
-		collapseElement.removeClass('show');
-		icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-		operationsContainer.hide();
-	} else {
-		// Accordion kapalıysa aç
-		collapseElement.addClass('show');
-		icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-		
-		// Operasyonlar container'ını göster
-		operationsContainer.show();
-		
-		// Operasyonları sadece bir kez yükle
-		if (!operationsContainer.data('loaded')) {
-			operationsContainer.html('<div class="text-center p-2"><small>Operasyonlar yükleniyor...</small></div>');
-			
-			frappe.call({
-				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
-				args: { work_order: woName },
-				timeout: 30000,
-			callback: function(r) {
-				if (r.message && r.message.length > 0) {
-					let opsHtml = `
-							<div class="mt-3 p-3" style="background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-								<h6 class="text-primary mb-3">
-									<i class="fa fa-cogs mr-2"></i>Operasyonlar
-							</h6>
-							<div class="table-responsive">
-									<table class="table table-sm table-hover" style="margin: 0; background: white; border-radius: 4px; overflow: hidden;">
-										<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-											<tr style="color: white;">
-												<th style="padding: 12px; font-weight: 600; border: none;">Operasyon</th>
-												<th style="padding: 12px; font-weight: 600; border: none;">Durum</th>
-												<th style="padding: 12px; font-weight: 600; border: none; text-align: center;">Tamamlanan</th>
-												<th style="padding: 12px; font-weight: 600; border: none;">Planlanan Başlangıç</th>
-												<th style="padding: 12px; font-weight: 600; border: none;">Planlanan Bitiş</th>
-												<th style="padding: 12px; font-weight: 600; border: none;">Fiili Başlangıç</th>
-												<th style="padding: 12px; font-weight: 600; border: none;">Fiili Bitiş</th>
-										</tr>
-									</thead>
-										<tbody>
-					`;
-					
-					r.message.forEach(op => {
-						const opStatus = op.status === 'Completed' ? 
-							'<span class="badge badge-success badge-sm">Tamamlandı</span>' :
-							'<span class="badge badge-warning badge-sm">Bekliyor</span>';
-						
-						// Tarih formatla
-						const formatDateTime = (dateTime) => {
-							if (!dateTime) return '-';
-							try {
-								return new Date(dateTime).toLocaleString('tr-TR', {
-									day: '2-digit', month: '2-digit', year: 'numeric',
-									hour: '2-digit', minute: '2-digit'
-								});
-							} catch (e) {
-								return dateTime;
-							}
-						};
-						
-						opsHtml += `
-							<tr style="transition: all 0.2s; border-bottom: 1px solid #dee2e6;">
-								<td style="padding: 12px; color: #333; font-weight: 500;">${op.operation || '-'}</td>
-								<td style="padding: 12px;">${opStatus}</td>
-								<td style="padding: 12px; text-align: center; color: #333; font-weight: 600;">${op.completed_qty || 0}</td>
-								<td style="padding: 12px; color: #555; font-size: 0.9rem;">${formatDateTime(op.planned_start_time)}</td>
-								<td style="padding: 12px; color: #555; font-size: 0.9rem;">${formatDateTime(op.planned_end_time)}</td>
-								<td style="padding: 12px; color: #555; font-size: 0.9rem;">${formatDateTime(op.actual_start_time)}</td>
-								<td style="padding: 12px; color: #555; font-size: 0.9rem;">${formatDateTime(op.actual_end_time)}</td>
-							</tr>
-						`;
-					});
-					
-					opsHtml += '</tbody></table></div></div>';
-					operationsContainer.html(opsHtml);
-					operationsContainer.data('loaded', true);
-				} else {
-					operationsContainer.html('<div class="text-muted p-3 text-center"><small>Operasyon bulunamadı</small></div>');
-					operationsContainer.data('loaded', true);
-				}
-			},
-			error: function(err) {
-				console.error('Operasyon yükleme hatası:', err);
-				operationsContainer.html('<div class="text-danger p-3 text-center"><small>Operasyonlar yüklenemedi</small></div>');
-				operationsContainer.data('loaded', true);
-			}
-			});
-		}
-	}
-};
-
-// Eski fonksiyon - geriye uyumluluk için
-window.toggleWorkOrderOperations = function(woName, index) {
-	// Eski fonksiyon artık kullanılmıyor, yeni accordion fonksiyonunu çağır
-	window.toggleWorkOrderAccordion(`wo-${index}`, woName, index);
-};
-
-// LEGACY - Bu fonksiyon artık kullanılmıyor
-// İş Emirleri Modal Content - 2. ekran formatı  
-function updateWorkOrdersModalContent_LEGACY(contentDiv, data, salesOrderId) {
-	if (!data || !Array.isArray(data) || data.length === 0) {
-		contentDiv.html(`
-			<div class="alert alert-warning m-3">
-				<i class="fa fa-info-circle mr-2"></i>Bu sipariş için iş emri bulunamadı.
-			</div>
-		`);
-		return;
-	}
-
-	// 2. ekrandaki format - basit ve temiz
-	let html = `
-		<div class="row mb-3">
-			<div class="col-12">
-				<div class="d-flex align-items-center">
-					<i class="fa fa-list mr-2"></i>
-					<span><strong>İş Emirleri Detayları</strong></span>
-				</div>
-				<div class="mt-2">
-					<small>Sipariş No: <strong>${salesOrderId}</strong></small>
-				</div>
-			</div>
-		</div>
-
-		<div class="table-responsive">
-			<table class="table table-sm" style="background: white;">
-				<thead style="background: #6c757d; color: white;">
-					<tr>
-						<th style="padding: 8px;">İş Emri</th>
-						<th style="padding: 8px;">Durum</th>
-						<th style="padding: 8px;">Miktar</th>
-						<th style="padding: 8px;">Üretilen</th>
-						<th style="padding: 8px;">Planlanan Başlangıç</th>
-						<th style="padding: 8px;">Planlanan Bitiş</th>
-					</tr>
-				</thead>
-				<tbody style="background: white;">
-	`;
-
-	data.forEach((wo, index) => {
-		const statusBadge = wo.status === 'Completed' ? 'badge-success' : 
-						   wo.status === 'In Progress' ? 'badge-warning' : 
-						   wo.status === 'Not Started' ? 'badge-secondary' : 'badge-info';
-		
-		const statusText = wo.status === 'Completed' ? 'Tamamlandı' :
-						  wo.status === 'In Progress' ? 'Devam Ediyor' :
-						  wo.status === 'Not Started' ? 'Başlamadı' : wo.status;
-
-		// Durum badge'i - Tamamlandı yeşil olsun
-		const durumBadgeStyle = wo.status === 'Completed' ? 
-			'background: #28a745; color: white;' :
-			wo.status === 'Not Started' ? 
-			'background: #ffc107; color: #333;' : 
-			'background: #6c757d; color: white;';
-		
-		html += `
-			<tr style="background: white; cursor: pointer;" class="work-order-row" data-work-order="${wo.name}" data-index="${index}">
-				<td style="padding: 8px;">
-					<i class="fa fa-chevron-down toggle-operations mr-2" style="color: #007bff; cursor: pointer;"></i>
-					<strong style="color: #333;">${wo.name || '-'}</strong>
-				</td>
-				<td style="padding: 8px;">
-					<span class="badge" style="${durumBadgeStyle}">${statusText}</span>
-				</td>
-				<td style="padding: 8px;">
-					<span style="color: #333;">${wo.qty || '0'}</span>
-				</td>
-				<td style="padding: 8px;">
-					<span style="color: #333;">${wo.produced_qty || '0'}</span>
-				</td>
-				<td style="padding: 8px;">
-					<span style="color: #333;">${utils.formatDate(wo.planned_start_date) || '-'}</span>
-				</td>
-				<td style="padding: 8px;">
-					<span style="color: #333;">${utils.formatDate(wo.planned_end_date) || '-'}</span>
-				</td>
-			</tr>
-			<tr id="operations-row-${index}" style="display: none; background: white;">
-				<td colspan="6" style="padding: 15px;">
-					<div class="operations-container" style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-						<div class="text-center">
-							<div class="spinner-border spinner-border-sm text-primary" role="status">
-								<span class="sr-only">Yükleniyor...</span>
-							</div>
-							<span class="ml-2">Operasyonlar yükleniyor...</span>
-						</div>
-					</div>
-				</td>
-			</tr>
-		`;
-	});
-
-	html += `
-				</tbody>
-			</table>
-		</div>
-	`;
-
-	contentDiv.html(html);
-
-	// Event listener'ları ekle - açılır/kapanır özellik
-	contentDiv.find('.toggle-operations').on('click', function(e) {
-		e.preventDefault();
-		e.stopPropagation();
-		
-		const row = $(this).closest('tr');
-		const workOrderName = row.data('work-order');
-		const index = row.data('index');
-		const operationsRow = $(`#operations-row-${index}`);
-		const icon = $(this);
-		
-		if (operationsRow.is(':visible')) {
-			// Kapat
-			operationsRow.hide();
-			icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-		} else {
-			// Aç ve operasyonları yükle
-			operationsRow.show();
-			icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-			loadOperationsForWorkOrder(workOrderName, index);
-		}
-	});
+	return statusMap[status] || { label: status || 'Bilinmiyor', class: 'secondary' };
 }
 
-// Operasyon yükleme fonksiyonu
-function loadOperationsForWorkOrder(workOrderName, index) {
-	const operationsContainer = $(`.operations-container`).eq(index);
-	if (!operationsContainer.length) return;
+function makeSafeId(str) {
+	return str.replace(/[^a-zA-Z0-9]/g, '');
+}
+
+function toggleWorkOrderSection(safeId, workOrderName) {
+	const body = $(`#wo-body-${safeId}`);
+	const chevron = $(`#wo-chevron-${safeId}`);
+	if (!body.length) return;
+	if (body.is(':visible')) {
+		body.slideUp(200);
+		chevron.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+	} else {
+		body.slideDown(200);
+		chevron.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+		// Lazy load operations if empty
+		if (body.find('.operations-table').length === 0) {
+			loadWorkOrderOperations(workOrderName, $(`#operations-content-${safeId}`));
+		}
+	}
+}
+
+function loadWorkOrderOperations(workOrderName, container) {
+	if (!workOrderName || !container) {
+		return;
+	}
 	
+	// Show loading state
+	container.html(`
+		<div class="text-center p-3">
+			<div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+			<span class="ml-2">Operasyonlar yükleniyor...</span>
+		</div>
+	`);
+	
+	// Panel sayfasındaki kendi metodunu kullan
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
 		args: { work_order: workOrderName },
-		timeout: 30000, // 30 saniye timeout
-		callback: (r) => {
+		timeout: 5000, // 5 saniye timeout
+		callback: function(r) {
 			if (r.exc) {
-				operationsContainer.html(`
-					<div class="alert alert-danger">
+				container.html(`
+					<div class="alert alert-danger p-3">
 						<i class="fa fa-exclamation-triangle mr-2"></i>
-						Operasyonlar yüklenemedi: ${r.exc}
+						<strong>Hata:</strong> ${r.exc}
+						<div class="mt-2">
+							<button class="btn btn-sm btn-primary" 
+									onclick="loadWorkOrderOperations('${workOrderName}', $('#operations-content-${makeSafeId(workOrderName)}'))">
+								<i class="fa fa-refresh mr-1"></i>Tekrar Dene
+							</button>
+						</div>
 					</div>
 				`);
 				return;
 			}
 			
-			if (!r.message || !Array.isArray(r.message) || r.message.length === 0) {
-				operationsContainer.html(`
-					<div class="alert alert-warning">
-						<i class="fa fa-info-circle mr-2"></i>
-						Bu iş emri için operasyon bulunamadı
+			const data = r.message;
+			
+			if (!data) {
+				container.html(`
+					<div class="alert alert-warning p-3">
+						<i class="fa fa-exclamation-triangle mr-2"></i>
+						Operasyon verisi alınamadı
 					</div>
 				`);
 				return;
 			}
 			
-			renderOperationsTable(operationsContainer, r.message);
+			if (data.error) {
+				container.html(`
+					<div class="alert alert-danger p-3">
+						<i class="fa fa-exclamation-triangle mr-2"></i>
+						<strong>Hata:</strong> ${data.error}
+					</div>
+				`);
+				return;
+			}
+			
+			updateWorkOrderOperationsContent(data, container);
 		},
-		error: (err) => {
-			operationsContainer.html(`
-				<div class="alert alert-danger">
+		error: function(err) {
+			container.html(`
+				<div class="alert alert-danger p-3">
 					<i class="fa fa-exclamation-triangle mr-2"></i>
-					Bağlantı hatası: ${err}
+					<strong>Hata:</strong> ${err.message || 'Bilinmeyen hata'}
+					<div class="mt-2">
+						<button class="btn btn-sm btn-primary" 
+								onclick="loadWorkOrderOperations('${workOrderName}', $('#operations-content-${makeSafeId(workOrderName)}'))">
+							<i class="fa fa-refresh mr-1"></i>Tekrar Dene
+						</button>
+					</div>
 				</div>
 			`);
 		}
 	});
 }
 
-// Operasyon tablosu render fonksiyonu
-function renderOperationsTable(container, operations) {
-	let html = `
-		<div class="operations-header mb-3">
-			<h6 class="mb-2" style="color: #333;">
-				<i class="fa fa-cogs mr-2"></i>Operasyonlar (${operations.length})
+function updateWorkOrderOperationsContent(data, container) {
+	const operations = data.operations || [];
+	
+	if (operations.length === 0) {
+		container.html(`
+			<div class="text-center p-3 text-muted">
+				<i class="fa fa-info-circle mr-2"></i>
+				Bu iş emri için operasyon bulunamadı.
+			</div>
+		`);
+		return;
+	}
+	
+	let opsHtml = `
+		<div class="mt-3 p-3" style="background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+			<h6 class="text-primary mb-3">
+				<i class="fa fa-cogs mr-2"></i>Operasyonlar
 			</h6>
-		</div>
-		<div class="table-responsive">
-			<table class="table table-sm table-bordered" style="background: white;">
-				<thead style="background: #6c757d; color: white;">
-					<tr>
-						<th style="padding: 6px;">Operasyon</th>
-						<th style="padding: 6px;">Durum</th>
-						<th style="padding: 6px;">Miktar</th>
-						<th style="padding: 6px;">Planlanan Başlangıç</th>
-						<th style="padding: 6px;">Planlanan Bitiş</th>
-						<th style="padding: 6px;">Fiili Başlangıç</th>
-						<th style="padding: 6px;">Fiili Bitiş</th>
-					</tr>
-				</thead>
-				<tbody style="background: white;">
+			<div class="table-responsive">
+				<table class="table table-sm table-hover" style="margin: 0; background: white; border-radius: 4px; overflow: hidden;">
+					<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+						<tr style="color: white;">
+							<th style="padding: 12px; font-weight: 600; border: none;">Operasyon</th>
+							<th style="padding: 12px; font-weight: 600; border: none;">İş İstasyonu</th>
+							<th style="padding: 12px; font-weight: 600; border: none;">Durum</th>
+							<th style="padding: 12px; font-weight: 600; border: none; text-align: center;">Tamamlanan</th>
+							<th style="padding: 12px; font-weight: 600; border: none;">Planlanan Başlangıç</th>
+							<th style="padding: 12px; font-weight: 600; border: none;">Planlanan Bitiş</th>
+							<th style="padding: 12px; font-weight: 600; border: none;">Fiili Başlangıç</th>
+							<th style="padding: 12px; font-weight: 600; border: none;">Fiili Bitiş</th>
+						</tr>
+					</thead>
+					<tbody>
 	`;
 	
-	operations.forEach(op => {
-		let statusText = op.status || 'Pending';
-		if (statusText === 'Completed') statusText = 'Tamamlandı';
-		else if (statusText === 'In Progress') statusText = 'Devam Ediyor';
-		else if (statusText === 'Not Started') statusText = 'Başlamadı';
-		else statusText = 'Bekliyor';
+	operations.forEach((op, index) => {
+		const opStatus = op.status === 'Completed' ? 
+			'<span class="badge badge-success badge-sm">Tamamlandı</span>' :
+			op.status === 'In Process' ?
+			'<span class="badge badge-primary badge-sm">İşlemde</span>' :
+			'<span class="badge badge-warning badge-sm">Bekliyor</span>';
 		
-		const statusStyle = op.status === 'Completed' ? 'background: #28a745; color: white;' : 
-						   op.status === 'In Progress' ? 'background: #ffc107; color: #333;' : 
-						   'background: #6c757d; color: white;';
+                 // Tarih formatla - Takip sayfasındaki gibi
+                 const formatDateTime = (dateTime) => {
+                     if (!dateTime || dateTime === '-' || dateTime === 'None' || dateTime === '') return '-';
+                     return dateTime; // Zaten backend'de formatlanmış geliyor
+                 };
 		
-		html += `
-			<tr style="background: white;">
-				<td style="padding: 6px;"><strong style="color: #333;">${op.operation || '-'}</strong></td>
-				<td style="padding: 6px;"><span class="badge" style="${statusStyle}">${statusText}</span></td>
-				<td style="padding: 6px;"><span style="color: #333;">${op.completed_qty || '0'}</span></td>
-				<td style="padding: 6px;"><span style="color: #333;">${utils.formatDate(op.planned_start_time) || '-'}</span></td>
-				<td style="padding: 6px;"><span style="color: #333;">${utils.formatDate(op.planned_end_time) || '-'}</span></td>
-				<td style="padding: 6px;"><span style="color: #333;">${utils.formatDate(op.actual_start_time) || '-'}</span></td>
-				<td style="padding: 6px;"><span style="color: #333;">${utils.formatDate(op.actual_end_time) || '-'}</span></td>
-			</tr>
-		`;
+                 opsHtml += `
+                     <tr>
+                         <td style="padding: 8px;">${op.operation || '-'}</td>
+                         <td style="padding: 8px;">${op.workstation || '-'}</td>
+                         <td style="padding: 8px;">${opStatus}</td>
+                         <td style="padding: 8px; text-align: center;">${op.completed_qty || 0}</td>
+                         <td style="padding: 8px;">${formatDateTime(op.planned_start_formatted)}</td>
+                         <td style="padding: 8px;">${formatDateTime(op.planned_end_formatted)}</td>
+                         <td style="padding: 8px;">${formatDateTime(op.actual_start_formatted)}</td>
+                         <td style="padding: 8px;">${formatDateTime(op.actual_end_formatted)}</td>
+                     </tr>
+                 `;
 	});
 	
-	html += `
-				</tbody>
-			</table>
+	opsHtml += `
+					</tbody>
+				</table>
+			</div>
 		</div>
 	`;
 	
-	container.html(html);
+	container.html(opsHtml);
 }
 
-
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-	if (appInstance) {
-		appInstance.destroy();
-		appInstance = null;
-	}
-});
 
 // Page initialization
 frappe.pages['uretim_planlama_paneli'].on_page_load = function(wrapper) {
@@ -4289,247 +4283,4 @@ frappe.pages['uretim_planlama_paneli'].on_page_load = function(wrapper) {
 		console.error('Sayfa yüklenirken kritik hata oluştu:', error);
 		frappe.msgprint('Sayfa yüklenirken kritik hata oluştu: ' + error.message);
 	}
-}; 
-
-// Modal helper functions
-function updateOptiDetailsModal(data) {
-	const modal = $('.modal:visible');
-	if (!modal.length) return;
-	
-	const content = modal.find('#opti-details-content');
-	if (!content.length) return;
-	
-	let html = `
-		<div class="alert alert-info">
-			<i class="fa fa-info-circle mr-2"></i>
-			<strong>Opti ${data.opti_no}</strong> - Toplam ${data.orders.length} sipariş planlandı
-		</div>
-		
-		<div class="row mb-3">
-			<div class="col-12 text-center">
-				<a href="/app/production-plan/${data.production_plan}" target="_blank" class="btn btn-primary btn-lg">
-					<i class="fa fa-cogs mr-2"></i>Üretim Planını Görüntüle
-				</a>
-			</div>
-		</div>
-		
-		<div class="row mb-3">
-			<div class="col-md-4">
-				<div class="card bg-danger text-white">
-					<div class="card-body text-center">
-						<h3 class="mb-0">${data.summary.total_pvc}</h3>
-						<small>Toplam PVC</small>
-					</div>
-				</div>
-			</div>
-			<div class="col-md-4">
-				<div class="card bg-info text-white">
-					<div class="card-body text-center">
-						<h3 class="mb-0">${data.summary.total_cam}</h3>
-						<small>Toplam Cam</small>
-					</div>
-				</div>
-			</div>
-			<div class="col-md-4">
-				<div class="card bg-success text-white">
-					<div class="card-body text-center">
-						<h3 class="mb-0">${data.summary.total_mtul.toFixed(2)}</h3>
-						<small>Toplam MTÜL/m²</small>
-					</div>
-				</div>
-			</div>
-		</div>
-		
-		<div class="card">
-			<div class="card-header bg-light">
-				<i class="fa fa-list mr-2"></i>Sipariş Detayları
-			</div>
-			<div class="card-body p-0">
-				<div class="table-responsive">
-					<table class="table table-hover mb-0">
-						<thead class="bg-info text-white">
-							<tr>
-								<th>Sipariş No</th>
-								<th>Bayi</th>
-								<th>Müşteri</th>
-								<th>Seri</th>
-								<th>Renk</th>
-								<th>Adet</th>
-								<th>MTÜL/m²</th>
-								<th>İşlemler</th>
-							</tr>
-						</thead>
-						<tbody>
-	`;
-
-	data.orders.forEach(order => {
-		const orderDate = utils.formatDate(order.siparis_tarihi);
-		
-		html += `
-			<tr>
-				<td>
-					<div class="d-flex flex-column">
-						<span class="badge badge-info mb-1">${order.sales_order}</span>
-						<small class="text-muted">${orderDate}</small>
-					</div>
-				</td>
-				<td class="text-muted">${order.bayi || '-'}</td>
-				<td class="text-muted">${order.musteri}</td>
-				<td>
-					<span class="badge badge-info">${order.seri || '-'}</span>
-				</td>
-				<td>
-					<span class="badge badge-warning">${order.renk || '-'}</span>
-				</td>
-				<td>
-					${order.pvc_qty > 0 ? `<span class="badge badge-danger d-block mb-1">${order.pvc_qty} PVC</span>` : ''}
-					${order.cam_qty > 0 ? `<span class="badge badge-primary d-block">${order.cam_qty} Cam</span>` : ''}
-				</td>
-				<td>
-					<span class="badge badge-success">${order.total_mtul.toFixed(2)}</span>
-				</td>
-				<td>
-					<div class="d-flex flex-column">
-						<a href="/app/sales-order/${order.sales_order}" target="_blank" class="btn btn-sm btn-outline-primary mb-1">
-							<i class="fa fa-external-link mr-1"></i>Sipariş
-						</a>
-						<button class="btn btn-sm btn-outline-success" onclick="window.showWorkOrdersPaneli('${order.sales_order}', '${data.production_plan}')">
-							<i class="fa fa-bars mr-1"></i>İş Emirleri
-						</button>
-					</div>
-				</td>
-			</tr>
-		`;
-	});
-
-	html += `
-				</tbody>
-			</table>
-		</div>
-	</div>
-</div>`;
-	
-	content.html(html);
-}
-
-
-
-
-
-
-
-
-
-function updateOrderDetailsModal(data) {
-	const modal = $('.modal:visible');
-	if (!modal.length) return;
-	
-	// order-details-content-{salesOrderId} formatında ID'yi bul
-	const content = modal.find('[id^="order-details-content-"]');
-	if (!content.length) return;
-	
-	let html = `
-		<div class="alert alert-info">
-			<i class="fa fa-info-circle mr-2"></i>
-			<strong>Sipariş ${data.sales_order}</strong> - Detaylı Bilgiler
-		</div>
-		
-		<div class="row">
-			<div class="col-md-6">
-				<div class="card">
-					<div class="card-header" style="background: #17a2b8; color: white; border: none;">
-						<i class="fa fa-shopping-cart mr-2"></i>Sipariş Bilgileri
-					</div>
-					<div class="card-body">
-						<table class="table table-sm table-bordered">
-							<tr>
-								<td><strong>Sipariş No:</strong></td>
-								<td><span class="badge badge-primary">${data.sales_order || '-'}</span></td>
-							</tr>
-							<tr>
-								<td><strong>Bayi:</strong></td>
-								<td>${data.bayi || '-'}</td>
-							</tr>
-							<tr>
-								<td><strong>Müşteri:</strong></td>
-								<td>${data.musteri || '-'}</td>
-							</tr>
-							<tr>
-								<td><strong>Sipariş Tarihi:</strong></td>
-								<td>${utils.formatDate(data.siparis_tarihi)}</td>
-							</tr>
-							<tr>
-								<td><strong>Teslim Tarihi:</strong></td>
-								<td>${utils.formatDate(data.bitis_tarihi)}</td>
-							</tr>
-						</table>
-					</div>
-				</div>
-			</div>
-			<div class="col-md-6">
-				<div class="card">
-					<div class="card-header bg-success text-white">
-						<i class="fa fa-cogs mr-2"></i>Ürün Bilgileri
-					</div>
-					<div class="card-body">
-						<table class="table table-sm table-bordered">
-							<tr>
-								<td><strong>Seri:</strong></td>
-								<td>
-									${data.seri_list && data.seri_list.length > 0 ? 
-										data.seri_list.map(seri => `<span class="badge badge-info mr-1">${seri}</span>`).join('') : 
-										`<span class="badge badge-info">${data.seri || '-'}</span>`
-									}
-								</td>
-							</tr>
-							<tr>
-								<td><strong>Renk:</strong></td>
-								<td>
-									${data.renk_list && data.renk_list.length > 0 ? 
-										data.renk_list.map(renk => `<span class="badge badge-warning mr-1">${renk}</span>`).join('') : 
-										`<span class="badge badge-warning">${data.renk || '-'}</span>`
-									}
-								</td>
-							</tr>
-							<tr>
-								<td><strong>PVC:</strong></td>
-								<td>
-									<span class="badge badge-danger mr-2">ADET: ${data.pvc_qty || '0'}</span>
-									<span class="badge badge-warning">MTÜL: ${data.pvc_qty && data.total_mtul ? 
-										((parseFloat(data.pvc_qty) / (parseFloat(data.pvc_qty) + parseFloat(data.cam_qty || 0))) * parseFloat(data.total_mtul)).toFixed(2) : '0.00'}</span>
-								</td>
-							</tr>
-							<tr>
-								<td><strong>CAM:</strong></td>
-								<td>
-									<span class="badge badge-primary mr-2">ADET: ${data.cam_qty || '0'}</span>
-									<span class="badge badge-info">M2: ${data.cam_qty ? (parseFloat(data.cam_qty) * 0.95).toFixed(2) : '0.00'}</span>
-								</td>
-							</tr>
-							<tr>
-								<td><strong>Acil:</strong></td>
-								<td>${data.custom_acil_durum == 1 ? '<span class="badge badge-danger">ACİL</span>' : '<span class="badge badge-success">NORMAL</span>'}</td>
-							</tr>
-							<tr>
-								<td><strong>Açıklama:</strong></td>
-								<td>${data.aciklama || '-'}</td>
-							</tr>
-						</table>
-					</div>
-				</div>
-			</div>
-		</div>
-		
-		<div class="row mt-3">
-			<div class="col-12 text-center">
-				<a href="/app/sales-order/${data.sales_order}" target="_blank" class="btn btn-primary btn-lg">
-					<i class="fa fa-external-link mr-2"></i>Siparişi Görüntüle
-				</a>
-			</div>
-		</div>
-	`;
-	
-	content.html(html);
-}
-
-// VirtualScroller sınıfı kaldırıldı - kullanılmıyor
+};

@@ -2,7 +2,7 @@ import frappe
 
 
 def on_submit(doc, method):
-	print("\n\n-- Uretim Plani - Production Plan - On Submit-- (START)\n")
+	# Uretim Plani - Production Plan - On Submit (START)
 
 	existing_opti_doc = frappe.db.exists("Opti", doc.custom_opti_no)
 	if existing_opti_doc:
@@ -20,4 +20,4 @@ def on_submit(doc, method):
 	opti_doc.set("sales_orders", so_items)
 	opti_doc.save(ignore_permissions=True)
 
-	print("\n-- Uretim Plani - Production Plan - On Submit-- (END)\n")
+	# Uretim Plani - Production Plan - On Submit (END)

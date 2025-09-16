@@ -182,8 +182,23 @@ frappe.ui.form.on("Production Plan", {
                         const max_mtul_for_scaling = Math.max(2000, max_overall_mtul * 1.1); // 2000 veya max toplamın %10 fazlası
 
                         // Segment genişliklerini yüzde olarak hesapla
-                        const under_1400_percentage = (mtul_under_1400 / max_mtul_for_scaling) * 100;
-                        const over_1400_percentage = (mtul_over_1400 / max_mtul_for_scaling) * 100;
+                        // 1400 MTUL'luk kısmı daha belirgin göstermek için sabit genişlik yaklaşımı:
+                        // - Toplam 1400'ün altındaysa, 0-70% aralığına oransal dağıt.
+                        // - 1400'ü aşıyorsa, ilk 1400'ü sabit 70% göster, kalan 30% üzerinde oranla.
+                        const BASE_1400_PERCENT = 70; // 1400 için ayrılan sabit genişlik
+                        const REMAINING_PERCENT = 30; // 1400 üzeri için kalan alan
+
+                        let under_1400_percentage;
+                        let over_1400_percentage;
+
+                        if (total_mtul <= 1400) {
+                            under_1400_percentage = (total_mtul / 1400) * BASE_1400_PERCENT;
+                            over_1400_percentage = 0;
+                        } else {
+                            under_1400_percentage = BASE_1400_PERCENT;
+                            const max_over_amount = Math.max(1, (max_mtul_for_scaling - 1400));
+                            over_1400_percentage = (mtul_over_1400 / max_over_amount) * REMAINING_PERCENT;
+                        }
 
                         // Tablo için renk belirleme (iş istasyonuna göre renk)
                         const base_color = row.workstation.includes("Kaban") ? '#944de0' : row.workstation.includes("Murat") ? '#e89225' : '#6c757d';
@@ -253,9 +268,21 @@ frappe.ui.form.on("Production Plan", {
                             const max_overall_mtul = Math.max(...Object.values(combined).map(item => item.total_mtul || 0), ...Object.values(temp_summary).map(item => item.total_mtul || 0));
                             const max_mtul_for_scaling = Math.max(2000, max_overall_mtul * 1.1);
 
-                            // Segment genişliklerini yüzde olarak hesapla
-                            const under_1400_percentage = (mtul_under_1400 / max_mtul_for_scaling) * 100;
-                            const over_1400_percentage = (mtul_over_1400 / max_mtul_for_scaling) * 100;
+                            // Segment genişliklerini yüzde olarak hesapla (aynı sabit genişlik mantığı)
+                            const BASE_1400_PERCENT = 70;
+                            const REMAINING_PERCENT = 30;
+
+                            let under_1400_percentage;
+                            let over_1400_percentage;
+
+                            if (total_mtul <= 1400) {
+                                under_1400_percentage = (total_mtul / 1400) * BASE_1400_PERCENT;
+                                over_1400_percentage = 0;
+                            } else {
+                                under_1400_percentage = BASE_1400_PERCENT;
+                                const max_over_amount = Math.max(1, (max_mtul_for_scaling - 1400));
+                                over_1400_percentage = (mtul_over_1400 / max_over_amount) * REMAINING_PERCENT;
+                            }
 
                             // Tablo için renk belirleme (iş istasyonuna göre renk)
                             const base_color = item.workstation.includes("Kaban") ? '#944de0' : item.workstation.includes("Murat") ? '#e89225' : '#6c757d';

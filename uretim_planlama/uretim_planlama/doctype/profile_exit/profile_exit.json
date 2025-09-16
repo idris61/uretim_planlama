@@ -5,8 +5,6 @@
  "engine": "InnoDB",
  "field_order": [
   "date",
-  "warehouse",
-  "cost_center",
   "items",
   "total_output_length",
   "total_output_qty",
@@ -20,20 +18,6 @@
    "in_list_view": 1,
    "label": "Date",
    "reqd": 1
-  },
-  {
-   "fieldname": "warehouse",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Warehouse",
-   "options": "Warehouse",
-   "reqd": 1
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center"
   },
   {
    "fieldname": "remarks",
