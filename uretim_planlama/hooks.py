@@ -31,6 +31,7 @@ app_include_css = [
 	"/assets/uretim_planlama/css/profile_buttons.css"
 ]
 
+
 # Sayfa konfigürasyonu
 page_js = {
     "uretim-paneli": "uretim_planlama/uretim_planlama/uretim_planlama/page/uretim_paneli/uretim_paneli.js",
@@ -108,9 +109,6 @@ doc_events = {
 	# "Job Card": {
 	# 	"on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
 	# },
-	"Stock Entry": {
-		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry"
-	},
 	"Work Order": {
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
 	},
@@ -124,13 +122,13 @@ doc_events = {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
-	# Purchase Receipt: tüm eventleri TEK blokta topla (çift tanımı engelle)
 	"Purchase Receipt": {
 		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit",
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Stock Entry": {
+		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry",
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},

@@ -71,27 +71,28 @@ def get_or_create_boy_record(length_value):
     if not length_value:
         return None
         
-    # Önce normalize et
-    normalized_length = normalize_profile_length(length_value)
-    if not normalized_length:
+    # Parse ve format işlemi yap
+    try:
+        numeric_length, formatted_str = parse_and_format_length(length_value, decimals=1)
+    except:
         return None
     
-    # Normalize edilmiş length ile ara
-    boy_records = frappe.get_all(
-        "Boy", 
-        filters={"length": normalized_length}, 
-        fields=["name"],
-        limit=1
-    )
+    # Sayısal değere eşit olan kayıtları ara
+    existing = frappe.db.sql("""
+        SELECT name, length 
+        FROM `tabBoy` 
+        WHERE CAST(REPLACE(REPLACE(length, ',', '.'), ' m', '') AS DECIMAL(10,2)) = %s
+        LIMIT 1
+    """, [numeric_length], as_dict=True)
     
-    if boy_records:
-        return boy_records[0].name
+    if existing:
+        return existing[0].name
     
     # Bulunamadıysa yeni kayıt oluştur
     try:
         boy_doc = frappe.get_doc({
             "doctype": "Boy",
-            "length": normalized_length
+            "length": formatted_str
         })
         boy_doc.insert()
         return boy_doc.name

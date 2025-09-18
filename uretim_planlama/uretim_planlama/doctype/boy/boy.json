@@ -19,8 +19,8 @@
   }
  ],
  "links": [],
- "modified": "2025-07-22 11:05:54.311399",
- "modified_by": "ozerpan@gmail.com",
+ "modified": "2025-09-18 13:56:06.129016",
+ "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Boy",
  "naming_rule": "By fieldname",
@@ -55,6 +55,7 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
+ "title_field": "length",
  "track_changes": 1,
  "translated_doctype": 1
 }
