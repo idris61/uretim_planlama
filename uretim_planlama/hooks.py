@@ -31,6 +31,10 @@ app_include_css = [
 	"/assets/uretim_planlama/css/profile_buttons.css"
 ]
 
+app_include_js = [
+	"/assets/uretim_planlama/js/profile_calculator.js"
+]
+
 
 # Sayfa konfigürasyonu
 page_js = {
