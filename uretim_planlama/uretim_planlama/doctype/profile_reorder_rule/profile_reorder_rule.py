@@ -6,7 +6,7 @@ from frappe.model.document import Document
 from frappe import _
 
 class ProfileReorderRule(Document):
-	"""Boy bazlı asgari stok eşiği tanımı. (item, length, warehouse) tekildir."""
+	"""Boy bazlı asgari stok eşiği tanımı. (profile_type, length) tekildir."""
 
 	def validate(self):
 		self._validate_numbers()
@@ -23,10 +23,10 @@ class ProfileReorderRule(Document):
 			"profile_type": self.profile_type,
 			"length": self.length,
 		}
-		# Warehouse opsiyonel olduğu için sadece varsa filtreye ekle
-		if self.warehouse:
-			filters["warehouse"] = self.warehouse
+		# Warehouse field DocType'da yok, sadece profile_type ve length ile kontrol et
+		if self.name:
+			filters["name"] = ["!=", self.name]
 		
 		existing = frappe.get_all("Profile Reorder Rule", filters=filters, pluck="name")
-		if existing and (len(existing) > 1 or existing[0] != self.name):
-			frappe.throw(_("Duplicate rule for same Profile Type/Length/Warehouse combination"))
+		if existing:
+			frappe.throw(_("Duplicate rule for same Profile Type/Length combination"))
