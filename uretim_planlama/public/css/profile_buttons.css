@@ -1,0 +1,53 @@
+/* Profil Miktar Hesapla Butonları - Kırmızı Stil */
+button[data-fieldname="custom_calculate_profile_qty"],
+.btn[data-fieldname="custom_calculate_profile_qty"],
+input[data-fieldname="custom_calculate_profile_qty"] + button,
+.form-control[data-fieldname="custom_calculate_profile_qty"] {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+    font-weight: bold !important;
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+}
+
+button[data-fieldname="custom_calculate_profile_qty"]:hover,
+.btn[data-fieldname="custom_calculate_profile_qty"]:hover,
+input[data-fieldname="custom_calculate_profile_qty"] + button:hover {
+    background-color: #c82333 !important;
+    border-color: #bd2130 !important;
+    color: white !important;
+}
+
+button[data-fieldname="custom_calculate_profile_qty"]:active,
+.btn[data-fieldname="custom_calculate_profile_qty"]:active,
+input[data-fieldname="custom_calculate_profile_qty"] + button:active {
+    background-color: #bd2130 !important;
+    border-color: #a71e2a !important;
+    color: white !important;
+}
+
+/* Grid içindeki butonlar için özel stil */
+.grid-row button[data-fieldname="custom_calculate_profile_qty"] {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    margin: 2px !important;
+}
+
+/* Button field container */
+.frappe-control[data-fieldname="custom_calculate_profile_qty"] {
+    margin-top: 5px !important;
+}
+
+.frappe-control[data-fieldname="custom_calculate_profile_qty"] button {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+    font-weight: bold !important;
+}
+

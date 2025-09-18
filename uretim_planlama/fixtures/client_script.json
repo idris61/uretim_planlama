@@ -1,0 +1,12 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Purchase Receipt",
+  "enabled": 1,
+  "module": "Uretim Planlama", 
+  "name": "Purchase Receipt Profile Calculator Working V2",
+  "script": "// V2 - Çalışan Versiyon\nconsole.log('Purchase Receipt Client Script V2 yüklendi');\n\nfrappe.ui.form.on('Purchase Receipt Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        console.log('✅ Buton tıklandı! V2');\n        const row = locals[cdt][cdn];\n        \n        if (!row.custom_is_profile) {\n            frappe.msgprint('Profil mi? alanını işaretleyin!');\n            return;\n        }\n        \n        if (!row.custom_profile_length_m) {\n            frappe.msgprint('Profil Boyu seçin!');\n            return;\n        }\n        \n        if (!row.custom_profile_length_qty) {\n            frappe.msgprint('Profil Boyu Adedi girin!');\n            return;\n        }\n        \n        frappe.db.get_doc('Boy', row.custom_profile_length_m).then(boy_doc => {\n            let length = 0;\n            if (boy_doc.length) length = parseFloat(boy_doc.length);\n            else if (boy_doc.name && !isNaN(parseFloat(boy_doc.name))) length = parseFloat(boy_doc.name);\n            \n            if (length <= 0) {\n                frappe.msgprint('Boy değeri bulunamadı!');\n                return;\n            }\n            \n            const qty = parseInt(row.custom_profile_length_qty) || 0;\n            const cf = parseFloat(row.conversion_factor) || 1;\n            const calculatedQty = (length * qty) / cf;\n            \n            frappe.model.set_value(cdt, cdn, 'qty', calculatedQty);\n            frappe.show_alert(`Hesaplandı: ${length}m × ${qty} = ${calculatedQty.toFixed(2)}`);\n        });\n    }\n});\n\n// Kırmızı buton stili\nfrappe.ui.form.on('Purchase Receipt', {\n    refresh: function(frm) {\n        setTimeout(() => {\n            $('button[data-fieldname=\"custom_calculate_profile_qty\"]').css({\n                'background': '#dc3545',\n                'color': 'white',\n                'font-weight': 'bold'\n            });\n        }, 2000);\n    }\n});",
+  "view": "Form"
+ }
+]

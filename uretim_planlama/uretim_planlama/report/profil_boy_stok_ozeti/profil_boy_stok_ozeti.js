@@ -29,3 +29,4 @@ frappe.query_reports["Profil Boy Stok Özeti"] = {
 };
 
 
+

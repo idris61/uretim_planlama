@@ -12,6 +12,7 @@ app_license = "MIT"
 fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Workflow"},
 	# {"dt": "Workflow State"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
@@ -25,7 +26,10 @@ fixtures = [
 ]
 
 # Uygulama içi JS/CSS dosyaları
-app_include_css = ["/assets/uretim_planlama/css/sales_order.css"]
+app_include_css = [
+	"/assets/uretim_planlama/css/sales_order.css",
+	"/assets/uretim_planlama/css/profile_buttons.css"
+]
 
 # Sayfa konfigürasyonu
 page_js = {
@@ -44,45 +48,37 @@ doctype_js = {
 	"Sales Order": [
 		"public/js/sales_order/sales_order.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
 	"Delivery Note": [
 		"public/js/delivery_note_assembly_accessory_html.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Purchase Order": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Purchase Receipt": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Stock Entry": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Sales Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Purchase Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 	"Material Request": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js",
-		"public/js/profile_quantity_calculator.js"
+		"public/js/uom_filter.js"
 	],
 }
 

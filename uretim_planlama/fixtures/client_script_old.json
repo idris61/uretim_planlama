@@ -1,0 +1,92 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Purchase Receipt",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Purchase Receipt Profile Button Handler",
+  "script": "frappe.ui.form.on('Purchase Receipt Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Purchase Receipt', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Delivery Note",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Delivery Note Profile Button Handler",
+  "script": "frappe.ui.form.on('Delivery Note Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Delivery Note', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Sales Invoice",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Sales Invoice Profile Button Handler",
+  "script": "frappe.ui.form.on('Sales Invoice Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Sales Invoice', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Purchase Invoice",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Purchase Invoice Profile Button Handler",
+  "script": "frappe.ui.form.on('Purchase Invoice Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Purchase Invoice', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Stock Entry",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Stock Entry Profile Button Handler",
+  "script": "frappe.ui.form.on('Stock Entry Detail', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Stock Entry', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Material Request",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Material Request Profile Button Handler",
+  "script": "frappe.ui.form.on('Material Request Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Material Request', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Sales Order",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Sales Order Profile Button Handler",
+  "script": "frappe.ui.form.on('Sales Order Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Sales Order', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Purchase Order",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Purchase Order Profile Button Handler",
+  "script": "frappe.ui.form.on('Purchase Order Item', {\n    custom_calculate_profile_qty: function(frm, cdt, cdn) {\n        calculateProfileQuantity(frm, cdt, cdn);\n    }\n});\n\nfrappe.ui.form.on('Purchase Order', {\n    refresh: function(frm) {\n        styleProfileButtons();\n    }\n});",
+  "view": "Form"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Global",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Profile Quantity Calculator Button Functions",
+  "script": "// Profil Miktar Hesaplama - Button Field Fonksiyonları\n\n// Button stilini kırmızı yap\nwindow.styleProfileButtons = function() {\n    setTimeout(() => {\n        const buttons = document.querySelectorAll('button[data-fieldname=\"custom_calculate_profile_qty\"]');\n        buttons.forEach(button => {\n            button.style.backgroundColor = '#dc3545';\n            button.style.borderColor = '#dc3545';\n            button.style.color = 'white';\n            button.style.fontWeight = 'bold';\n            button.addEventListener('mouseover', () => {\n                button.style.backgroundColor = '#c82333';\n                button.style.borderColor = '#bd2130';\n            });\n            button.addEventListener('mouseout', () => {\n                button.style.backgroundColor = '#dc3545';\n                button.style.borderColor = '#dc3545';\n            });\n        });\n    }, 500);\n};\n\n// Ana hesaplama fonksiyonu\nwindow.calculateProfileQuantity = function(frm, cdt, cdn) {\n    const row = locals[cdt][cdn];\n    \n    // Validation kontrolleri\n    if (!row.custom_is_profile) {\n        frappe.msgprint({\n            title: 'Uyarı',\n            message: 'Önce \"Profil mi?\" alanını işaretleyin!',\n            indicator: 'orange'\n        });\n        return;\n    }\n    \n    if (!row.custom_profile_length_m) {\n        frappe.msgprint({\n            title: 'Uyarı',\n            message: '\"Profil Boyu (m)\" alanını doldurun!',\n            indicator: 'orange'\n        });\n        return;\n    }\n    \n    if (!row.custom_profile_length_qty) {\n        frappe.msgprint({\n            title: 'Uyarı',\n            message: '\"Profil Boyu Adedi\" alanını doldurun!',\n            indicator: 'orange'\n        });\n        return;\n    }\n    \n    // Değerleri al ve hesapla\n    const length = parseFloat(row.custom_profile_length_m) || 0;\n    const qty = parseInt(row.custom_profile_length_qty) || 0;\n    const conversionFactor = parseFloat(row.conversion_factor) || 1;\n    \n    if (length <= 0 || qty <= 0) {\n        frappe.msgprint({\n            title: 'Uyarı',\n            message: 'Boy ve Adet değerleri 0\\'dan büyük olmalı!',\n            indicator: 'orange'\n        });\n        return;\n    }\n    \n    const calculatedQty = (length * qty) / conversionFactor;\n    \n    // Frappe model ile güncelle\n    frappe.model.set_value(cdt, cdn, 'qty', calculatedQty);\n    \n    if (conversionFactor > 0) {\n        frappe.model.set_value(cdt, cdn, 'stock_qty', calculatedQty * conversionFactor);\n    }\n    \n    // Başarı mesajı\n    frappe.show_alert({\n        message: `✅ Miktar hesaplandı: ${length}m × ${qty} adet = ${calculatedQty.toFixed(2)}`,\n        indicator: 'green'\n    });\n    \n    // Grid'i yenile\n    frm.refresh_field('items');\n};",
+  "view": "Form"
+ }
+]
