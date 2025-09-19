@@ -91,3 +91,4 @@ def calculate_profile_quantity(boy_name, profile_qty, conversion_factor=1.0):
     except Exception as e:
         frappe.log_error(f"Profile calculation error: {str(e)}", "Profile Calculator Error")
         return {"error": "Hesaplama sırasında hata oluştu"}
+

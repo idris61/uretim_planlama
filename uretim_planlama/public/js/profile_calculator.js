@@ -38,12 +38,6 @@ window.calculateProfileQty = function(frm, cdt, cdn) {
         return;
     }
     
-    // Loading göster
-    frappe.show_alert({
-        message: 'Hesaplanıyor...',
-        indicator: 'blue'
-    });
-    
     // Backend API çağrısı
     frappe.call({
         method: 'uretim_planlama.uretim_planlama.api.profile_calculator.calculate_profile_quantity',
@@ -93,8 +87,24 @@ window.calculateProfileQty = function(frm, cdt, cdn) {
  * Profil hesaplama butonlarını stillendirir
  */
 window.styleProfileButtons = function() {
-    setTimeout(() => {
-        const buttons = $('button[data-fieldname="custom_calculate_profile_qty"]');
+    // Birden fazla selector dene ve timing artır
+    const tryStyleButtons = () => {
+        const selectors = [
+            'button[data-fieldname="custom_calculate_profile_qty"]',
+            'button[data-fieldname*="calculate_profile"]',
+            '.btn[data-fieldname="custom_calculate_profile_qty"]',
+            'input[data-fieldname="custom_calculate_profile_qty"]'
+        ];
+        
+        let buttons = $();
+        for (const selector of selectors) {
+            const found = $(selector);
+            if (found.length > 0) {
+                buttons = found;
+                break;
+            }
+        }
+        
         if (buttons.length > 0) {
             buttons.css({
                 'background-color': '#dc3545',
@@ -115,10 +125,21 @@ window.styleProfileButtons = function() {
             );
             
             console.log(`✅ Profil butonları stillendirildi: ${buttons.length} buton`);
-        } else {
-            console.log('⚠️ Profil hesaplama butonları bulunamadı');
+            return true;
         }
-    }, 500);
+        return false;
+    };
+    
+    // İlk deneme
+    if (!tryStyleButtons()) {
+        // 1 saniye sonra tekrar dene
+        setTimeout(() => {
+            if (!tryStyleButtons()) {
+                // 2 saniye sonra son deneme
+                setTimeout(tryStyleButtons, 2000);
+            }
+        }, 1000);
+    }
 };
 
 // =============================================================================
