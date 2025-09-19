@@ -183,7 +183,7 @@ bench migrate
 
 ## 📚 **Dokümantasyon**
 
-Detaylı dokümantasyon için [Wiki](link-to-wiki) sayfasını ziyaret edin.
+Detaylı dokümantasyon için [Wiki](https://github.com/idris/uretim_planlama/wiki) sayfasını ziyaret edin.
 
 ## 🤝 **Katkıda Bulunma**
 
@@ -200,5 +200,5 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `license.txt` 
 ## 📞 **İletişim**
 
 - **Geliştirici**: idris
-- **E-posta**: idris@example.com
-- **Proje Linki**: [GitHub Repository](link-to-repo)
+- **E-posta**: idris.gemici61@gmail.com
+- **Proje Linki**: [GitHub Repository](https://github.com/idris/uretim_planlama)

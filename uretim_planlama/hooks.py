@@ -5,7 +5,7 @@ app_name = "uretim_planlama"
 app_title = "Üretim Planlama"
 app_publisher = "idris"
 app_description = "ERPNext tabanlı üretim planlama uygulaması"
-app_email = "idris@example.com"
+app_email = "idris.gemici61@gmail.com"
 app_license = "MIT"
 
 # Fixtures (isteğe bağlı özelleştirilebilir)
@@ -168,6 +168,20 @@ modules = {
 scheduler_events = {
 	"daily": [
 		"uretim_planlama.uretim_planlama.api.reorder.profile_reorder_sweep",
-	]
+	],
+	"cron": {
+		# Her 5 dakikada cache refresh (yoğun saatlerde)
+		"*/5 8-18 * * 1-5": [
+			"uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.refresh_cache_background"
+		],
+		# Her 15 dakikada cache refresh (normal saatlerde)
+		"*/15 0-7,19-23 * * *": [
+			"uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.refresh_cache_background"
+		],
+		# Hafta sonları saatlik
+		"0 * * * 6,0": [
+			"uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.refresh_cache_background"
+		]
+	}
 }
 

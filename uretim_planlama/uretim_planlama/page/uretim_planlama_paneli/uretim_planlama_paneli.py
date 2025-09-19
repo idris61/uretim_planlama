@@ -49,15 +49,15 @@ CONSTANTS = {
         "İptal Edildi": "İptal Edildi",
     },
     'DEFAULT_LIMIT': 0,  # 0 = sınırsız
-    'CACHE_DURATION': 300000,  # 5 dakika
+    'CACHE_DURATION': 600000,  # 10 dakika - artırıldı
     'MAX_RETRIES': 3,
     'DEFAULT_MTUL_CAM': 1.745,
     'DEFAULT_MTUL_PVC': 11.35,
     'MAX_QUERY_LIMIT': 0  # 0 = sınırsız
 }
 
-# Lightweight cache helpers (Redis-backed via frappe.cache)
-def _cache_get(key: str, ttl_seconds: int = 300):
+# Enhanced cache helpers (Redis-backed via frappe.cache)
+def _cache_get(key: str, ttl_seconds: int = 600):
     try:
         cache = frappe.cache()
         cached = cache.get_value(key)
@@ -66,14 +66,17 @@ def _cache_get(key: str, ttl_seconds: int = 300):
         ts = cached.get('ts', 0)
         if (time.time() - float(ts)) <= ttl_seconds:
             return cached.get('data')
+        # Eski cache'i temizle
+        cache.delete_value(key)
         return None
     except Exception:
         return None
 
-def _cache_set(key: str, data: Any):
+def _cache_set(key: str, data: Any, ttl_seconds: int = 600):
     try:
         cache = frappe.cache()
-        cache.set_value(key, {"data": data, "ts": time.time()})
+        cache_data = {"data": data, "ts": time.time(), "ttl": ttl_seconds}
+        cache.set_value(key, cache_data, expires_in_sec=ttl_seconds)
     except Exception:
         pass
 
@@ -242,27 +245,12 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 END as toplam_mtul_m2,
                 ppi.planned_qty as planlanan_miktar,
                 COALESCE(so.custom_remarks, '') as siparis_aciklama,
-                CASE 
-                    WHEN COALESCE(wo_stats.total_wo, 0) = 0 THEN 'Not Started'
-                    WHEN COALESCE(wo_stats.completed_wo, 0) = COALESCE(wo_stats.total_wo, 0) THEN 'Completed'
-                    WHEN COALESCE(wo_stats.in_process_wo, 0) > 0 THEN 'In Process'
-                    ELSE 'Not Started'
-                END as work_order_status
+                'Not Started' as work_order_status
             FROM `tabProduction Plan` pp
             INNER JOIN `tabProduction Plan Item` ppi ON pp.name = ppi.parent
             INNER JOIN `tabSales Order` so ON ppi.sales_order = so.name
             INNER JOIN `tabSales Order Item` soi ON ppi.sales_order_item = soi.name
             INNER JOIN `tabItem` i ON ppi.item_code = i.name
-            LEFT JOIN (
-                SELECT 
-                    wo.production_plan,
-                    COUNT(*) as total_wo,
-                    SUM(CASE WHEN wo.status = 'Completed' THEN 1 ELSE 0 END) as completed_wo,
-                    SUM(CASE WHEN wo.status IN ('In Process', 'Completed') THEN 1 ELSE 0 END) as in_process_wo
-                FROM `tabWork Order` wo
-                WHERE wo.docstatus = 1
-                GROUP BY wo.production_plan
-            ) wo_stats ON wo_stats.production_plan = pp.name
             WHERE pp.docstatus = 1 
             AND ppi.planned_qty > 0
             AND i.item_group != 'All Item Groups'
@@ -336,15 +324,7 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                     THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0)) * i.custom_amount_per_piece
                     ELSE (soi.qty - COALESCE(planned_qty.planned_qty, 0))
                 END as total_mtul,
-                CASE WHEN EXISTS (
-                    SELECT 1 FROM `tabProduction Plan Item` ppi2
-                    INNER JOIN `tabProduction Plan` pp2 ON ppi2.parent = pp2.name
-                    INNER JOIN `tabSales Order Item` soi2 ON ppi2.sales_order_item = soi2.name
-                    INNER JOIN `tabItem` i2 ON soi2.item_code = i2.name
-                    WHERE pp2.docstatus = 1 AND pp2.status != 'Closed'
-                    AND soi2.parent = so.name
-                    AND (i2.custom_serial != i.custom_serial OR i2.custom_color != i.custom_color)
-                ) THEN 1 ELSE 0 END as kismi_planlama
+                COALESCE(kismi_check.kismi_planlama, 0) as kismi_planlama
             FROM `tabSales Order` so
             INNER JOIN `tabSales Order Item` soi ON so.name = soi.parent
             INNER JOIN `tabItem` i ON soi.item_code = i.name
@@ -357,6 +337,19 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 WHERE pp.docstatus = 1 AND pp.status != 'Closed'
                 GROUP BY ppi.sales_order_item
             ) planned_qty ON soi.name = planned_qty.sales_order_item
+            LEFT JOIN (
+                SELECT DISTINCT 
+                    soi2.parent as sales_order,
+                    1 as kismi_planlama
+                FROM `tabProduction Plan Item` ppi2
+                INNER JOIN `tabProduction Plan` pp2 ON ppi2.parent = pp2.name
+                INNER JOIN `tabSales Order Item` soi2 ON ppi2.sales_order_item = soi2.name
+                INNER JOIN `tabItem` i2 ON soi2.item_code = i2.name
+                INNER JOIN `tabSales Order Item` soi3 ON soi2.parent = soi3.parent
+                INNER JOIN `tabItem` i3 ON soi3.item_code = i3.name
+                WHERE pp2.docstatus = 1 AND pp2.status != 'Closed'
+                AND (i2.custom_serial != i3.custom_serial OR i2.custom_color != i3.custom_color)
+            ) kismi_check ON kismi_check.sales_order = so.name
             WHERE so.docstatus = 1
             AND i.item_group IS NOT NULL
             AND (i.item_group IN ('PVC', 'Camlar') OR i.custom_stok_türü IN ('PVC', 'Camlar'))
@@ -402,9 +395,9 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
         # Veri sayısını log'la
         frappe.logger().info(f"Unplanned data count: {len(unplanned_data)}")
         
-        # Verileri formatla
-        planned_formatted = format_planned_data(planned_data)
-        unplanned_formatted = format_unplanned_data(unplanned_data)
+        # Verileri formatla - Optimize edilmiş
+        planned_formatted = format_planned_data_optimized(planned_data)
+        unplanned_formatted = format_unplanned_data_optimized(unplanned_data)
         
         return planned_formatted, unplanned_formatted
         
@@ -603,6 +596,250 @@ def format_unplanned_data(unplanned_data: List[Dict]) -> List[Dict]:
     except Exception as e:
         frappe.log_error(f"format_unplanned_data hatası: {str(e)}")
         return []
+
+def format_planned_data_optimized(planned_data: List[Dict]) -> List[Dict]:
+    """
+    Optimize edilmiş planlanan veri formatlaması - Daha hızlı gruplama
+    """
+    try:
+        if not planned_data:
+            return []
+        
+        # Tek geçişte gruplama ve hesaplama
+        grouped_data = {}
+        
+        for item in planned_data:
+            sales_order = item['sales_order']
+            seri = item.get('seri', '') or ''
+            renk = item.get('renk', '') or ''
+            combination_key = f"{sales_order}_{seri}_{renk}"
+            
+            if combination_key not in grouped_data:
+                # İlk kayıt - tüm bilgileri al
+                grouped_data[combination_key] = {
+                    'uretim_plani': item['uretim_plani'],
+                    'opti_no': item.get('opti_no'),
+                    'sales_order': sales_order,
+                    'item_code': f"{sales_order} (1 ürün)",  # Başlangıç
+                    'hafta': item.get('hafta'),
+                    'siparis_total_qty': item['siparis_total_qty'],
+                    'bayi': item['bayi'],
+                    'musteri': item['musteri'],
+                    'siparis_tarihi': item['siparis_tarihi'].strftime('%Y-%m-%d') if item['siparis_tarihi'] else None,
+                    'tip': item['tip'],
+                    'renk': renk or '-',
+                    'seri': seri or '-',
+                    'aciklama': item.get('siparis_aciklama') or 'Ürün grubu',
+                    'bitis_tarihi': item['bitis_tarihi'].strftime('%Y-%m-%d') if item['bitis_tarihi'] else None,
+                    'acil': bool(item['acil']),
+                    'durum_badges': [],
+                    'planlanan_baslangic_tarihi': item.get('planlanan_baslangic_tarihi').strftime('%Y-%m-%d') if item.get('planlanan_baslangic_tarihi') else None,
+                    'planned_end_date': item.get('planned_end_date').strftime('%Y-%m-%d') if item.get('planned_end_date') and item.get('planned_end_date') != 'None' else None,
+                    'plan_status': 'Completed' if item.get('work_order_status') == 'Completed' else item.get('plan_status', 'Not Started'),
+                    'adet': 0,
+                    'pvc_count': 0,
+                    'cam_count': 0,
+                    'toplam_mtul_m2': 0,
+                    'item_count': 0
+                }
+            
+            # Miktarları topla
+            group = grouped_data[combination_key]
+            planlanan_miktar = float(item.get('planlanan_miktar', 0) or 0)
+            toplam_mtul_m2 = float(item.get('toplam_mtul_m2', 0) or 0)
+            urun_grubu = str(item.get('urun_grubu', '') or '').lower()
+            
+            group['adet'] += planlanan_miktar
+            group['toplam_mtul_m2'] += toplam_mtul_m2
+            group['item_count'] += 1
+            
+            # PVC/Cam ayrımı
+            if urun_grubu == 'pvc':
+                group['pvc_count'] += planlanan_miktar
+            elif urun_grubu == 'camlar':
+                group['cam_count'] += planlanan_miktar
+            
+            # Item code güncelle
+            if group['item_count'] > 1:
+                group['item_code'] = f"{sales_order} ({group['item_count']} ürün)"
+        
+        return list(grouped_data.values())
+        
+    except Exception as e:
+        frappe.log_error(f"format_planned_data_optimized hatası: {str(e)}")
+        return []
+
+def format_unplanned_data_optimized(unplanned_data: List[Dict]) -> List[Dict]:
+    """
+    Optimize edilmiş planlanmamış veri formatlaması - Daha hızlı gruplama
+    """
+    try:
+        if not unplanned_data:
+            return []
+        
+        # Tek geçişte gruplama
+        grouped_data = {}
+        
+        for item in unplanned_data:
+            sales_order = item['sales_order']
+            seri = item.get('seri', '') or ''
+            renk = item.get('renk', '') or ''
+            group_key = f"{sales_order}_{seri}_{renk}"
+            
+            if group_key not in grouped_data:
+                # İlk kayıt - tüm bilgileri al
+                grouped_data[group_key] = {
+                    'sales_order': sales_order,
+                    'item_code': f"{sales_order}_{seri}_{renk}",
+                    'bayi': item.get('bayi', ''),
+                    'musteri': item.get('musteri', ''),
+                    'siparis_tarihi': item.get('siparis_tarihi').strftime('%Y-%m-%d') if item.get('siparis_tarihi') else None,
+                    'bitis_tarihi': item.get('bitis_tarihi').strftime('%Y-%m-%d') if item.get('bitis_tarihi') else None,
+                    'hafta': item.get('hafta'),
+                    'seri': seri or '-',
+                    'renk': renk or '-',
+                    'aciklama': item.get('siparis_aciklama', ''),
+                    'acil': bool(item.get('acil', 0)),
+                    'siparis_durumu': item.get('siparis_durumu', 'Draft'),
+                    'is_akisi_durumu': item.get('is_akisi_durumu', ''),
+                    'workflow_state': item.get('is_akisi_durumu', ''),
+                    'belge_durumu': item.get('belge_durumu', 0),
+                    'mly_dosyasi_var': item.get('mly_dosyasi_var', 0),
+                    'kismi_planlama': item.get('kismi_planlama', 0),
+                    'pvc_count': 0,
+                    'cam_count': 0,
+                    'total_mtul': 0
+                }
+            
+            # Miktarları topla
+            group = grouped_data[group_key]
+            group['pvc_count'] += float(item.get('pvc_qty', 0) or 0)
+            group['cam_count'] += float(item.get('cam_qty', 0) or 0)
+            group['total_mtul'] += float(item.get('total_mtul', 0) or 0)
+        
+        # Sipariş numarasına göre sıralı liste döndür
+        return sorted(grouped_data.values(), key=lambda x: x['sales_order'])
+        
+    except Exception as e:
+        frappe.log_error(f"format_unplanned_data_optimized hatası: {str(e)}")
+        return []
+
+@frappe.whitelist()
+def clear_production_panel_cache():
+    """
+    Üretim paneli cache'ini temizle - Performance maintenance için
+    """
+    try:
+        cache = frappe.cache()
+        # Cache prefix'i ile tüm panel cache'lerini temizle
+        cache_keys = cache.get_keys("upp:*")
+        cleared_count = 0
+        
+        for key in cache_keys:
+            try:
+                cache.delete_value(key)
+                cleared_count += 1
+            except:
+                continue
+        
+        return {
+            "success": True,
+            "message": f"{cleared_count} cache kaydı temizlendi",
+            "cleared_count": cleared_count
+        }
+    except Exception as e:
+        frappe.log_error(f"Cache temizleme hatası: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+@frappe.whitelist()
+def get_work_order_statuses(production_plans: str) -> Dict[str, str]:
+    """
+    Üretim planları için Work Order durumlarını ayrı olarak getir
+    Ana sorgudan ayrıldı - performans için
+    """
+    try:
+        import json
+        if isinstance(production_plans, str):
+            plans = json.loads(production_plans)
+        else:
+            plans = production_plans
+            
+        if not plans:
+            return {}
+            
+        # Cache kontrolü
+        cache_key = f"upp:wo_status:{hash(str(sorted(plans)))}"
+        cached = _cache_get(cache_key, ttl_seconds=300)  # 5 dakika cache
+        if cached:
+            return cached
+            
+        # Toplu Work Order durumu sorgusu
+        placeholders = ', '.join(['%s'] * len(plans))
+        wo_status_query = f"""
+            SELECT 
+                wo.production_plan,
+                CASE 
+                    WHEN COUNT(*) = 0 THEN 'Not Started'
+                    WHEN SUM(CASE WHEN wo.status = 'Completed' THEN 1 ELSE 0 END) = COUNT(*) THEN 'Completed'
+                    WHEN SUM(CASE WHEN wo.status IN ('In Process', 'Completed') THEN 1 ELSE 0 END) > 0 THEN 'In Process'
+                    ELSE 'Not Started'
+                END as work_order_status
+            FROM `tabWork Order` wo
+            WHERE wo.production_plan IN ({placeholders})
+            AND wo.docstatus = 1
+            GROUP BY wo.production_plan
+        """
+        
+        results = frappe.db.sql(wo_status_query, plans, as_dict=True)
+        
+        # Dictionary formatına çevir
+        status_map = {}
+        for result in results:
+            status_map[result['production_plan']] = result['work_order_status']
+            
+        # Eksik planlar için varsayılan durum
+        for plan in plans:
+            if plan not in status_map:
+                status_map[plan] = 'Not Started'
+                
+        # Cache'e kaydet
+        _cache_set(cache_key, status_map, ttl_seconds=300)
+        
+        return status_map
+        
+    except Exception as e:
+        frappe.log_error(f"get_work_order_statuses hatası: {str(e)}")
+        return {}
+
+@frappe.whitelist()
+def refresh_cache_background():
+    """
+    Background'da cache'i yenile - Cron job için
+    """
+    try:
+        # Varsayılan filtrelerle cache'i yenile
+        default_filters = validate_filters({})
+        
+        # Ana verileri background'da yükle
+        planned, unplanned = get_optimized_data_v2(default_filters)
+        
+        # Cache'e kaydet
+        cache_key = f"upp:planned-unplanned:{json.dumps(default_filters, sort_keys=True)}"
+        result = {"planned": planned, "unplanned": unplanned}
+        _cache_set(cache_key, result, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        
+        frappe.logger().info(f"Background cache refresh tamamlandı: {len(planned)} planlanan, {len(unplanned)} planlanmamış")
+        
+        return {
+            "success": True,
+            "planned_count": len(planned),
+            "unplanned_count": len(unplanned),
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Background cache refresh hatası: {str(e)}")
+        return {"success": False, "error": str(e)}
 
 @frappe.whitelist()
 def get_autocomplete_data(field: str, search: str) -> List[str]:
