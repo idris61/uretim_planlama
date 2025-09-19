@@ -97,6 +97,7 @@ doc_events = {
 		"on_submit": [
 			"uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
 			"uretim_planlama.sales_order_hooks.raw_materials.handle_child_sales_order_reserves",
+			"uretim_planlama.sales_order_hooks.profile_reorder.check_profile_reorder_on_sales_order",
 		],
 		"on_cancel": [
 			"uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel",

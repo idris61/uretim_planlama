@@ -13,9 +13,11 @@
  "fields": [
   {
    "fieldname": "length",
-   "fieldtype": "Data",
+   "fieldtype": "Float",
+   "in_list_view": 1,
    "label": "Length (m)",
-   "unique": 1
+   "precision": "1",
+   "reqd": 1
   }
  ],
  "links": [],

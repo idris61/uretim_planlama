@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 
 @frappe.whitelist()
@@ -20,14 +21,12 @@ def get_boy_length(boy_name):
         if not boy_name:
             return {"error": "Boy name boş olamaz"}
             
+        
         # Boy kaydını bul
         boy_doc = frappe.get_doc("Boy", boy_name)
-        if not boy_doc:
-            return {"error": f"Boy kaydı bulunamadı: {boy_name}"}
             
-        # Length değerini normalize et
-        length_str = str(boy_doc.length).replace(',', '.')
-        length_value = float(length_str)
+        # Length değerini al
+        length_value = float(boy_doc.length)
         
         if length_value <= 0:
             return {"error": f"Geçersiz boy değeri: {length_value}"}
@@ -73,9 +72,9 @@ def calculate_profile_quantity(boy_name, profile_qty, conversion_factor=1.0):
         if cf <= 0:
             return {"error": "Çevrim faktörü 0'dan büyük olmalıdır"}
             
-        # Hesaplama
-        calculated_qty = (length * qty) / cf
-        stock_qty = calculated_qty * cf
+        # Hesaplama - floating point precision sorununu önlemek için flt() kullan
+        calculated_qty = flt((length * qty) / cf, 2)  # 2 decimal precision
+        stock_qty = flt(calculated_qty * cf, 2)
         
         return {
             "qty": calculated_qty,
@@ -83,7 +82,7 @@ def calculate_profile_quantity(boy_name, profile_qty, conversion_factor=1.0):
             "length": length,
             "profile_qty": qty,
             "conversion_factor": cf,
-            "calculation": f"{length}m × {qty} adet ÷ {cf} = {calculated_qty:.2f}"
+            "calculation": f"{length}m × {qty} adet ÷ {cf} = {calculated_qty}"
         }
         
     except (ValueError, TypeError) as e:
