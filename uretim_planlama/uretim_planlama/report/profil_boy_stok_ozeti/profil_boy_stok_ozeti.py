@@ -18,17 +18,14 @@ def execute(filters=None):
 
 def get_columns():
     return [
-        {"label": _("Profile"), "fieldname": "profile_type", "fieldtype": "Link", "options": "Item", "width": 180},
-        {"label": _("Profile Name"), "fieldname": "item_name", "fieldtype": "Data", "width": 200},
-        {"label": _("Length (m)"), "fieldname": "length", "fieldtype": "Float", "width": 110},
-        {"label": _("Qty"), "fieldname": "qty", "fieldtype": "Float", "precision": 3, "width": 90},
-        {"label": _("Total (mtül)"), "fieldname": "total_length", "fieldtype": "Float", "precision": 3, "width": 110},
-        {"label": _("Is Scrap"), "fieldname": "is_scrap_piece", "fieldtype": "Check", "width": 90},
-        {"label": _("Min Qty"), "fieldname": "min_qty", "fieldtype": "Float", "width": 90},
-        {"label": _("Reorder Qty"), "fieldname": "reorder_qty", "fieldtype": "Float", "width": 110},
-        {"label": _("Shortage"), "fieldname": "shortage", "fieldtype": "Float", "width": 100},
-        {"label": _("To Order"), "fieldname": "to_order", "fieldtype": "Float", "width": 100},
-        {"label": _("Last Updated"), "fieldname": "modified", "fieldtype": "Datetime", "width": 150},
+        {"label": _("Ürün Kodu"), "fieldname": "profile_type", "fieldtype": "Link", "options": "Item", "width": 180},
+        {"label": _("Ürün Adı"), "fieldname": "item_name", "fieldtype": "Data", "width": 200},
+        {"label": _("Boy (m)"), "fieldname": "length", "fieldtype": "Float", "width": 110},
+        {"label": _("Stok Miktarı"), "fieldname": "qty", "fieldtype": "Float", "precision": 3, "width": 120},
+        {"label": _("Toplam (mtül)"), "fieldname": "total_length", "fieldtype": "Float", "precision": 3, "width": 120},
+        {"label": _("Minimum Stok Miktarı"), "fieldname": "min_qty", "fieldtype": "Float", "width": 150},
+        {"label": _("Yeniden Sipariş Miktarı"), "fieldname": "reorder_qty", "fieldtype": "Float", "width": 180},
+        {"label": _("Hurda Parça mı?"), "fieldname": "is_scrap_piece", "fieldtype": "Check", "width": 130},
     ]
 
 
@@ -70,16 +67,6 @@ def get_data(filters):
         min_qty = (rule or {}).get("min_qty") or 0
         reorder_qty = (rule or {}).get("reorder_qty") or 0
 
-        shortage = 0
-        to_order = 0
-        if min_qty and row.qty is not None:
-            shortage = float(min_qty) - float(row.qty)
-            shortage = shortage if shortage > 0 else 0
-            if shortage and reorder_qty:
-                to_order = max(reorder_qty, shortage)
-            elif shortage:
-                to_order = shortage
-
         result.append({
             "profile_type": row.profile_type,
             "item_name": item_names[row.profile_type],
@@ -89,9 +76,6 @@ def get_data(filters):
             "is_scrap_piece": row.is_scrap_piece,
             "min_qty": min_qty,
             "reorder_qty": reorder_qty,
-            "shortage": shortage,
-            "to_order": to_order,
-            "modified": row.modified,
         })
 
     message = None

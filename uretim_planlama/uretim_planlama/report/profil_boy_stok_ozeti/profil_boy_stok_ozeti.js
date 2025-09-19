@@ -1,27 +1,24 @@
-frappe.query_reports["Profil Boy Stok Özeti"] = {
+frappe.query_reports["Profil Boy Stok Ozeti"] = {
     filters: [
         {
             fieldname: "profile_type",
-            label: __("Profile"),
+            label: __("Profil"),
             fieldtype: "Link",
             options: "Item",
-            reqd: 0
+            reqd: 0,
+            default: ""
         },
         {
             fieldname: "length",
-            label: __("Length (m)"),
+            label: __("Boy (m)"),
             fieldtype: "Link",
-            options: "Boy"
-        },
-        {
-            fieldname: "warehouse",
-            label: __("Warehouse"),
-            fieldtype: "Link",
-            options: "Warehouse"
+            options: "Boy",
+            reqd: 0,
+            default: ""
         },
         {
             fieldname: "is_scrap_piece",
-            label: __("Only Scrap Pieces"),
+            label: __("Sadece Hurda Parçalar"),
             fieldtype: "Check",
             default: 0
         }
