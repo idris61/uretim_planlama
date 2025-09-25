@@ -7,15 +7,26 @@ from frappe.utils import flt
 
 
 @frappe.whitelist()
-def get_profile_stock_panel(scrap=0):
+def get_profile_stock_panel(profil=None, depo=None, scrap=0):
 	"""Profil stok paneli için veri döner"""
 	try:
 		scrap = int(scrap)
 		
+		# Filtreleri hazırla
+		filters = {"is_scrap_piece": scrap}
+		
+		# Profil filtresi
+		if profil:
+			filters["profile_type"] = profil
+		
+		# Depo filtresi (şimdilik kullanılmıyor çünkü profil stok takibinde depo yok)
+		# if depo:
+		#     filters["warehouse"] = depo
+		
 		# Profil stoklarını getir
 		stocks = frappe.get_all(
 			"Profile Stock Ledger",
-			filters={"is_scrap_piece": scrap},
+			filters=filters,
 			fields=["profile_type", "length", "qty", "total_length", "modified"],
 			order_by="profile_type, length"
 		)
@@ -34,8 +45,13 @@ def get_profile_stock_panel(scrap=0):
 		
 		# Hammadde rezervleri verisini çek
 		try:
+			rezerv_filters = {}
+			if profil:
+				rezerv_filters["item_code"] = profil
+			
 			rezervler = frappe.get_all(
 				"Rezerved Raw Materials",
+				filters=rezerv_filters,
 				fields=["item_code", "quantity", "sales_order", "modified"],
 				order_by="item_code"
 			)
