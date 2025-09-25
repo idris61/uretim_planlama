@@ -38,6 +38,7 @@ def get_data(filters):
     if filters.get("is_scrap_piece") is not None:
         where["is_scrap_piece"] = int(filters.get("is_scrap_piece"))
 
+    # Mevcut stok kayıtlarını al
     stocks = frappe.get_all(
         "Profile Stock Ledger",
         filters=where,
@@ -57,26 +58,83 @@ def get_data(filters):
     # Boy eşlemesi: Boy.name -> numeric length, hızlı lookup
     boy_map = get_boy_length_map()
 
-    for row in stocks:
-        if row.profile_type not in item_names:
-            item_names[row.profile_type] = frappe.db.get_value("Item", row.profile_type, "item_name") or row.profile_type
+    # Stok kayıtlarını dict'e çevir (hızlı lookup için)
+    stock_dict = {}
+    for stock in stocks:
+        key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
+        stock_dict[key] = stock
 
-        # Rule key'i boy uzunluğuna göre eşle
-        rule = rules.get((row.profile_type, float(row.length)))
+    # Tüm profil-boy kombinasyonlarını al (Reorder Rules'tan)
+    all_combinations = set()
+    
+    # Reorder Rules'tan tüm kombinasyonları al
+    for rule_key in rules.keys():
+        profile_type, length = rule_key
+        # Hem normal hem de hurda parça kombinasyonlarını ekle
+        all_combinations.add((profile_type, length, 0))  # Normal parça
+        all_combinations.add((profile_type, length, 1))  # Hurda parça
+    
+    # Mevcut stok kayıtlarından da kombinasyonları ekle
+    for stock in stocks:
+        key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
+        all_combinations.add(key)
 
+    # Filtre uygula
+    filtered_combinations = []
+    for combination in all_combinations:
+        profile_type, length, is_scrap_piece = combination
+        
+        # Profil filtresi
+        if filters.get("profile_type") and profile_type != filters.get("profile_type"):
+            continue
+            
+        # Boy filtresi (Boy tablosundan length değeri ile eşleştir)
+        if filters.get("length"):
+            # Boy tablosundan length değerini al
+            boy_length = frappe.db.get_value("Boy", filters.get("length"), "length")
+            if boy_length and float(boy_length) != length:
+                continue
+                
+        # Hurda parça filtresi
+        if filters.get("is_scrap_piece") is not None:
+            if is_scrap_piece != int(filters.get("is_scrap_piece")):
+                continue
+        
+        filtered_combinations.append(combination)
+
+    # Sonuçları oluştur
+    for combination in filtered_combinations:
+        profile_type, length, is_scrap_piece = combination
+        
+        if profile_type not in item_names:
+            item_names[profile_type] = frappe.db.get_value("Item", profile_type, "item_name") or profile_type
+
+        # Stok kaydını al
+        stock = stock_dict.get(combination)
+        
+        # Rule bilgisini al
+        rule = rules.get((profile_type, length))
+        
         min_qty = (rule or {}).get("min_qty") or 0
         reorder_qty = (rule or {}).get("reorder_qty") or 0
 
+        # Stok bilgileri (eğer kayıt yoksa sıfır değerler)
+        qty = stock.qty if stock else 0
+        total_length = stock.total_length if stock else 0
+
         result.append({
-            "profile_type": row.profile_type,
-            "item_name": item_names[row.profile_type],
-            "length": row.length,
-            "qty": row.qty,
-            "total_length": row.total_length,
-            "is_scrap_piece": row.is_scrap_piece,
+            "profile_type": profile_type,
+            "item_name": item_names[profile_type],
+            "length": length,
+            "qty": qty,
+            "total_length": total_length,
+            "is_scrap_piece": is_scrap_piece,
             "min_qty": min_qty,
             "reorder_qty": reorder_qty,
         })
+
+    # Sonuçları sırala
+    result.sort(key=lambda x: (x["profile_type"], x["length"], x["is_scrap_piece"]))
 
     message = None
     if not result:
