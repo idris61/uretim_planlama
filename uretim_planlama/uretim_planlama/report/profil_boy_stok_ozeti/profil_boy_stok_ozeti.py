@@ -64,20 +64,14 @@ def get_data(filters):
         key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
         stock_dict[key] = stock
 
-    # Tüm profil-boy kombinasyonlarını al (Reorder Rules'tan)
+    # Sadece stok miktarı > 0 olan kombinasyonları al
     all_combinations = set()
     
-    # Reorder Rules'tan tüm kombinasyonları al
-    for rule_key in rules.keys():
-        profile_type, length = rule_key
-        # Hem normal hem de hurda parça kombinasyonlarını ekle
-        all_combinations.add((profile_type, length, 0))  # Normal parça
-        all_combinations.add((profile_type, length, 1))  # Hurda parça
-    
-    # Mevcut stok kayıtlarından da kombinasyonları ekle
+    # Mevcut stok kayıtlarından sadece stok miktarı > 0 olanları ekle
     for stock in stocks:
-        key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
-        all_combinations.add(key)
+        if stock.qty > 0:  # Sadece stok miktarı > 0 olanları ekle
+            key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
+            all_combinations.add(key)
 
     # Filtre uygula
     filtered_combinations = []
@@ -118,9 +112,9 @@ def get_data(filters):
         min_qty = (rule or {}).get("min_qty") or 0
         reorder_qty = (rule or {}).get("reorder_qty") or 0
 
-        # Stok bilgileri (eğer kayıt yoksa sıfır değerler)
-        qty = stock.qty if stock else 0
-        total_length = stock.total_length if stock else 0
+        # Stok bilgileri (stock zaten mevcut çünkü qty > 0 filtresi uygulandı)
+        qty = stock.qty
+        total_length = stock.total_length
 
         result.append({
             "profile_type": profile_type,
