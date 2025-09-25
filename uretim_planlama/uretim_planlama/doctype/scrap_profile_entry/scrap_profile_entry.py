@@ -12,7 +12,6 @@ class ScrapProfileEntry(Document):
         self.validate_profile_item()
         self.validate_scrap_reason()
         self.calculate_total_length()
-        self.validate_warehouse()
     
     def validate_profile_item(self):
         """Profil ürününü doğrula"""
@@ -41,15 +40,6 @@ class ScrapProfileEntry(Document):
         else:
             self.total_length = 0
     
-    def validate_warehouse(self):
-        """Depo bilgisini doğrula"""
-        if not self.warehouse:
-            # Varsayılan depo ayarla
-            default_warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
-            if default_warehouse:
-                self.warehouse = default_warehouse
-            else:
-                frappe.throw(_("Depo bilgisi belirtilmelidir."), title=_("Doğrulama Hatası"))
     
     def before_save(self):
         """Kaydetmeden önce işlemler"""

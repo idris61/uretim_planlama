@@ -6,7 +6,7 @@ from frappe.model.document import Document
 from uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger import update_profile_stock, get_profile_stock
 from uretim_planlama.uretim_planlama.utils import (
     parse_length, validate_profile_item, calculate_total_length, 
-    validate_warehouse, log_profile_operation, show_operation_result
+    log_profile_operation, show_operation_result
 )
 from frappe import _
 
@@ -15,7 +15,6 @@ class ProfileExit(Document):
 		"""Profil çıkışı doğrulama"""
 		self.validate_items()
 		self.calculate_totals()
-		self.warehouse = validate_warehouse(self.warehouse)
 		self.check_stock_availability()
 	
 	def validate_items(self):

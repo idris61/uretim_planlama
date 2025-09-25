@@ -6,7 +6,7 @@ from frappe.model.document import Document
 from uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger import update_profile_stock
 from uretim_planlama.uretim_planlama.utils import (
     parse_length, validate_profile_item, calculate_total_length, 
-    validate_warehouse, log_profile_operation, show_operation_result,
+    log_profile_operation, show_operation_result,
     parse_and_format_length
 )
 from frappe import _
@@ -16,7 +16,6 @@ class ProfileEntry(Document):
 		"""Profil girişi doğrulama"""
 		self.validate_items()
 		self.calculate_totals()
-		self.validate_warehouse()
 	
 	def validate_items(self):
 		"""Satır öğelerini doğrula"""
@@ -63,15 +62,6 @@ class ProfileEntry(Document):
 		self.total_received_length = total_length
 		self.total_received_qty = total_qty
 	
-	def validate_warehouse(self):
-		"""Depo bilgisini doğrula"""
-		if not self.warehouse:
-			# Varsayılan depo ayarla
-			default_warehouse = frappe.db.get_single_value("Stock Settings", "default_warehouse")
-			if default_warehouse:
-				self.warehouse = default_warehouse
-			else:
-				frappe.throw(_("Depo bilgisi belirtilmelidir."), title=_("Doğrulama Hatası"))
 	
 	def before_save(self):
 		"""Kaydetmeden önce işlemler"""
