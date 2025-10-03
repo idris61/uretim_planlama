@@ -18,7 +18,7 @@ frappe.query_reports["Profil Boy Stok Ozeti"] = {
         },
         {
             fieldname: "is_scrap_piece",
-            label: __("Sadece Hurda Parçalar"),
+            label: __("Sadece Parça Profiller"),
             fieldtype: "Check",
             default: 0
         }

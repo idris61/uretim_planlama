@@ -25,7 +25,7 @@ def get_columns():
         {"label": _("Toplam (mtül)"), "fieldname": "total_length", "fieldtype": "Float", "precision": 3, "width": 120},
         {"label": _("Minimum Stok Miktarı"), "fieldname": "min_qty", "fieldtype": "Float", "width": 150},
         {"label": _("Yeniden Sipariş Miktarı"), "fieldname": "reorder_qty", "fieldtype": "Float", "width": 180},
-        {"label": _("Hurda Parça mı?"), "fieldname": "is_scrap_piece", "fieldtype": "Check", "width": 130},
+        {"label": _("Parça Profil mi?"), "fieldname": "is_scrap_piece", "fieldtype": "Check", "width": 130},
     ]
 
 
@@ -33,15 +33,37 @@ def get_data(filters):
     where = {}
     if filters.get("profile_type"):
         where["profile_type"] = filters.get("profile_type")
+    # length özel işlenir: Boy adı ya da sayısal değer gelebilir
+    input_length_value = None
     if filters.get("length"):
-        where["length"] = filters.get("length")
+        boy_length_str = frappe.db.get_value("Boy", filters.get("length"), "length")
+        if boy_length_str is not None:
+            try:
+                input_length_value = float(boy_length_str)
+            except Exception:
+                input_length_value = None
+        if input_length_value is None:
+            # Doğrudan sayısal girilmiş olabilir (","/"." toleransı ile)
+            raw = str(filters.get("length")).replace(",", ".")
+            try:
+                input_length_value = float(raw)
+            except Exception:
+                input_length_value = None
     if filters.get("is_scrap_piece") is not None:
         where["is_scrap_piece"] = int(filters.get("is_scrap_piece"))
 
     # Mevcut stok kayıtlarını al
+    # qty > 0 koşulunu doğrudan sorguda uygula (sıfır stokları hiç getirme)
+    filters_list = []
+    for key, value in where.items():
+        filters_list.append(["Profile Stock Ledger", key, "=", value])
+    if input_length_value is not None:
+        filters_list.append(["Profile Stock Ledger", "length", "=", input_length_value])
+    filters_list.append(["Profile Stock Ledger", "qty", ">", 0])
+
     stocks = frappe.get_all(
         "Profile Stock Ledger",
-        filters=where,
+        filters=filters_list,
         fields=[
             "profile_type", "length", "qty", "total_length", "is_scrap_piece", "modified"
         ],
@@ -66,12 +88,9 @@ def get_data(filters):
 
     # Sadece stok miktarı > 0 olan kombinasyonları al
     all_combinations = set()
-    
-    # Mevcut stok kayıtlarından sadece stok miktarı > 0 olanları ekle
     for stock in stocks:
-        if stock.qty > 0:  # Sadece stok miktarı > 0 olanları ekle
-            key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
-            all_combinations.add(key)
+        key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
+        all_combinations.add(key)
 
     # Filtre uygula
     filtered_combinations = []
@@ -83,10 +102,8 @@ def get_data(filters):
             continue
             
         # Boy filtresi (Boy tablosundan length değeri ile eşleştir)
-        if filters.get("length"):
-            # Boy tablosundan length değerini al
-            boy_length = frappe.db.get_value("Boy", filters.get("length"), "length")
-            if boy_length and float(boy_length) != length:
+        if input_length_value is not None:
+            if float(length) != float(input_length_value):
                 continue
                 
         # Hurda parça filtresi
