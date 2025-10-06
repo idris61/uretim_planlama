@@ -534,6 +534,24 @@ def get_holidays_for_calendar(start, end):
 		):
 			holidays[str(h.holiday_date)] = h.description or "Tatil"
 	return holidays
+@frappe.whitelist()
+def get_approved_opti_nos():
+	"""
+	Onaylı ve teslim edilmemiş `Opti` kayıtlarını döndürür.
+	Dönen alanlar: name (Opti doc name), opti_no (görünen numara)
+	"""
+	try:
+		rows = frappe.get_all(
+			"Opti",
+			fields=["name", "opti_no"],
+			filters={"docstatus": 1, "delivered": 0},
+			order_by="creation desc",
+		)
+		return rows
+	except Exception as e:
+		frappe.log_error(f"get_approved_opti_nos error: {str(e)}")
+		return []
+
 
 
 @frappe.whitelist()
@@ -579,7 +597,7 @@ def update_work_order_date(work_order_id, new_start):
 # 8. ÜRETİM PLANI VE CHART VERİLERİ (PRODUCTION PLAN & CHART DATA)
 # ============================================================================
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_production_plan_chart_data(production_plan):
 	"""
 	Üretim planı için chart verisi döndürür.
@@ -779,7 +797,7 @@ def create_delivery_package(data):
 # 11. STOK ÖZETİ VE MALZEME YÖNETİMİ (STOCK SUMMARY & MATERIAL MANAGEMENT)
 # ============================================================================
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_total_stock_summary(profil=None, depo=None):
 	"""
 	ERPNext Bin tablosundan toplam stok (mtül) bilgisini depo ve ürün bazında döndürür.
@@ -830,7 +848,7 @@ def get_total_stock_summary(profil=None, depo=None):
 	return result
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_materials_by_opti(opti_no):
 	"""
 	Production Plan için malzeme bilgilerini döndürür.
@@ -862,7 +880,7 @@ def get_materials_by_opti(opti_no):
 # 12. AKSESUAR TESLİMAT PAKETİ (ACCESSORY DELIVERY PACKAGE)
 # ============================================================================
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_sales_order_details(order_no):
 	try:
 		sales_order = frappe.get_doc("Sales Order", order_no)
@@ -873,7 +891,7 @@ def get_sales_order_details(order_no):
 	return sales_order
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_materials(opti_no, sales_order):
 	values = {"opti_no": opti_no, "sales_order": sales_order}
 
@@ -935,7 +953,7 @@ def get_materials(opti_no, sales_order):
 # 13. OPTİ VE BOM MALZEMELERİ (OPTI & BOM MATERIALS)
 # ============================================================================
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_sales_orders_by_opti(opti):
 	try:
 		opti_doc = frappe.get_doc("Opti", opti)
@@ -1430,7 +1448,7 @@ def calculate_summary_data(planned_data, unplanned_data):
 			"acil": 0
 		}
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_bom_count_and_status():
 	"""
 	Tüm BOM'ların sayısını ve statülerini döndürür.

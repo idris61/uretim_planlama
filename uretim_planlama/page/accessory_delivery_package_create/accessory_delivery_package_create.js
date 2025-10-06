@@ -74,7 +74,7 @@ $(document).on('change', '#adp_opti_no', function() {
     if (!production_plan) return;
     frappe.call({
         method: 'uretim_planlama.uretim_planlama.api.get_sales_orders_by_opti',
-        args: { opti_no: production_plan },
+        args: { opti: production_plan },
         callback: function(r) {
             (r.message || []).forEach(function(so) {
                 $so.append(`<option value="${so}">${so}</option>`);
