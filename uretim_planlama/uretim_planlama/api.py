@@ -920,10 +920,12 @@ def get_materials(opti_no, sales_order):
 	    WHERE pp.custom_opti_no = %(opti_no)s
 	    AND ppi.sales_order = %(sales_order)s
 	    AND (
-	        i.item_group LIKE '%%Aksesuar%%' OR
-	        i.item_group LIKE '%%Izolasyon%%' OR
-	        ig.parent_item_group LIKE '%%Aksesuar%%' OR
-	        ig.parent_item_group LIKE '%%Izolasyon%%'
+	        i.item_group LIKE '%%Pvc Montaj Aksesuarları%%' OR
+	        i.item_group LIKE '%%Montaj ve İzolasyon%%' OR
+			i.item_group LIKE '%%Pvc Kollar%%' OR
+	        ig.parent_item_group LIKE '%%Pvc Montaj Aksesuarları%%' OR
+	        ig.parent_item_group LIKE '%%Montaj ve İzolasyon%%' OR
+			ig.parent_item_group LIKE '%%Pvc Kollar%%'
 	    )
 	    GROUP BY bi.item_code, i.item_group, ig.parent_item_group, i.stock_uom
 	    ORDER BY i.item_group, bi.item_code

@@ -15,7 +15,7 @@ class ProfileExit(Document):
 		"""Profil çıkışı doğrulama"""
 		self.validate_items()
 		self.calculate_totals()
-		self.check_stock_availability()
+		# self.check_stock_availability()
 	
 	def validate_items(self):
 		"""Satır öğelerini doğrula"""
