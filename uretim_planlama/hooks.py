@@ -13,6 +13,7 @@ fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Workflow"},
 	# {"dt": "Workflow State"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
@@ -32,8 +33,10 @@ app_include_css = [
 ]
 
 app_include_js = [
-	"/assets/uretim_planlama/js/profile_calculator.js"
+	"/assets/uretim_planlama/js/profile_calculator.js",
 ]
+
+# Dashboard Chart Sources kaldırıldı
 
 
 # Sayfa konfigürasyonu

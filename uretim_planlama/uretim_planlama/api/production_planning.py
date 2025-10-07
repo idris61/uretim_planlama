@@ -70,27 +70,56 @@ def get_daily_cutting_matrix(from_date, to_date):
 			(from_date, to_date),
 			as_dict=True,
 		)
-		# SQL sorgusu tamamlandı
-		if not result:
-			# Veri yoksa örnek veri oluştur
-			# Sorgudan veri gelmedi, örnek veri oluşturuluyor
-			current_date = frappe.utils.getdate(from_date)
-			end_date = frappe.utils.getdate(to_date)
-			result = []
-			while current_date <= end_date:
-				result.append(
-					{
-						"date": current_date.strftime("%Y-%m-%d"),
-						"workstation": "Kesim 1",
-						"total_mtul": 0,
-						"total_quantity": 0,
-					}
-				)
-				current_date = frappe.utils.add_days(current_date, 1)
-			# Örnek veri oluşturuldu
-		return result
+		# Veri yoksa boş liste döndür
+		return result if result else []
 	except Exception as e:
 		frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
+		frappe.logger().error(frappe.get_traceback())
+		return []
+
+
+@frappe.whitelist()
+def get_daily_cutting_table(from_date, to_date):
+	"""
+	Günlük kesim istasyonu tablosu için veri getirir.
+	"""
+	try:
+		if not from_date or not to_date:
+			frappe.logger().error("[API] Tarih parametreleri eksik")
+			return []
+		
+		try:
+			from_date = frappe.utils.getdate(from_date).strftime("%Y-%m-%d")
+			to_date = frappe.utils.getdate(to_date).strftime("%Y-%m-%d")
+		except Exception as e:
+			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
+			return []
+		
+		# Günlük kesim verilerini getir
+		result = frappe.db.sql(
+			"""
+            SELECT
+                DATE(planning_date) AS date,
+                workstation,
+                SUM(total_mtul) AS total_mtul,
+                SUM(total_quantity) AS total_quantity
+            FROM `tabCutting Machine Plan`
+            WHERE DATE(planning_date) BETWEEN %s AND %s
+            GROUP BY DATE(planning_date), workstation
+            ORDER BY DATE(planning_date), workstation
+        """,
+			(from_date, to_date),
+			as_dict=True,
+		)
+		
+		# Veri yoksa boş liste döndür
+		if not result:
+			return []
+		
+		return result
+		
+	except Exception as e:
+		frappe.logger().error(f"[API] get_daily_cutting_table hatası: {e!s}")
 		frappe.logger().error(frappe.get_traceback())
 		return []
 

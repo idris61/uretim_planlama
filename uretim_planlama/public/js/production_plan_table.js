@@ -65,7 +65,9 @@ frappe.ui.form.on("Production Plan", {
             const refresh_table = () => {
                 const from = from_date.get_value();
                 const to = to_date.get_value();
-                if (from && to) load_cutting_table(from, to);
+                if (from && to) {
+                    if (window.load_cutting_table) window.load_cutting_table(from, to);
+                }
             };
 
             $('#cutting-table-refresh-btn').on('click', refresh_table);
@@ -75,275 +77,180 @@ frappe.ui.form.on("Production Plan", {
             refresh_table();
         }
 
+        // Helper fonksiyonlar
+        const sortByDateAndWorkstation = (a, b) => {
+            const [da, wsa] = a.split('::');
+            const [db, wsb] = b.split('::');
+            return new Date(da) - new Date(db) || String(wsa).localeCompare(String(wsb));
+        };
+
+        const calculateBarWidths = (mtul, maxMtul) => {
+            const BASE_WIDTH_PCT = 70;
+            const EXTRA_WIDTH_PCT = 30;
+            
+            const underWidth = mtul <= 1400 
+                ? (mtul / 1400) * BASE_WIDTH_PCT 
+                : BASE_WIDTH_PCT;
+            const overWidth = mtul > 1400 
+                ? Math.min(((mtul - 1400) / (maxMtul - 1400)) * EXTRA_WIDTH_PCT, EXTRA_WIDTH_PCT) 
+                : 0;
+            
+            return { underWidth, overWidth };
+        };
+
+        const getWsColors = (ws) => {
+            const name = String(ws || '').toLowerCase();
+            const colors = {
+                kaban: { base: 'linear-gradient(90deg,#76baff 0%, #1976d2 100%)', over: 'linear-gradient(90deg,#ff5858 0%, #f09819 100%)' },
+                murat: { base: 'linear-gradient(90deg,#43e97b 0%, #38f9d7 100%)', over: 'linear-gradient(90deg,#ff5858 0%, #f09819 100%)' },
+                bottero: { base: 'linear-gradient(90deg,#64b5f6 0%, #1976d2 100%)', over: 'linear-gradient(90deg,#ff5858 0%, #f09819 100%)' }
+            };
+            
+            for (const [key, value] of Object.entries(colors)) {
+                if (name.includes(key)) return value;
+            }
+            return { base: 'linear-gradient(90deg,#43e97b 0%, #38f9d7 100%)', over: 'linear-gradient(90deg,#ff5858 0%, #f09819 100%)' };
+        };
+
+        const renderTableRow = (date, workstation, mtul, qty, maxMtul, colors, isGreen = false) => {
+            const formattedDate = frappe.datetime.str_to_user(date);
+            const { underWidth, overWidth } = calculateBarWidths(mtul, maxMtul);
+            const bgColor = isGreen ? 'background-color: #f0fdf4;' : '';
+            const baseColor = isGreen ? '#86efac' : colors.base;
+            const overColor = isGreen ? '#fbbf24' : colors.over;
+            const textColor = isGreen ? 'color:#16a34a;' : 'color:#374151;';
+            const label = isGreen ? '(taslak)' : '';
+
+            return `
+                <tr style="${bgColor}">
+                    <td style="padding: 8px;">${formattedDate}</td>
+                    <td style="padding: 8px;">${workstation || '-'}</td>
+                    <td style="padding: 8px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="flex:1; min-width:200px; height:16px; background:#f1f3f5; border-radius:8px; overflow:hidden; position:relative;">
+                                <div title="0-1400 MTUL ${label}" style="height:100%; width:${underWidth}%; background:${baseColor};"></div>
+                                ${overWidth > 0 ? `<div title="1400+ MTUL ${label}" style="height:100%; width:${overWidth}%; background:${overColor}; position:absolute; left:${underWidth}%; top:0;"></div>` : ''}
+                            </div>
+                            <div style="white-space:nowrap; font-weight:600; ${textColor}">${mtul.toFixed(0)} MTUL • ${qty}</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        };
+
         // load_cutting_table fonksiyonunu window'a ekle
         window.load_cutting_table = function(from_date, to_date) {
             frappe.call({
-                method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_matrix",
+                method: "uretim_planlama.uretim_planlama.api.get_daily_cutting_table",
                 args: { from_date, to_date },
                 callback: function (r) {
                     const $table = $('#cutting-matrix-table');
                     $table.empty();
 
                     let backend_data = r.message || [];
-                    // Üretim türüne göre filtreleme (grafikteki seçiciye göre)
-                    const productionType = $('#production-type-select').val();
+                    
+                    if (!backend_data || backend_data.length === 0) {
+                        $table.html(`
+                            <div style="text-align: center; color: #888; padding: 24px;">
+                                📊 Seçilen tarih aralığında (${frappe.datetime.str_to_user(from_date)} - ${frappe.datetime.str_to_user(to_date)}) görüntülenecek veri bulunamadı.
+                            </div>
+                        `);
+                        return;
+                    }
+
+                    // Üretim türü filtresi
+                    const productionType = $('#production-type-select').val && $('#production-type-select').val();
                     const isPVC = productionType === 'pvc';
                     const isCam = productionType === 'cam';
+                    if (productionType) {
                     backend_data = backend_data.filter(row => {
                         if (isPVC) return row.workstation && (row.workstation.includes('Murat') || row.workstation.includes('Kaban'));
                         if (isCam) return row.workstation && row.workstation.includes('Bottero');
                         return true;
                     });
+                    }
 
-                    // Geçici planları sadece docstatus 0 (taslak) iken ekle
-                    let temp_data = [];
-                    let temp_summary = {};
-                    if (frm.doc.docstatus === 0) {
+                    // Taslak plan özetini hazırla
+                    const draftSummary = {};
+                    if (frm && frm.doc && frm.doc.docstatus === 0 && Array.isArray(frm.doc.po_items)) {
                         (frm.doc.po_items || []).forEach(row => {
-                            if (!(row.custom_workstation && row.planned_start_date && row.custom_mtul_per_piece && row.planned_qty)) return;
-
-                            // Üretim türüne göre filtrele
+                            if (!row || !row.custom_workstation || !row.planned_start_date) return;
                             if (isPVC && !(row.custom_workstation.includes('Murat') || row.custom_workstation.includes('Kaban'))) return;
                             if (isCam && !row.custom_workstation.includes('Bottero')) return;
 
-                            const date_obj = frappe.datetime.str_to_obj(row.planned_start_date);
-                            if (!date_obj) return;
-                            const date = date_obj.toISOString().split('T')[0];
-                            const mtul = (parseFloat(row.custom_mtul_per_piece) || 0) * (parseFloat(row.planned_qty) || 0);
-                            const quantity = parseFloat(row.planned_qty) || 0;
+                            const mtulPerPiece = parseFloat(row.custom_mtul_per_piece) || 0;
+                            const qty = parseFloat(row.planned_qty) || 0;
+                            if (mtulPerPiece <= 0 || qty <= 0) return;
 
-                            temp_data.push({
-                                date: date,
-                                workstation: row.custom_workstation,
-                                mtul: mtul,
-                                quantity: quantity
-                            });
-                        });
+                            const dateObj = frappe.datetime.str_to_obj(row.planned_start_date);
+                            if (!dateObj) return;
+                            const isoDate = dateObj.toISOString().split('T')[0];
+                            const key = `${isoDate}::${row.custom_workstation}`;
 
-                        // Geçici veriyi tarih ve iş istasyonuna göre topla
-                        temp_data.forEach(item => {
-                            const key = `${item.date}::${item.workstation}`;
-                            if (!temp_summary[key]) {
-                                temp_summary[key] = {
-                                    date: item.date,
-                                    workstation: item.workstation,
-                                    total_mtul: 0,
-                                    total_quantity: 0,
-                                };
-                            }
-                            temp_summary[key].total_mtul += item.mtul;
-                            temp_summary[key].total_quantity += item.quantity;
+                            if (!draftSummary[key]) draftSummary[key] = { date: isoDate, workstation: row.custom_workstation, mtul: 0, qty: 0 };
+                            draftSummary[key].mtul += mtulPerPiece * qty;
+                            draftSummary[key].qty += qty;
                         });
                     }
 
-                    // Backend ve geçici veriyi birleştir (Toplam MTUL ve Adet için)
-                    const combined = {};
-
-                    backend_data.forEach(row => {
-                        const key = `${row.date}::${row.workstation}`;
-                        combined[key] = {
-                            date: row.date,
-                            workstation: row.workstation,
-                            total_mtul: row.total_mtul || 0,
-                            total_quantity: row.total_quantity || 0,
-                        };
+                    // Backend map
+                    const backendMap = {};
+                    backend_data.forEach(r => {
+                        const key = `${r.date}::${r.workstation}`;
+                        backendMap[key] = { date: r.date, workstation: r.workstation, mtul: Number(r.total_mtul || 0), qty: Number(r.total_quantity || 0) };
                     });
 
-                    Object.values(temp_summary).forEach(temp_row => {
-                        const key = `${temp_row.date}::${temp_row.workstation}`;
-                        if (!combined[key]) {
-                            // Eğer backend'de bu gün/istasyon yoksa, tamamı geçicidir
-                            combined[key] = {
-                                date: temp_row.date,
-                                workstation: temp_row.workstation,
-                                total_mtul: temp_row.total_mtul,
-                                total_quantity: temp_row.total_quantity,
-                            };
-                        } else {
-                            // Backend'de varsa, geçici veriyi ekle
-                            combined[key].total_mtul += temp_row.total_mtul;
-                            combined[key].total_quantity += temp_row.total_quantity;
-                        }
-                    });
+                    // Maksimum MTUL hesapla
+                    const allKeys = Array.from(new Set([...Object.keys(backendMap), ...Object.keys(draftSummary)]));
+                    const maxTotalMtul = Math.max(2000, ...allKeys.map(k => (backendMap[k]?.mtul || 0) + (draftSummary[k]?.mtul || 0)));
 
-                    const rows = Object.values(combined)
-                        .sort((a, b) => new Date(a.date) - new Date(b.date))
-                        .map(row => {
-                        const total_mtul = (row.total_mtul || 0);
-                        const total_quantity = (row.total_quantity || 0);
-
-                        // MTUL değerini 1400'e kadar ve 1400 sonrası olarak ayır (toplam değer üzerinden)
-                        const mtul_under_1400 = Math.min(total_mtul, 1400);
-                        const mtul_over_1400 = total_mtul > 1400 ? total_mtul - 1400 : 0;
-
-                        // Toplam MTUL değeri üzerinden ölçeklendirme için maksimum değer
-                        // Ana tabloda kullanılan max değeri burada da kullanalım
-                        const max_overall_mtul = Math.max(...Object.values(combined).map(item => item.total_mtul || 0), ...Object.values(temp_summary).map(item => item.total_mtul || 0));
-                        const max_mtul_for_scaling = Math.max(2000, max_overall_mtul * 1.1); // 2000 veya max toplamın %10 fazlası
-
-                        // Segment genişliklerini yüzde olarak hesapla
-                        // 1400 MTUL'luk kısmı daha belirgin göstermek için sabit genişlik yaklaşımı:
-                        // - Toplam 1400'ün altındaysa, 0-70% aralığına oransal dağıt.
-                        // - 1400'ü aşıyorsa, ilk 1400'ü sabit 70% göster, kalan 30% üzerinde oranla.
-                        const BASE_1400_PERCENT = 70; // 1400 için ayrılan sabit genişlik
-                        const REMAINING_PERCENT = 30; // 1400 üzeri için kalan alan
-
-                        let under_1400_percentage;
-                        let over_1400_percentage;
-
-                        if (total_mtul <= 1400) {
-                            under_1400_percentage = (total_mtul / 1400) * BASE_1400_PERCENT;
-                            over_1400_percentage = 0;
-                        } else {
-                            under_1400_percentage = BASE_1400_PERCENT;
-                            const max_over_amount = Math.max(1, (max_mtul_for_scaling - 1400));
-                            over_1400_percentage = (mtul_over_1400 / max_over_amount) * REMAINING_PERCENT;
-                        }
-
-                        // Tablo için renk belirleme (iş istasyonuna göre renk)
-                        const base_color = row.workstation.includes("Kaban") ? '#944de0' : row.workstation.includes("Murat") ? '#e89225' : '#6c757d';
-
-                        let display_date = row.date;
-                        try {
-                            const d = frappe.datetime.str_to_obj(row.date);
-                            const dayName = d.toLocaleDateString('tr-TR', { weekday: 'long' });
-                            display_date = `${frappe.datetime.obj_to_user(d)} (${dayName})`;
-                        } catch (e) {
-                            // Geçersiz tarih formatı - varsayılan değeri kullan
-                        }
-
-                        // Toplam etiketi
-                        const total_label = `${total_mtul.toFixed(2)} MTUL - ${total_quantity} Adet`;
-
-                        return `
-                            <tr>
-                                <td style="white-space: nowrap; font-weight: bold;">${display_date}</td>
-                                <td style="color: ${base_color}; font-weight: bold;">${row.workstation}</td>
-                                <td>
-                                    <div style="position: relative; background: #f5f5f5; border: 1px solid #ddd; height: 24px; border-radius: 4px; overflow: hidden; display: flex; align-items: center;">
-                                        ${mtul_under_1400 > 0 ? `<div style="width: ${under_1400_percentage}%; background: ${base_color}; height: 100%;"></div>` : ''}
-                                        ${mtul_over_1400 > 0 ? `<div style="width: ${over_1400_percentage}%; background: red; height: 100%;"></div>` : ''}
-                                        <span style="position: absolute; left: 8px; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px #fff;">
-                                            ${total_label}
-                                        </span>
-                                        ${mtul_over_1400 > 0 ? `
-                                            <span style="position: absolute; left: ${under_1400_percentage}%; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px #000; padding-left: 4px;">
-                                                +${mtul_over_1400.toFixed(2)}
-                                            </span>
-                                        ` : ''}
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }).join("\n");
-
-                    const table_html = `
-                        <table class="table table-bordered table-sm" style="font-size: 13px;">
-                            <thead class="table-light">
+                    // Backend tablosu
+                    let tableHTML = `
+                        <table class="table table-bordered" style="width: 100%; font-size: 12px; margin-bottom: 16px;">
+                            <thead style="background-color: #f8f9fa;">
                                 <tr>
-                                    <th style="width: 160px;">Tarih</th>
-                                    <th style="width: 150px;">İstasyon</th>
-                                    <th>Toplam MTUL / m2 - Toplam Adet</th>
+                                    <th style="padding: 8px; text-align: left; width: 140px;">Tarih</th>
+                                    <th style="padding: 8px; text-align: left; width: 220px;">İstasyon</th>
+                                    <th style="padding: 8px; text-align: left;">Toplam MTUL / m2 - Toplam Adet</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${rows}
-                            </tbody>
-                        </table>
                     `;
 
-                    // Yeni Eklenen Planlar listesi (Geçici Planlar)
-                    const temp_rows = Object.values(temp_summary)
-                        .sort((a, b) => new Date(a.date) - new Date(b.date))
-                        .map(item => {
-                            const total_mtul = item.total_mtul || 0;
-                            const total_quantity = item.total_quantity || 0;
+                    Object.keys(backendMap).sort(sortByDateAndWorkstation).forEach(key => {
+                        const b = backendMap[key];
+                        const colors = getWsColors(b.workstation);
+                        tableHTML += renderTableRow(b.date, b.workstation, b.mtul, b.qty, maxTotalMtul, colors, false);
+                    });
 
-                            // MTUL değerini 1400'e kadar ve 1400 sonrası olarak ayır
-                            const mtul_under_1400 = Math.min(total_mtul, 1400);
-                            const mtul_over_1400 = total_mtul > 1400 ? total_mtul - 1400 : 0;
+                    tableHTML += `</tbody></table>`;
 
-                            // Toplam MTUL değeri üzerinden ölçeklendirme için maksimum değer
-                            // Ana tabloda kullanılan max değeri burada da kullanalım
-                            const max_overall_mtul = Math.max(...Object.values(combined).map(item => item.total_mtul || 0), ...Object.values(temp_summary).map(item => item.total_mtul || 0));
-                            const max_mtul_for_scaling = Math.max(2000, max_overall_mtul * 1.1);
-
-                            // Segment genişliklerini yüzde olarak hesapla (aynı sabit genişlik mantığı)
-                            const BASE_1400_PERCENT = 70;
-                            const REMAINING_PERCENT = 30;
-
-                            let under_1400_percentage;
-                            let over_1400_percentage;
-
-                            if (total_mtul <= 1400) {
-                                under_1400_percentage = (total_mtul / 1400) * BASE_1400_PERCENT;
-                                over_1400_percentage = 0;
-                            } else {
-                                under_1400_percentage = BASE_1400_PERCENT;
-                                const max_over_amount = Math.max(1, (max_mtul_for_scaling - 1400));
-                                over_1400_percentage = (mtul_over_1400 / max_over_amount) * REMAINING_PERCENT;
-                            }
-
-                            // Tablo için renk belirleme (iş istasyonuna göre renk)
-                            const base_color = item.workstation.includes("Kaban") ? '#944de0' : item.workstation.includes("Murat") ? '#e89225' : '#6c757d';
-
-                            let display_date = item.date;
-                            try {
-                                const d = frappe.datetime.str_to_obj(item.date);
-                                const dayName = d.toLocaleDateString('tr-TR', { weekday: 'long' });
-                                display_date = `${frappe.datetime.obj_to_user(d)} (${dayName})`;
-                            } catch (e) {
-                                // Geçersiz tarih formatı - varsayılan değeri kullan
-                            }
-
-                            // Toplam etiketi
-                            const total_label = `${total_mtul.toFixed(2)} MTUL - ${total_quantity} Adet`;
-
-                            return `
-                                <tr>
-                                    <td style="white-space: nowrap; font-weight: bold;">${display_date}</td>
-                                    <td style="color: ${base_color}; font-weight: bold;">${item.workstation}</td>
-                                    <td>
-                                        <div style="position: relative; background: #f5f5f5; border: 1px solid #ddd; height: 24px; border-radius: 4px; overflow: hidden; display: flex; align-items: center;">
-                                            ${mtul_under_1400 > 0 ? `<div style="width: ${under_1400_percentage}%; background: #4CAF50; height: 100%;"></div>` : ''}
-                                            ${mtul_over_1400 > 0 ? `<div style="width: ${over_1400_percentage}%; background: red; height: 100%;"></div>` : ''}
-                                            <span style="position: absolute; left: 8px; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: #000; text-shadow: 1px 1px 2px #fff;">
-                                                ${total_label}
-                                            </span>
-                                            ${mtul_over_1400 > 0 ? `
-                                                <span style="position: absolute; left: ${under_1400_percentage}%; top: 0; line-height: 24px; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px #000; padding-left: 4px;">
-                                                    +${mtul_over_1400.toFixed(2)}
-                                                </span>
-                                            ` : ''}
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join("\n");
-
-                    const temp_table_html = `
-                        ${temp_rows ? `
-                            <div style="margin-top: 24px;">
-                                <h5 style="margin-bottom: 12px; font-weight: 600; color: green;">Yeni Eklenen Planlar (Kaydedilmemiş)</h5>
-                                <table class="table table-bordered table-sm" style="font-size: 13px;">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 160px;">Tarih</th>
-                                            <th style="width: 150px;">İstasyon</th>
-                                            <th>Toplam MTUL / m2 - Toplam Adet</th>
+                    // Taslak tablosu
+                    const draftKeys = Object.keys(draftSummary);
+                    if (draftKeys.length > 0) {
+                        tableHTML += `
+                            <h6 style="margin-bottom: 8px; font-weight: 600; color: #16a34a;">📋 Yeni Planlama (Taslak)</h6>
+                            <table class="table table-bordered" style="width: 100%; font-size: 12px; margin-bottom: 16px;">
+                                <thead style="background-color: #dcfce7;">
+                                    <tr>
+                                        <th style="padding: 8px; text-align: left; width: 140px;">Tarih</th>
+                                        <th style="padding: 8px; text-align: left; width: 220px;">İstasyon</th>
+                                        <th style="padding: 8px; text-align: left;">Toplam MTUL / m2 - Toplam Adet</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${temp_rows}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ` : ''}
-                    `;
+                        `;
 
-                    // Tablo ve listeyi container'a ekle
-                    $table.html(table_html + temp_table_html);
+                        draftKeys.sort(sortByDateAndWorkstation).forEach(key => {
+                            const d = draftSummary[key];
+                            const colors = getWsColors(d.workstation);
+                            tableHTML += renderTableRow(d.date, d.workstation, d.mtul, d.qty, maxTotalMtul, colors, true);
+                        });
 
+                        tableHTML += `</tbody></table>`;
+                    }
+
+                    $table.html(tableHTML);
                 }
             });
         }
