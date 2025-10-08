@@ -1,3 +1,7 @@
+// IIFE ile scope izolasyonu sağla - duplicate değişken hatalarını önle
+(function() {
+'use strict';
+
 // Modal yönetimi fonksiyonları - Enhanced
 const modalManager = {
     activeModals: new Set(),
@@ -4344,7 +4348,6 @@ function updateWorkOrderOperationsContent(data, container) {
 					<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
 						<tr style="color: white;">
 							<th style="padding: 12px; font-weight: 600; border: none;">Operasyon</th>
-							<th style="padding: 12px; font-weight: 600; border: none;">İş İstasyonu</th>
 							<th style="padding: 12px; font-weight: 600; border: none;">Durum</th>
 							<th style="padding: 12px; font-weight: 600; border: none; text-align: center;">Tamamlanan</th>
 							<th style="padding: 12px; font-weight: 600; border: none;">Planlanan Başlangıç</th>
@@ -4372,7 +4375,6 @@ function updateWorkOrderOperationsContent(data, container) {
                  opsHtml += `
                      <tr>
                          <td style="padding: 8px;">${op.operation || '-'}</td>
-                         <td style="padding: 8px;">${op.workstation || '-'}</td>
                          <td style="padding: 8px;">${opStatus}</td>
                          <td style="padding: 8px; text-align: center;">${op.completed_qty || 0}</td>
                          <td style="padding: 8px;">${formatDateTime(op.planned_start_formatted)}</td>
@@ -4416,3 +4418,10 @@ frappe.pages['uretim_planlama_paneli'].on_page_load = function(wrapper) {
 		frappe.msgprint('Sayfa yüklenirken kritik hata oluştu: ' + error.message);
 	}
 };
+
+// Global scope'a expose edilmesi gereken fonksiyonlar (onclick için)
+window.toggleWorkOrderSection = toggleWorkOrderSection;
+window.loadWorkOrderOperations = loadWorkOrderOperations;
+window.modalManager = modalManager;
+
+})(); // IIFE sonu

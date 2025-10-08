@@ -22,6 +22,23 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, getdate, add_days
 
+def get_real_completed_qty_from_job_cards(work_order_name: str, operation_id: str) -> float:
+    """
+    Job Card'lardan gerçek tamamlanan miktarı hesaplar (artırımlı güncelleme için).
+    Bu fonksiyon duplicate kodu önlemek için ortak olarak kullanılır.
+    """
+    try:
+        job_card_completed_qty = frappe.db.sql("""
+            SELECT COALESCE(SUM(total_completed_qty), 0) as total_completed
+            FROM `tabJob Card`
+            WHERE work_order = %s AND operation_id = %s AND docstatus = 1
+        """, (work_order_name, operation_id), as_dict=True)
+        
+        return job_card_completed_qty[0].total_completed if job_card_completed_qty else 0
+    except Exception as e:
+        frappe.log_error(f"get_real_completed_qty_from_job_cards hatası: {str(e)}")
+        return 0
+
 
 # Constants - Performance ve consistency için
 CONSTANTS = {
@@ -771,10 +788,14 @@ def get_work_order_operations_for_takip(work_order_name: str) -> Dict[str, Any]:
             else:
                 op["workstation_description"] = ""
             
+            # Job Card'lardan gerçek tamamlanan miktarı hesapla (artırımlı güncelleme için)
+            real_completed_qty = get_real_completed_qty_from_job_cards(work_order_name, op.name)
+            op["completed_qty"] = real_completed_qty
+            
             # İlerleme yüzdesi hesapla
             work_order_qty = work_order.qty or 0
             if work_order_qty > 0:
-                op["progress_percentage"] = round((op.completed_qty / work_order_qty) * 100, 2)
+                op["progress_percentage"] = round((real_completed_qty / work_order_qty) * 100, 2)
             else:
                 op["progress_percentage"] = 0
             

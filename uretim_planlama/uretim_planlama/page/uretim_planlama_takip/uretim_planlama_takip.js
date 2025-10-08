@@ -1,7 +1,9 @@
 // Üretim Planlama Takip Paneli - Frappe JS Framework
 // Sadece Planlanan Siparişler - Modern Tasarım
 
-
+// IIFE ile scope izolasyonu sağla - duplicate değişken hatalarını önle
+(function() {
+'use strict';
 
 // CSS Stilleri - Modern ve Optimize
 const styles = `
@@ -3132,4 +3134,15 @@ function updateItemDetailsModal(data) {
     `;
     
     content.html(html);
-} 
+}
+
+// Global scope'a expose edilmesi gereken fonksiyonlar (onclick için)
+window.loadProductionData = loadProductionData;
+window.showOptiDetails = showOptiDetails;
+window.showWorkOrders = showWorkOrders;
+window.toggleWorkOrderSection = toggleWorkOrderSection;
+window.loadWorkOrderOperations = loadWorkOrderOperations;
+window.updateWorkOrderStatus = updateWorkOrderStatus;
+window.modalManager = modalManager;
+
+})(); // IIFE sonu

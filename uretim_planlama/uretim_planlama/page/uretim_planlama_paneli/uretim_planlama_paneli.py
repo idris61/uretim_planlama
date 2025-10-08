@@ -18,15 +18,27 @@ import time
 # Frappe imports
 import frappe
 from frappe import _
+
+def get_real_completed_qty_from_job_cards(work_order_name: str, operation_id: str) -> float:
+    """
+    Job Card'lardan gerçek tamamlanan miktarı hesaplar (artırımlı güncelleme için).
+    Bu fonksiyon duplicate kodu önlemek için ortak olarak kullanılır.
+    """
+    try:
+        job_card_completed_qty = frappe.db.sql("""
+            SELECT COALESCE(SUM(total_completed_qty), 0) as total_completed
+            FROM `tabJob Card`
+            WHERE work_order = %s AND operation_id = %s AND docstatus = 1
+        """, (work_order_name, operation_id), as_dict=True)
+        
+        return job_card_completed_qty[0].total_completed if job_card_completed_qty else 0
+    except Exception as e:
+        frappe.log_error(f"get_real_completed_qty_from_job_cards hatası: {str(e)}")
+        return 0
+
 from frappe.utils import get_datetime, getdate, add_days
 
-# Third party imports (conditional)
-try:
-    import pandas as pd
-    PANDAS_AVAILABLE = True
-except ImportError:
-    PANDAS_AVAILABLE = False
-    pd = None
+# Third party imports (conditional) - pandas kullanılmadığı için kaldırıldı
 
 # Constants - Optimize edilmiş
 CONSTANTS = {
@@ -1383,8 +1395,11 @@ def get_work_order_operations(work_order=None) -> Dict[str, Any]:
             order_by="idx"
         )
         
-        # Her operasyon için tarih formatlarını düzenle
+        # Her operasyon için tarih formatlarını düzenle ve gerçek tamamlanan miktarı hesapla
         for op in operations:
+            # Job Card'lardan gerçek tamamlanan miktarı hesapla (artırımlı güncelleme için)
+            op["completed_qty"] = get_real_completed_qty_from_job_cards(work_order, op.name)
+            
             op["planned_start_formatted"] = format_datetime_for_paneli(op.planned_start_time)
             op["planned_end_formatted"] = format_datetime_for_paneli(op.planned_end_time)
             op["actual_start_formatted"] = format_datetime_for_paneli(op.actual_start_time)

@@ -96,8 +96,16 @@ def get_stock_maps(item_codes):
 	)
 	stock_map = {}
 	stock_by_warehouse_map = {}
+	
+	# Önce tüm item'lar için stok_map'i sıfırla
+	for item_code in item_codes:
+		stock_map[item_code] = 0
+	
 	for row in bin_rows:
-		stock_map[row.item_code] = get_real_qty(row.actual_qty)
+		# Her item için tüm depoları topla
+		if row.item_code in stock_map:
+			stock_map[row.item_code] += get_real_qty(row.actual_qty)
+		
 		stock_by_warehouse_map.setdefault(row.item_code, {})[row.warehouse] = (
 			get_real_qty(row.actual_qty)
 		)

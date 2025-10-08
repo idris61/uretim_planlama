@@ -39,6 +39,7 @@ status_map = {
 def get_daily_cutting_matrix(from_date, to_date):
 	"""
 	Belirtilen tarih aralığındaki kesim planlarını getirir.
+	Önce Cutting Machine Plan tablosundan, yoksa Production Plan'dan veri çeker.
 	"""
 	try:
 		# API çağrısı başladı
@@ -53,8 +54,8 @@ def get_daily_cutting_matrix(from_date, to_date):
 		except Exception as e:
 			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
 			return []
-		# Tarihler formatlandı ve SQL sorgusu başlatılıyor
-		# SQL sorgusundan docstatus filtresi kaldırıldı
+		
+		# Önce Cutting Machine Plan tablosundan veri çek
 		result = frappe.db.sql(
 			"""
             SELECT
@@ -70,8 +71,37 @@ def get_daily_cutting_matrix(from_date, to_date):
 			(from_date, to_date),
 			as_dict=True,
 		)
-		# Veri yoksa boş liste döndür
+		
+		# Cutting Machine Plan'da veri varsa döndür
+		if result:
+			frappe.logger().info(f"[API] Cutting Machine Plan'dan {len(result)} kayıt getirildi")
+			return result
+		
+		# Cutting Machine Plan'da veri yoksa Production Plan'dan çek
+		frappe.logger().info("[API] Cutting Machine Plan boş, Production Plan'dan veri çekiliyor")
+		result = frappe.db.sql(
+			"""
+            SELECT
+                DATE(ppi.planned_start_date) AS date,
+                ppi.custom_workstation AS workstation,
+                SUM(COALESCE(ppi.custom_mtul_per_piece, 0) * COALESCE(ppi.planned_qty, 0)) AS total_mtul,
+                SUM(COALESCE(ppi.planned_qty, 0)) AS total_quantity
+            FROM `tabProduction Plan Item` ppi
+            INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+            WHERE DATE(ppi.planned_start_date) BETWEEN %s AND %s
+            AND ppi.custom_workstation IS NOT NULL
+            AND ppi.custom_workstation != ''
+            AND pp.docstatus = 1
+            GROUP BY DATE(ppi.planned_start_date), ppi.custom_workstation
+            ORDER BY DATE(ppi.planned_start_date), ppi.custom_workstation
+        """,
+			(from_date, to_date),
+			as_dict=True,
+		)
+		
+		frappe.logger().info(f"[API] Production Plan'dan {len(result)} kayıt getirildi")
 		return result if result else []
+		
 	except Exception as e:
 		frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
 		frappe.logger().error(frappe.get_traceback())
@@ -82,46 +112,9 @@ def get_daily_cutting_matrix(from_date, to_date):
 def get_daily_cutting_table(from_date, to_date):
 	"""
 	Günlük kesim istasyonu tablosu için veri getirir.
+	get_daily_cutting_matrix ile aynı veriyi döndürür (duplicate kodu önlemek için).
 	"""
-	try:
-		if not from_date or not to_date:
-			frappe.logger().error("[API] Tarih parametreleri eksik")
-			return []
-		
-		try:
-			from_date = frappe.utils.getdate(from_date).strftime("%Y-%m-%d")
-			to_date = frappe.utils.getdate(to_date).strftime("%Y-%m-%d")
-		except Exception as e:
-			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
-			return []
-		
-		# Günlük kesim verilerini getir
-		result = frappe.db.sql(
-			"""
-            SELECT
-                DATE(planning_date) AS date,
-                workstation,
-                SUM(total_mtul) AS total_mtul,
-                SUM(total_quantity) AS total_quantity
-            FROM `tabCutting Machine Plan`
-            WHERE DATE(planning_date) BETWEEN %s AND %s
-            GROUP BY DATE(planning_date), workstation
-            ORDER BY DATE(planning_date), workstation
-        """,
-			(from_date, to_date),
-			as_dict=True,
-		)
-		
-		# Veri yoksa boş liste döndür
-		if not result:
-			return []
-		
-		return result
-		
-	except Exception as e:
-		frappe.logger().error(f"[API] get_daily_cutting_table hatası: {e!s}")
-		frappe.logger().error(frappe.get_traceback())
-		return []
+	return get_daily_cutting_matrix(from_date, to_date)
 
 
 @frappe.whitelist()
