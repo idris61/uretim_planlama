@@ -1,8 +1,6 @@
 // Profil Miktar Hesaplama - Tüm DocType'lar İçin Tek Dosya
 // Copyright (c) 2025, idris and contributors
 
-console.log('Profile Calculator JS V6 yüklendi - Tek Dosya Yapısı');
-
 /**
  * Profil miktar hesaplama ana fonksiyonu
  * Tüm DocType'larda kullanılabilir
@@ -124,7 +122,6 @@ window.styleProfileButtons = function() {
                 }
             );
             
-            console.log(`✅ Profil butonları stillendirildi: ${buttons.length} buton`);
             return true;
         }
         return false;

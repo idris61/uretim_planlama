@@ -17,7 +17,7 @@ def get_profile_stock_panel(profil=None, depo=None, scrap=0):
 		
 		# Profil filtresi
 		if profil:
-			filters["profile_type"] = profil
+			filters["item_code"] = profil
 		
 		# Depo filtresi (şimdilik kullanılmıyor çünkü profil stok takibinde depo yok)
 		# if depo:
@@ -27,14 +27,14 @@ def get_profile_stock_panel(profil=None, depo=None, scrap=0):
 		stocks = frappe.get_all(
 			"Profile Stock Ledger",
 			filters=filters,
-			fields=["profile_type", "length", "qty", "total_length", "modified"],
-			order_by="profile_type, length"
+			fields=["item_code", "length", "qty", "total_length", "modified"],
+			order_by="item_code, length"
 		)
 		
 		# Ürün bilgilerini ekle
 		for stock in stocks:
-			item_name = frappe.db.get_value("Item", stock.profile_type, "item_name")
-			stock["item_name"] = item_name or stock.profile_type
+			item_name = frappe.db.get_value("Item", stock.item_code, "item_name")
+			stock["item_name"] = item_name or stock.item_code
 			stock["last_updated"] = frappe.utils.time_diff(stock.modified, frappe.utils.now())
 		
 		# JavaScript'te beklenen veri yapısını oluştur
@@ -71,14 +71,14 @@ def get_profile_stock_panel(profil=None, depo=None, scrap=0):
 			# Depo bazında stok (varsayılan depo)
 			depo_stoklari.append({
 				"depo": "Ana Depo",  # Varsayılan depo
-				"profil": stock.profile_type,
+				"profil": stock.item_code,
 				"profil_adi": stock.item_name,
 				"toplam_stok_mtul": stock.total_length or 0
 			})
 			
 			# Boy bazında stok
 			boy_bazinda_stok.append({
-				"profil": stock.profile_type,
+				"profil": stock.item_code,
 				"profil_adi": stock.item_name,
 				"boy": stock.length or 0,
 				"adet": stock.qty or 0,
@@ -90,7 +90,7 @@ def get_profile_stock_panel(profil=None, depo=None, scrap=0):
 			# Scrap profiller (eğer scrap=1 ise)
 			if scrap:
 				scrap_profiller.append({
-					"profil": stock.profile_type,
+					"profil": stock.item_code,
 					"profil_adi": stock.item_name,
 					"boy": stock.length or 0,
 					"adet": stock.qty or 0,
@@ -124,14 +124,14 @@ def get_profile_stock_overview():
 		normal_stocks = frappe.get_all(
 			"Profile Stock Ledger",
 			filters={"is_scrap_piece": 0},
-			fields=["profile_type", "length", "qty", "total_length"]
+			fields=["item_code", "length", "qty", "total_length"]
 		)
 		
 		# Hurda stoklar
 		scrap_stocks = frappe.get_all(
 			"Profile Stock Ledger",
 			filters={"is_scrap_piece": 1},
-			fields=["profile_type", "length", "qty", "total_length"]
+			fields=["item_code", "length", "qty", "total_length"]
 		)
 		
 		# Toplam hesaplamalar
@@ -172,23 +172,23 @@ def search_profile_stocks(search_term="", profile_type="", length="", scrap=0):
 		filters = {"is_scrap_piece": int(scrap)}
 		
 		if search_term:
-			filters["profile_type"] = ["like", f"%{search_term}%"]
+			filters["item_code"] = ["like", f"%{search_term}%"]
 		if profile_type:
-			filters["profile_type"] = profile_type
+			filters["item_code"] = profile_type
 		if length:
 			filters["length"] = float(length)
 		
 		stocks = frappe.get_all(
 			"Profile Stock Ledger",
 			filters=filters,
-			fields=["profile_type", "length", "qty", "total_length", "modified"],
-			order_by="profile_type, length"
+			fields=["item_code", "length", "qty", "total_length", "modified"],
+			order_by="item_code, length"
 		)
 		
 		# Ürün bilgilerini ekle
 		for stock in stocks:
-			item_name = frappe.db.get_value("Item", stock.profile_type, "item_name")
-			stock["item_name"] = item_name or stock.profile_type
+			item_name = frappe.db.get_value("Item", stock.item_code, "item_name")
+			stock["item_name"] = item_name or stock.item_code
 			stock["last_updated"] = frappe.utils.time_diff(stock.modified, frappe.utils.now())
 		
 		return stocks

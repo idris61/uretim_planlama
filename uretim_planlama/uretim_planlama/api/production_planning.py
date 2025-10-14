@@ -123,7 +123,7 @@ def get_weekly_production_schedule(
 ):
     """Haftalık üretim takvimi verisi döner"""
     try:
-        print(f"DEBUG: get_weekly_production_schedule çağrıldı - week_start: {week_start}, week_end: {week_end}")
+        frappe.logger().debug(f"get_weekly_production_schedule çağrıldı - week_start: {week_start}, week_end: {week_end}")
         
         if year and month:
             start_date = getdate(f"{year}-{month}-01")
@@ -139,14 +139,14 @@ def get_weekly_production_schedule(
         while start_date.weekday() != 0:
             start_date -= timedelta(days=1)
 
-        print(f"DEBUG: Tarih aralığı - start_date: {start_date}, end_date: {end_date}")
+        frappe.logger().debug(f"Tarih aralığı - start_date: {start_date}, end_date: {end_date}")
 
         workstation_filters = {"name": workstation} if workstation else {}
         workstations = frappe.get_all(
             "Workstation", filters=workstation_filters, fields=["name", "holiday_list"]
         )
         
-        print(f"DEBUG: Workstations bulundu: {len(workstations)} adet")
+        frappe.logger().debug(f"Workstations bulundu: {len(workstations)} adet")
 
         # Çalışma saatlerini toplu çek ve hazırla (N+1 azaltma)
         ws_names = [ws["name"] for ws in workstations]
@@ -511,7 +511,7 @@ def get_weekly_production_schedule(
         }
         
     except Exception as e:
-        print(f"DEBUG: get_weekly_production_schedule hatası: {str(e)}")
+        frappe.logger().error(f"get_weekly_production_schedule hatası: {str(e)}")
         frappe.log_error(f"get_weekly_production_schedule hatası: {str(e)}")
         return {
             "workstations": [],

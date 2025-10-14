@@ -1,10 +1,25 @@
 frappe.query_reports["Profil Boy Stok Ozeti"] = {
     filters: [
         {
-            fieldname: "profile_type",
-            label: __("Profil"),
+            fieldname: "item_code",
+            label: __("Ürün Kodu"),
             fieldtype: "Link",
             options: "Item",
+            reqd: 0,
+            default: "",
+            get_query: function() {
+                return {
+                    filters: {
+                        "item_group": ["like", "%profil%"]
+                    }
+                };
+            }
+        },
+        {
+            fieldname: "item_group",
+            label: __("Ürün Grubu"),
+            fieldtype: "Link",
+            options: "Item Group",
             reqd: 0,
             default: ""
         },
@@ -15,12 +30,6 @@ frappe.query_reports["Profil Boy Stok Ozeti"] = {
             options: "Boy",
             reqd: 0,
             default: ""
-        },
-        {
-            fieldname: "is_scrap_piece",
-            label: __("Sadece Parça Profiller"),
-            fieldtype: "Check",
-            default: 0
         }
     ]
 };

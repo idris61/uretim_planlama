@@ -7,6 +7,8 @@
  "field_order": [
   "section_break_4eed",
   "item_code",
+  "item_name",
+  "item_group",
   "mtul_per_piece",
   "quantity",
   "total_mtul",
@@ -23,6 +25,19 @@
    "fieldtype": "Link",
    "label": "\u00dcr\u00fcn Kodu",
    "options": "Item"
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Ürün Adı",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Ürün Grubu",
+   "options": "Item Group",
+   "read_only": 1
   },
   {
    "fieldname": "mtul_per_piece",

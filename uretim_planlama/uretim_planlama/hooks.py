@@ -38,6 +38,11 @@ scheduler_events = {
 	]
 }
 
+# Patches
+after_migrate = [
+	"uretim_planlama.uretim_planlama.patches.rename_profile_type_to_item_code.execute"
+]
+
 
 
 

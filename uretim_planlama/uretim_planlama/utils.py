@@ -136,20 +136,104 @@ def parse_length(length_str):
         frappe.throw(_("Geçersiz boy formatı: {0}").format(length_str))
 
 
+def normalize_length_to_string(length_value):
+    """
+    Import sırasında length float olarak gelebilir, string'e çevirir.
+    Boy DocType'ında Link olarak kullanılabilmesi için normalize eder.
+    
+    Args:
+        length_value: Boy değeri (string, float, int)
+        
+    Returns:
+        str: String olarak boy değeri
+    """
+    if length_value is None:
+        return None
+    
+    # Float veya int ise string'e çevir
+    if isinstance(length_value, (int, float)):
+        return str(float(length_value))
+    
+    # Zaten string ise döndür
+    return str(length_value)
+
+
+def get_length_value_from_boy_doctype(length_name):
+    """
+    Boy DocType'ından length değerini alır ve validate eder.
+    
+    Args:
+        length_name: Boy DocType'ının name'i (Link field değeri)
+        
+    Returns:
+        float: Boy değeri (metre cinsinden)
+        
+    Raises:
+        frappe.throw: Geçersiz boy değeri ise
+    """
+    if not length_name:
+        frappe.throw(_("Boy değeri boş olamaz"))
+    
+    length_value = frappe.db.get_value("Boy", length_name, "length")
+    
+    if not length_value:
+        frappe.throw(_("Geçersiz boy: {0}. Boy DocType'ında bu değer bulunamadı.").format(length_name))
+    
+    try:
+        return float(length_value)
+    except (ValueError, TypeError):
+        frappe.throw(_("Geçersiz boy değeri: {0}").format(length_value))
+
+
 def get_allowed_profile_groups():
-    """İzinli profil gruplarını döner"""
-    return [
-        'PVC', 'Camlar', 
-        'Pvc Hat1 Ana Profiller', 'Pvc Hat2 Ana Profiller', 'Destek Sacı, Profiller',
-        'Pvc Destek Sacları', 'Pvc Hat1 Destek Sacları', 'Pvc Hat1 Yardımcı Profiller',
-        'Pvc Hat2 Yardımcı Profiller', 'Yardımcı Profiller'
-    ]
+    """İzinli profil gruplarını dinamik olarak döner (cache'li)"""
+    # Cache kontrolü
+    cache_key = "allowed_profile_groups"
+    cached_groups = frappe.cache().get_value(cache_key)
+    
+    if cached_groups is not None:
+        return cached_groups
+    
+    # Veritabanından dinamik olarak profil gruplarını al - SADECE "profil" içeren gruplar
+    profile_groups = frappe.db.sql("""
+        SELECT DISTINCT name 
+        FROM `tabItem Group` 
+        WHERE LOWER(name) LIKE '%profil%'
+        ORDER BY name
+    """, as_list=True)
+    
+    # List comprehension ile düz liste oluştur
+    allowed_groups = [group[0] for group in profile_groups]
+    
+    # Cache'e kaydet (5 dakika)
+    frappe.cache().set_value(cache_key, allowed_groups, expires_in_sec=300)
+    
+    return allowed_groups
+
+
+def is_profile_item_group(item_group_name):
+    """Bir ürün grubunun profil grubu olup olmadığını kontrol eder"""
+    if not item_group_name:
+        return False
+    
+    # Dinamik profil grup listesini al
+    allowed_groups = get_allowed_profile_groups()
+    
+    # Direkt eşleşme kontrolü
+    if item_group_name in allowed_groups:
+        return True
+    
+    # Ek kontrol: "profil" kelimesi içeriyor mu?
+    if "profil" in item_group_name.lower():
+        return True
+    
+    return False
 
 
 def validate_profile_item(item_code, idx):
-    """Profil ürün doğrulaması"""
+    """Profil ürün doğrulaması (dinamik)"""
     item_group = frappe.db.get_value("Item", item_code, "item_group")
-    if item_group not in get_allowed_profile_groups():
+    if not is_profile_item_group(item_group):
         frappe.throw(_("Satır {0}: {1} ürünü profil değildir. Sadece profil gruplarındaki ürünler eklenebilir.").format(
             idx, item_code), title=_("Doğrulama Hatası"))
 
@@ -291,4 +375,36 @@ def before_save(doc, method):
 def validate(doc, method):
     """Belge validasyon sırasında profil miktarlarını kontrol et"""
     validate_profile_quantities(doc, method)
+
+
+# ============================================================================
+# PROFİL STOK QUERY FONKSİYONLARI
+# ============================================================================
+
+def get_profile_stock(item_code, length, is_scrap_piece=0):
+    """
+    Belirli profil boyunda mevcut stok miktarını döner.
+    
+    Args:
+        item_code (str): Ürün kodu
+        length (str/float): Boy değeri
+        is_scrap_piece (int): Hurda parça mı? (0 veya 1)
+        
+    Returns:
+        float: Stok miktarı
+    """
+    from frappe.utils import flt
+    
+    existing = frappe.get_all(
+        "Profile Stock Ledger",
+        filters={
+            "item_code": item_code,
+            "length": length,
+            "is_scrap_piece": is_scrap_piece
+        },
+        fields=["qty"],
+        limit=1
+    )
+    
+    return flt(existing[0].qty) if existing else 0
 

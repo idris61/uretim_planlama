@@ -22,7 +22,7 @@ def _get_reorder_rule(profile_type: str, length: float, warehouse: str | None):
 	rules = frappe.get_all(
 		"Profile Reorder Rule",
 		filters={
-			"profile_type": profile_type,
+			"item_code": profile_type,
 			"length": ("in", list(candidates)),
 			"active": 1,
 		},
@@ -136,13 +136,13 @@ def profile_reorder_sweep():
 	stocks = frappe.get_all(
 		"Profile Stock Ledger",
 		filters={"is_scrap_piece": 0},
-		fields=["profile_type", "length", "qty"],
+		fields=["item_code", "length", "qty"],
 		limit=10000,
 	)
 	created = 0
 	for s in stocks:
 		try:
-			mr = ensure_reorder_for_profile(s["profile_type"], float(s["length"]), float(s["qty"]))
+			mr = ensure_reorder_for_profile(s["item_code"], float(s["length"]), float(s["qty"]))
 			if mr:
 				created += 1
 		except Exception as e:

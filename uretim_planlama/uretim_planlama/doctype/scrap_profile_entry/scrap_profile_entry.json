@@ -3,32 +3,49 @@
  "creation": "2025-06-24 01:46:52.744753",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "profile_code",
-  "length",
-  "qty",
-  "total_length",
-  "description",
-  "entry_date",
-  "amended_from"
- ],
+  "field_order": [
+   "item_code",
+   "item_name",
+   "item_group",
+   "length",
+   "qty",
+   "total_length",
+   "description",
+   "entry_date",
+   "amended_from"
+  ],
  "fields": [
   {
-   "fieldname": "profile_code",
+   "fieldname": "item_code",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Profile Code",
    "options": "Item",
-   "reqd": 1
+   "reqd": 1,
+   "get_query": "uretim_planlama.uretim_planlama.api.profile_items.get_profile_items_filter"
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ürün Adı",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ürün Grubu",
+   "options": "Item Group",
+   "read_only": 1
   },
   {
    "fieldname": "length",
-   "fieldtype": "Float",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Length (m)",
-   "reqd": 1,
-   "min": 0.1,
-   "precision": 3
+   "options": "Boy",
+   "reqd": 1
   },
   {
    "fieldname": "qty",

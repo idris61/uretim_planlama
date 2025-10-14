@@ -16,7 +16,7 @@ def get_current_profile_stock(profile_type, length):
 		stock_records = frappe.get_all(
 			"Profile Stock Ledger",
 			filters={
-				"profile_type": profile_type,
+				"item_code": profile_type,
 				"length": length,
 				"is_scrap_piece": 0
 			},

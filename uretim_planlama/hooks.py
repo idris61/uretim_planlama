@@ -34,6 +34,7 @@ app_include_css = [
 
 app_include_js = [
 	"/assets/uretim_planlama/js/profile_calculator.js",
+	"/assets/uretim_planlama/js/item_auto_fill.js",
 ]
 
 # Dashboard Chart Sources kaldırıldı
@@ -88,6 +89,8 @@ doctype_js = {
 		"public/js/get_items_merge.js",
 		"public/js/uom_filter.js"
 	],
+	"Profile Entry Item": "uretim_planlama/uretim_planlama/doctype/profile_entry_item/profile_entry_item.js",
+	"Profile Exit Item": "uretim_planlama/uretim_planlama/doctype/profile_exit_item/profile_exit_item.js",
 }
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
@@ -151,6 +154,11 @@ doc_events = {
 	"Material Request": {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+	},
+	"Item Group": {
+		"after_insert": "uretim_planlama.uretim_planlama.api.cache_utils.clear_profile_groups_cache",
+		"on_update": "uretim_planlama.uretim_planlama.api.cache_utils.clear_profile_groups_cache",
+		"on_trash": "uretim_planlama.uretim_planlama.api.cache_utils.clear_profile_groups_cache"
 	},
 
 }

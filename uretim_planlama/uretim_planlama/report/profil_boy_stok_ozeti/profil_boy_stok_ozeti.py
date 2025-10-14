@@ -18,8 +18,8 @@ def execute(filters=None):
 
 def get_columns():
     return [
-        {"label": _("Ürün Kodu"), "fieldname": "profile_type", "fieldtype": "Link", "options": "Item", "width": 180},
-        {"label": _("Ürün Adı"), "fieldname": "item_name", "fieldtype": "Data", "width": 200},
+		{"label": _("Ürün Kodu"), "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 180},
+        {"label": _("Ürün Grubu"), "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 150},
         {"label": _("Boy (m)"), "fieldname": "length", "fieldtype": "Float", "width": 110},
         {"label": _("Stok Miktarı"), "fieldname": "qty", "fieldtype": "Float", "precision": 3, "width": 120},
         {"label": _("Toplam (mtül)"), "fieldname": "total_length", "fieldtype": "Float", "precision": 3, "width": 120},
@@ -31,8 +31,15 @@ def get_columns():
 
 def get_data(filters):
     where = {}
-    if filters.get("profile_type"):
-        where["profile_type"] = filters.get("profile_type")
+    if filters.get("item_code"):
+        where["item_code"] = filters.get("item_code")
+    
+    if filters.get("item_group"):
+        where["item_group"] = filters.get("item_group")
+    
+    # Sadece profil ürünlerini göster
+    from uretim_planlama.uretim_planlama.utils import get_allowed_profile_groups
+    allowed_groups = get_allowed_profile_groups()
     # length özel işlenir: Boy adı ya da sayısal değer gelebilir
     input_length_value = None
     if filters.get("length"):
@@ -52,7 +59,7 @@ def get_data(filters):
     if filters.get("is_scrap_piece") is not None:
         where["is_scrap_piece"] = int(filters.get("is_scrap_piece"))
 
-    # Mevcut stok kayıtlarını al
+    # Mevcut stok kayıtlarını al - sadece profil ürünleri
     # qty > 0 koşulunu doğrudan sorguda uygula (sıfır stokları hiç getirme)
     filters_list = []
     for key, value in where.items():
@@ -61,14 +68,32 @@ def get_data(filters):
         filters_list.append(["Profile Stock Ledger", "length", "=", input_length_value])
     filters_list.append(["Profile Stock Ledger", "qty", ">", 0])
 
-    stocks = frappe.get_all(
-        "Profile Stock Ledger",
-        filters=filters_list,
-        fields=[
-            "profile_type", "length", "qty", "total_length", "is_scrap_piece", "modified"
-        ],
-        order_by="profile_type, length"
-    )
+    # Filtreleri SQL'e ekle
+    sql_filters = {
+        'allowed_groups': tuple(allowed_groups)
+    }
+    where_conditions = ["psl.qty > 0", "i.item_group IN %(allowed_groups)s"]
+    
+    if filters.get("item_code"):
+        where_conditions.append("psl.item_code = %(item_code)s")
+        sql_filters['item_code'] = filters.get("item_code")
+    
+    if filters.get("item_group"):
+        where_conditions.append("i.item_group = %(item_group)s")
+        sql_filters['item_group'] = filters.get("item_group")
+    
+    if input_length_value is not None:
+        where_conditions.append("psl.length = %(length)s")
+        sql_filters['length'] = input_length_value
+    
+    # Sadece profil ürünlerini al
+    stocks = frappe.db.sql(f"""
+        SELECT psl.item_code, psl.length, psl.qty, psl.total_length, psl.is_scrap_piece, psl.modified, i.item_group
+        FROM `tabProfile Stock Ledger` psl
+        INNER JOIN `tabItem` i ON psl.item_code = i.name
+        WHERE {' AND '.join(where_conditions)}
+        ORDER BY psl.item_code, psl.length
+    """, sql_filters, as_dict=True)
 
     # Item adları
     item_names = {}
@@ -83,13 +108,13 @@ def get_data(filters):
     # Stok kayıtlarını dict'e çevir (hızlı lookup için)
     stock_dict = {}
     for stock in stocks:
-        key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
+        key = (stock.item_code, float(stock.length), stock.is_scrap_piece)
         stock_dict[key] = stock
 
     # Sadece stok miktarı > 0 olan kombinasyonları al
     all_combinations = set()
     for stock in stocks:
-        key = (stock.profile_type, float(stock.length), stock.is_scrap_piece)
+        key = (stock.item_code, float(stock.length), stock.is_scrap_piece)
         all_combinations.add(key)
 
     # Filtre uygula
@@ -98,7 +123,7 @@ def get_data(filters):
         profile_type, length, is_scrap_piece = combination
         
         # Profil filtresi
-        if filters.get("profile_type") and profile_type != filters.get("profile_type"):
+        if filters.get("item_code") and profile_type != filters.get("item_code"):
             continue
             
         # Boy filtresi (Boy tablosundan length değeri ile eşleştir)
@@ -134,8 +159,8 @@ def get_data(filters):
         total_length = stock.total_length
 
         result.append({
-            "profile_type": profile_type,
-            "item_name": item_names[profile_type],
+            "item_code": profile_type,
+            "item_group": stock.item_group,
             "length": length,
             "qty": qty,
             "total_length": total_length,
@@ -145,7 +170,7 @@ def get_data(filters):
         })
 
     # Sonuçları sırala
-    result.sort(key=lambda x: (x["profile_type"], x["length"], x["is_scrap_piece"]))
+    result.sort(key=lambda x: (x["item_code"], x["length"], x["is_scrap_piece"]))
 
     message = None
     if not result:
@@ -159,7 +184,7 @@ def get_reorder_rules(index=False):
         "Profile Reorder Rule",
         filters={"active": 1},
         fields=[
-            "profile_type", "length", "min_qty", "reorder_qty"
+            "item_code", "length", "min_qty", "reorder_qty"
         ]
     )
     if not index:
@@ -176,7 +201,7 @@ def get_reorder_rules(index=False):
         if boy_len is None:
             # Boy bulunamazsa bu kuralı atla
             continue
-        key = (r.profile_type, boy_len)
+        key = (r.item_code, boy_len)
         indexed[key] = r
     return indexed
 

@@ -20,10 +20,10 @@ class ProfileReorderRule(Document):
 
 	def _validate_unique_key(self):
 		filters = {
-			"profile_type": self.profile_type,
+			"item_code": self.item_code,
 			"length": self.length,
 		}
-		# Warehouse field DocType'da yok, sadece profile_type ve length ile kontrol et
+		# Warehouse field DocType'da yok, sadece item_code ve length ile kontrol et
 		if self.name:
 			filters["name"] = ["!=", self.name]
 		

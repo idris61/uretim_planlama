@@ -5,11 +5,12 @@
  "engine": "InnoDB",
  "field_order": [
   "item_code",
+  "item_name",
+  "item_group",
   "quantity",
   "sales_order",
   "customer",
-  "end_customer",
-  "item_name"
+  "end_customer"
  ],
  "fields": [
   {
@@ -18,6 +19,21 @@
    "in_list_view": 1,
    "label": "Item Code",
    "options": "Item"
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ürün Grubu",
+   "options": "Item Group",
+   "read_only": 1
   },
   {
    "fieldname": "quantity",
@@ -45,12 +61,6 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "End Customer"
-  },
-  {
-   "fieldname": "item_name",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Item Name"
   }
  ],
  "grid_page_length": 50,

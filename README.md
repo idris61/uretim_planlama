@@ -121,8 +121,9 @@ result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_prof
 ### **Performans Optimizasyonu**
 - Gereksiz veritabanı sorguları minimize edilir
 - Batch işlemler için optimize edilmiş fonksiyonlar
-- Cache mekanizmaları ile hızlı erişim
+- Cache mekanizmaları ile hızlı erişim (Profil grupları 5 dakika cache)
 - Asenkron işlem desteği
+- Otomatik cache invalidation (Item Group değişikliklerinde)
 
 ### **Güvenlik**
 - Tüm API fonksiyonları `@frappe.whitelist()` ile korunur
@@ -135,6 +136,58 @@ result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_prof
 - Stok tutarlılığı kontrolü
 - Hata durumları test edilir
 - Performans testleri
+
+### **Yardımcı Araçlar (Utilities)**
+
+#### **Toplu Profil Stok İçe Aktarma**
+```bash
+# CSV dosyasından toplu profil stok içe aktarma
+bench --site sitename execute uretim_planlama.api.bulk_profile_import.process_bulk_import \
+    --args "{'file_path': '/path/to/file.csv', 'create_profile_entries': True, 'submit_entries': True}"
+```
+
+**Özellikler:**
+- Toplu CSV import desteği
+- Otomatik Profile Entry oluşturma
+- Tarih bazında gruplama
+- Import özet raporu
+
+#### **Duplicate Kayıt Birleştirme**
+```bash
+# Duplicate profil stok kayıtlarını birleştirme (Dry Run)
+bench --site sitename execute uretim_planlama.api.consolidate_profile_stock.consolidate_duplicates \
+    --args "{'dry_run': True}"
+
+# Gerçek birleştirme
+bench --site sitename execute uretim_planlama.api.consolidate_profile_stock.consolidate_duplicates \
+    --args "{'dry_run': False}"
+```
+
+**Özellikler:**
+- Duplicate kayıt tespiti
+- Dry run modu
+- Detaylı rapor
+- Güvenli birleştirme
+
+#### **Import Öncesi Kontrol**
+- Sayım güncellemesi öncesi mevcut stokları kontrol eder
+- Stok farkları gösterir
+- Yeni ürünleri listeler
+- Data Import ekranında kullanılabilir
+
+#### **Otomatik Form Doldurma**
+- Ürün kodu seçildiğinde ürün adı ve ürün grubu otomatik doldurulur
+- Tüm profil DocType'larında çalışır
+- Hata yönetimi ile güvenli
+
+#### **Cache Yönetimi**
+```python
+# Profil grupları cache'ini temizle
+frappe.call('uretim_planlama.api.cache_utils.clear_profile_groups_cache')
+
+# Cache bilgilerini görüntüle
+frappe.call('uretim_planlama.api.cache_utils.get_cache_info')
+```
 
 ### **Gelecek Geliştirmeler**
 - [ ] Dashboard widget'ları

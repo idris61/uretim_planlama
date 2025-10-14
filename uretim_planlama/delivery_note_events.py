@@ -37,8 +37,14 @@ def _build_profile_exit_from_dn(doc):
             frappe.log_error(f"Boy not found/created for length {fixed}", "DN Profile Boy Error")
             continue
 
+        # Item bilgilerini al
+        item_data = frappe.db.get_value("Item", item.item_code, 
+                                      ["item_name", "item_group"], as_dict=True)
+        
         items.append({
             "item_code": item.item_code,
+            "item_name": item_data.item_name if item_data else "",
+            "item_group": item_data.item_group if item_data else "",
             "length": boy_name,              # Link to Boy
             "output_quantity": qty_int,
             "total_length": length_float * qty_int,
