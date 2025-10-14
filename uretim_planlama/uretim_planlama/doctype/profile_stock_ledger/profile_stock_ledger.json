@@ -77,20 +77,33 @@
    "create": 1,
    "delete": 1,
    "read": 1,
+   "report": 1,
    "role": "System Manager",
    "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "read": 1,
-   "role": "Manufacturing Manager"
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "read": 1,
-   "role": "Manufacturing User"
+   "report": 1,
+   "role": "Manufacturing User",
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "read": 1,
-   "role": "All"
+   "report": 1,
+   "role": "All",
+   "write": 1
   }
  ],
  "row_format": "Dynamic",
