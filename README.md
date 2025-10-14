@@ -201,6 +201,16 @@ frappe.call('uretim_planlama.api.cache_utils.get_cache_info')
 
 ## 📋 **Genel Uygulama Özellikleri**
 
+### **Otomatik Depo Seçim Sistemi** 🆕
+- **Üretim Planı Otomatik Depo Seçimleri**:
+  - "Üretim için Camları Getir" butonu: `for_warehouse` otomatik "CAM ÜRETİM DEPO - O"
+  - "Üretim için PVC'leri Getir" butonu: `for_warehouse` otomatik "PVC ÜRETİM DEPO - O"
+  - "Transfer için Hammaddeleri Getir" diyalogunda "Transfer Edilecek Depo" alanına otomatik "ANA DEPO - O"
+- **İş Emri Otomatik WIP Depo Seçimi**:
+  - `before_validate` hook ile production_item'ın item_group'ına göre:
+    - PVC ürünleri → "PVC ÜRETİM DEPO - O"
+    - Cam ürünleri → "CAM ÜRETİM DEPO - O"
+
 ### **Üretim Planlama Paneli**
 - Haftalık üretim planı görünümü
 - Opti numarası bazında planlama
