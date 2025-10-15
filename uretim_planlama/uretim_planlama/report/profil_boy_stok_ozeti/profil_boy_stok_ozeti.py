@@ -20,11 +20,11 @@ def get_columns():
     return [
 		{"label": _("Ürün Kodu"), "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 180},
         {"label": _("Ürün Grubu"), "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 150},
-        {"label": _("Boy (m)"), "fieldname": "length", "fieldtype": "Float", "width": 110},
-        {"label": _("Stok Miktarı"), "fieldname": "qty", "fieldtype": "Float", "precision": 3, "width": 120},
-        {"label": _("Toplam (mtül)"), "fieldname": "total_length", "fieldtype": "Float", "precision": 3, "width": 120},
-        {"label": _("Minimum Stok Miktarı"), "fieldname": "min_qty", "fieldtype": "Float", "width": 150},
-        {"label": _("Yeniden Sipariş Miktarı"), "fieldname": "reorder_qty", "fieldtype": "Float", "width": 180},
+        {"label": _("Boy (m)"), "fieldname": "length", "fieldtype": "Float", "precision": 1, "width": 110},
+        {"label": _("Stok Miktarı"), "fieldname": "qty", "fieldtype": "Float", "precision": 1, "width": 120},
+        {"label": _("Toplam (mtül)"), "fieldname": "total_length", "fieldtype": "Float", "precision": 1, "width": 120},
+        {"label": _("Minimum Stok Miktarı"), "fieldname": "min_qty", "fieldtype": "Float", "precision": 1, "width": 150},
+        {"label": _("Yeniden Sipariş Miktarı"), "fieldname": "reorder_qty", "fieldtype": "Float", "precision": 1, "width": 180},
         {"label": _("Parça Profil mi?"), "fieldname": "is_scrap_piece", "fieldtype": "Check", "width": 130},
     ]
 
