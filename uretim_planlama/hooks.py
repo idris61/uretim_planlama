@@ -34,6 +34,7 @@ app_include_css = [
 
 app_include_js = [
 	"/assets/uretim_planlama/js/profile_calculator.js",
+	"/assets/uretim_planlama/js/jalousie_calculator.js",
 	"/assets/uretim_planlama/js/item_auto_fill.js",
 ]
 
@@ -114,7 +115,10 @@ doc_events = {
 			"uretim_planlama.sales_order_hooks.raw_materials.delete_long_term_reserve_usage_on_cancel",
 		],
 		"before_submit": "uretim_planlama.sales_order_hooks.raw_materials.check_raw_material_stock_on_submit",
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	
@@ -129,35 +133,56 @@ doc_events = {
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
 	},
 	"Delivery Note": {
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate",
 		"on_submit": "uretim_planlama.delivery_note_events.on_submit",
 		"on_cancel": "uretim_planlama.delivery_note_events.on_cancel"
 	},
 	"Purchase Order": {
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Purchase Receipt": {
 		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit",
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Stock Entry": {
 		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry",
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Sales Invoice": {
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Purchase Invoice": {
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Material Request": {
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"before_save": [
+			"uretim_planlama.uretim_planlama.utils.before_save",
+			"uretim_planlama.uretim_planlama.print_format_manager.before_save"
+		],
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Item Group": {

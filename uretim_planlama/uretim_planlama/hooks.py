@@ -4,6 +4,8 @@
 # DocType Events
 doc_events = {
 	"Purchase Receipt": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate",
 		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit"
 	},
 	"Delivery Note": {
@@ -11,6 +13,30 @@ doc_events = {
 		"validate": "uretim_planlama.uretim_planlama.utils.validate",
 		"on_submit": "uretim_planlama.delivery_note_events.on_submit",
 		"on_cancel": "uretim_planlama.delivery_note_events.on_cancel"
+	},
+	"Sales Order": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+	},
+	"Purchase Order": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+	},
+	"Sales Invoice": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+	},
+	"Purchase Invoice": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+	},
+	"Material Request": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+	},
+	"Stock Entry": {
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
+		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Boy": {
 		"before_save": "uretim_planlama.uretim_planlama.doctype.boy.boy.Boy.before_save",

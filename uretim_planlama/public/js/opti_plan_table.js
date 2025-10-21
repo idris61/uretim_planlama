@@ -93,7 +93,6 @@ function load_opti_plan_table(frm) {
         grouped_data[sales_order].items.push(item); // Detayları saklamak isterseniz
     });
 
-    //console.log("[Opti Plan Table] Gruplanmış Veri:", grouped_data);
 
     // Tablo HTML'ini oluştur
     let table_html = `
@@ -119,7 +118,6 @@ function load_opti_plan_table(frm) {
              try {
                  display_date = frappe.datetime.obj_to_user(frappe.datetime.str_to_obj(display_date));
              } catch(e) {
-                 console.warn("Geçersiz tarih formatı:", group.planned_start_date);
              }
         }
 

@@ -74,13 +74,69 @@ Bu uygulama, profil ürünlerinin hem ERPNext orijinal stok takibinde (mtül) he
 - Düşük stok uyarıları
 - Hareket geçmişi takibi
 
+#### **Jaluzi İşlemleri**
+1. İlgili dokümanda (SO, DN, PR, vb.) satır eklenir
+2. `custom_is_jalousie` işaretlenir (otomatik olarak profil alanları devre dışı kalır)
+3. `custom_jalousie_width` (en) ve `custom_jalousie_height` (boy) girilir
+4. "Miktarı Hesapla" butonuna basılır
+5. Sistem otomatik olarak alan hesabını yapar: En × Boy = Alan (m²)
+6. Hesaplanan değer `qty` ve `stock_qty` alanlarına yazılır
+
+**Örnek:** 2.5m × 1.8m = 4.5 m²
+
+#### **Yazdırma Formatı**
+Yazdırma formatında (Print Format) sadece boyut alanları görüntülenir:
+
+**Görünen Alanlar:**
+- ✅ `Profile Length (m)` - Profil boyu
+- ✅ `Profile Length Qty` - Profil adedi  
+- ✅ `Jalousie Width (m)` - Jaluzi eni
+- ✅ `Jalousie Height (m)` - Jaluzi boyu
+
+**Gizlenen Alanlar:**
+- ❌ `Is Profile` checkbox
+- ❌ `Is Jaluzi` checkbox
+- ❌ `Calculate Quantity` butonları
+
+**Otomatik Description Güncellemesi:**
+- Item `description` alanına teknik detaylar eklenir
+- **Profil:** "Profil: 6.0m × 5 adet"
+- **Jaluzi:** "Jaluzi: 2.5m (En) × 1.8m (Boy) = 4.50 m²"
+
+#### **İrsaliye Çıktıları**
+Delivery Note (Sevk İrsaliyesi) ve Purchase Receipt (Alış İrsaliyesi) print format'ında fiyat bilgileri gizlidir:
+- ❌ `Rate` - Birim Fiyat
+- ❌ `Amount` - Tutar
+- ❌ `Discount Amount` - İndirim Tutarı
+- ❌ `Stock UOM Rate` - Stok Birim Fiyatı
+- ❌ `Quantity and Rate` - Miktar ve Fiyat
+
+Bu sayede irsaliye çıktılarında sadece miktar ve ürün bilgileri görünür, fiyat detayları gizli kalır.
+
+**Gizlenen Fiyat Alanları:**
+- ❌ `Rate` - Birim Fiyat
+- ❌ `Amount` - Tutar
+- ❌ `Discount Amount` - İndirim Tutarı
+- ❌ `Distributed Discount Amount` - Dağıtılmış İndirim Tutarı
+- ❌ `Rate and Amount` - Fiyat ve Tutar
+- ❌ `Stock UOM Rate` - Stok Birim Fiyatı
+- ❌ `Base Rate With Margin` - Marjlı Fiyat (Şirket Para Birimi)
+
 ### **Kurulum ve Konfigürasyon**
 
 #### **1. Custom Field'lar**
-Aşağıdaki custom field'lar otomatik olarak yüklenir:
+
+##### **Profil Ürünler İçin:**
 - `custom_is_profile`: Profil ürün kontrolü
 - `custom_profile_length_m`: Boy bilgisi
 - `custom_profile_length_qty`: Adet bilgisi
+
+##### **Jaluzi Ürünler İçin:**
+- `custom_is_jalousie`: Jaluzi ürün kontrolü
+- `custom_jalousie_width`: En bilgisi (m)
+- `custom_jalousie_height`: Boy bilgisi (m)
+
+**Not:** Profil ve Jaluzi alanları birbirini dışlar. Bir satır ya profil ya da jaluzi olarak işaretlenebilir.
 
 #### **2. Event Hook'ları**
 `hooks.py` dosyasında tüm gerekli event hook'ları tanımlanmıştır.
@@ -261,6 +317,40 @@ Detaylı dokümantasyon için [Wiki](https://github.com/idris/uretim_planlama/wi
 Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `license.txt` dosyasına bakın.
 
 ## 📞 **İletişim**
+
+### **Print Format Yönetimi**
+Yazdırma formatlarıyla ilgili tüm geliştirmeler `print_format_manager.py` dosyasında organize edilmiştir:
+
+#### **PrintFormatManager Sınıfı**
+- **Custom Field Ayarları:** `get_custom_field_print_settings()`
+- **Fiyat Alanları:** `get_price_fields_to_hide()`
+- **Description Güncellemeleri:** `update_item_descriptions_for_print()`
+- **Property Setter Yönetimi:** `hide_price_fields_in_delivery_note()`
+
+#### **Kullanım Örnekleri**
+```python
+# Print format ayarlarını başlat
+from uretim_planlama.print_format_manager import initialize_print_format_settings
+initialize_print_format_settings()
+
+# Print format bilgilerini al
+from uretim_planlama.print_format_manager import PrintFormatManager
+info = PrintFormatManager.get_print_format_summary()
+
+# Item detaylarını al
+details = PrintFormatManager.get_item_details_for_print(item_row)
+```
+
+#### **Bench Commands**
+```bash
+# Print format ayarlarını başlat
+bench --site ozerpan.com execute "uretim_planlama.uretim_planlama.print_format_manager.initialize_print_format_settings"
+
+# Print format bilgilerini al
+bench --site ozerpan.com execute "uretim_planlama.uretim_planlama.print_format_manager.get_print_format_info"
+```
+
+---
 
 - **Geliştirici**: idris
 - **E-posta**: idris.gemici61@gmail.com

@@ -115,7 +115,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
+			keyFields: ["item_code", "uom", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -133,6 +133,12 @@ window.uretim_planlama = window.uretim_planlama || {};
 				"t_warehouse",
 				"batch_no",
 				"serial_and_batch_bundle",
+				"custom_is_profile",
+				"custom_profile_length_m",
+				"custom_profile_length_qty",
+				"custom_is_jalousie",
+				"custom_jalousie_width",
+				"custom_jalousie_height",
 			],
 			qtyField: "qty",
 			stockQtyField: "transfer_qty",
@@ -144,7 +150,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse"],
+			keyFields: ["item_code", "uom", "warehouse", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -155,7 +161,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -166,7 +172,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -177,7 +183,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -188,7 +194,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
+			keyFields: ["item_code", "uom", "warehouse", "batch_no", "serial_and_batch_bundle", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			stockQtyField: "stock_qty",
 			conversionFactorField: "conversion_factor",
@@ -199,7 +205,7 @@ window.uretim_planlama = window.uretim_planlama || {};
 		if (!frm || frm.doc.docstatus !== 0) return;
 		mergeChildDuplicates(frm, {
 			childFieldname: "items",
-			keyFields: ["item_code", "uom", "warehouse", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty"],
+			keyFields: ["item_code", "uom", "warehouse", "custom_is_profile", "custom_profile_length_m", "custom_profile_length_qty", "custom_is_jalousie", "custom_jalousie_width", "custom_jalousie_height"],
 			qtyField: "qty",
 			// Material Request may not maintain stock_qty consistently; sum qty only
 		});

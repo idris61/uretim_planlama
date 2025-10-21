@@ -6,6 +6,29 @@ import re
 from frappe import _
 
 
+def parse_length(length_value):
+    """
+    Boy değerini parse eder (eski fonksiyon - geriye dönük uyumluluk için)
+    """
+    if length_value is None:
+        return None
+    normalized = str(length_value).replace(',', '.')
+    try:
+        float(normalized)
+        return normalized
+    except ValueError:
+        return None
+
+def normalize_length_to_string(length):
+    """
+    Length değerini string'e normalize eder
+    """
+    if length is None:
+        return None
+    if isinstance(length, (int, float)):
+        return str(length)
+    return str(length)
+
 def normalize_profile_length(length_value):
     """
     Tüm profil boy alanlarında virgülü noktaya çevir
@@ -30,6 +53,40 @@ def normalize_profile_length(length_value):
     except ValueError:
         frappe.log_error(f"Geçersiz boy değeri: {length_value}", "Profile Length Normalize Error")
         return None
+
+def log_profile_operation(operation_type, item_code, length, qty, direction):
+    """
+    Profil işlemlerini loglar
+    """
+    try:
+        frappe.log_error(
+            f"{operation_type}: {item_code} - {length}m x {qty} adet ({direction})",
+            f"Profile {operation_type}"
+        )
+    except:
+        pass
+
+def show_operation_result(success_count, error_count, total_length, total_qty, operation):
+    """
+    İşlem sonucunu kullanıcıya gösterir
+    """
+    if error_count == 0:
+        frappe.msgprint(
+            f"✅ Profil {operation.lower()} başarıyla tamamlandı!\n"
+            f"📊 Toplam {success_count} satır işlendi\n"
+            f"📏 Toplam uzunluk: {total_length:.2f}m\n"
+            f"📦 Toplam adet: {total_qty}",
+            title=_(f"{operation} Başarılı"),
+            indicator="green"
+        )
+    else:
+        frappe.msgprint(
+            f"⚠️ Profil {operation.lower()} kısmen başarısız!\n"
+            f"✅ Başarılı: {success_count} satır\n"
+            f"❌ Hatalı: {error_count} satır",
+            title=_(f"{operation} Kısmen Başarısız"),
+            indicator="orange"
+        )
 
 
 def parse_and_format_length(length_value, decimals=1):
@@ -254,34 +311,6 @@ def validate_warehouse(warehouse=None):
     return warehouse
 
 
-def log_profile_operation(operation_type, item_code, length, quantity, action="in"):
-    """Profil operasyon log kaydı"""
-    action_text = "girişi" if action == "in" else "çıkışı"
-    frappe.logger().info(f"Profile {operation_type}: {item_code} {length}m {quantity}adet stok {action_text} yapıldı")
-
-
-def show_operation_result(success_count, error_count, total_length, total_qty, operation_type):
-    """Operasyon sonuç mesajını göster"""
-    if error_count == 0:
-        frappe.msgprint(
-            f"✅ Profil stokları başarıyla güncellendi!\n"
-            f"📊 Toplam {success_count} satır işlendi\n"
-            f"📏 Toplam uzunluk: {total_length:.3f} m\n"
-            f"📦 Toplam adet: {total_qty}",
-            title=_("Stok Güncelleme Başarılı"),
-            indicator="green"
-        )
-    else:
-        frappe.msgprint(
-            f"⚠️ Profil stok güncellemesi kısmen başarısız!\n"
-            f"✅ Başarılı: {success_count} satır\n"
-            f"❌ Hatalı: {error_count} satır\n"
-            f"📋 Hata detayları için logları kontrol edin",
-            title=_("Stok Güncelleme Kısmen Başarısız"),
-            indicator="orange"
-        )
-
-
 # ============================================================================
 # PROFİL HOOK UTILITY FONKSİYONLARI
 # ============================================================================
@@ -368,8 +397,16 @@ def validate_profile_quantities(doc, method):
 
 
 def before_save(doc, method):
-    """Belge kaydedilmeden önce profil miktarlarını doğrula"""
+    """
+    Belge kaydedilmeden önce:
+    1. Profil miktarlarını doğrula
+    2. Print format için description'ları güncelle
+    """
     validate_profile_quantities(doc, method)
+    
+    # Print format için description güncelle
+    from .print_format_manager import PrintFormatManager
+    PrintFormatManager.update_item_descriptions_for_print(doc)
 
 
 def validate(doc, method):

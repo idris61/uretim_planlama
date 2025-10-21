@@ -63,36 +63,28 @@ frappe.ui.form.on("Production Plan", {
             to_date.set_value(to_date_default);
 
             const refresh_table = () => {
-                console.log('refresh_table çağrıldı');
                 const from = from_date.get_value();
                 const to = to_date.get_value();
-                console.log('Tarih aralığı:', from, to);
                 if (from && to) {
                     if (window.load_cutting_table) {
-                        console.log('load_cutting_table fonksiyonu mevcut, çağrılıyor');
                         window.load_cutting_table(from, to);
                     } else {
                         console.error('load_cutting_table fonksiyonu bulunamadı!');
                     }
                 } else {
-                    console.log('Tarih değerleri eksik, tablo yüklenmiyor');
                 }
             };
 
             $('#cutting-table-refresh-btn').on('click', () => {
-                console.log('Refresh butonu tıklandı');
                 refresh_table();
             });
             from_date.$input.on('change', () => {
-                console.log('From date değişti');
                 refresh_table();
             });
             to_date.$input.on('change', () => {
-                console.log('To date değişti');
                 refresh_table();
             });
 
-            console.log('İlk tablo yükleme başlıyor');
             refresh_table();
         }
 
@@ -159,13 +151,11 @@ frappe.ui.form.on("Production Plan", {
 
         // load_cutting_table fonksiyonunu window'a ekle
         window.load_cutting_table = function(from_date, to_date) {
-            console.log('load_cutting_table çağrıldı:', from_date, to_date);
             
             frappe.call({
                 method: "uretim_planlama.uretim_planlama.api.production_planning.get_daily_cutting_table",
                 args: { from_date, to_date },
                 callback: function (r) {
-                    console.log('API yanıtı:', r);
                     if (r.exc) {
                         console.error('API hatası:', r.exc);
                         const $table = $('#cutting-matrix-table');

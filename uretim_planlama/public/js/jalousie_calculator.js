@@ -1,47 +1,36 @@
-// Profil Miktar Hesaplama - Tüm DocType'lar İçin Tek Dosya
+// Jalousie Miktar Hesaplama - Tüm DocType'lar İçin Tek Dosya
 // Copyright (c) 2025, idris and contributors
 
 /**
- * Profil miktar hesaplama ana fonksiyonu
+ * Jalousie miktar hesaplama ana fonksiyonu
  * Tüm DocType'larda kullanılabilir
  */
-window.calculateProfileQty = function(frm, cdt, cdn) {
+window.calculateJalousieQty = function(frm, cdt, cdn) {
     const row = locals[cdt][cdn];
-    
-    // Validasyonlar
-    if (!row.custom_is_profile) {
+
+    if (!row.custom_is_jalousie) {
         frappe.msgprint({
             title: 'Uyarı',
-            message: 'Önce "Profil mi?" alanını işaretleyin!',
+            message: 'Önce "Jaluzi mi?" alanını işaretleyin!',
             indicator: 'orange'
         });
         return;
     }
-    
-    if (!row.custom_profile_length_m) {
-        frappe.msgprint({
-            title: 'Uyarı', 
-            message: 'Profil Boyu (m) seçin!',
-            indicator: 'orange'
-        });
-        return;
-    }
-    
-    if (!row.custom_profile_length_qty || row.custom_profile_length_qty <= 0) {
+
+    if (!row.custom_jalousie_width || !row.custom_jalousie_height) {
         frappe.msgprint({
             title: 'Uyarı',
-            message: 'Profil Boyu Adedi girin!',
+            message: 'En ve Boy alanları gereklidir!',
             indicator: 'orange'
         });
         return;
     }
-    
-    // Backend API çağrısı
+
     frappe.call({
-        method: 'uretim_planlama.uretim_planlama.api.profile_calculator.calculate_profile_quantity',
+        method: 'uretim_planlama.uretim_planlama.api.jalousie_calculator.calculate_jalousie_quantity',
         args: {
-            boy_name: row.custom_profile_length_m,
-            profile_qty: row.custom_profile_length_qty,
+            width: row.custom_jalousie_width,
+            height: row.custom_jalousie_height,
             conversion_factor: row.conversion_factor || 1.0
         },
         callback: function(response) {
@@ -53,20 +42,14 @@ window.calculateProfileQty = function(frm, cdt, cdn) {
                 });
                 return;
             }
-            
+
             const result = response.message;
-            
-            // Değerleri güncelle
             frappe.model.set_value(cdt, cdn, 'qty', result.qty).then(() => {
                 frappe.model.set_value(cdt, cdn, 'stock_qty', result.stock_qty);
-                
-                // Başarı mesajı
                 frappe.show_alert({
                     message: `✅ ${result.calculation}`,
                     indicator: 'green'
                 });
-                
-                // Form'u yenile
                 frm.refresh_field('items');
             });
         },
@@ -76,21 +59,21 @@ window.calculateProfileQty = function(frm, cdt, cdn) {
                 message: 'Hesaplama sırasında hata oluştu!',
                 indicator: 'red'
             });
-            console.error('Profile calculation API error:', error);
+            console.error('Jalousie calculation API error:', error);
         }
     });
 };
 
 /**
- * Profil hesaplama butonlarını stillendirir
+ * Jaluzi hesaplama butonlarını stillendirir
  */
-window.styleProfileButtons = function() {
+window.styleJalousieButtons = function() {
     const tryStyleButtons = () => {
         const selectors = [
-            'button[data-fieldname="custom_calculate_profile_qty"]',
-            'button[data-fieldname*="calculate_profile"]',
-            '.btn[data-fieldname="custom_calculate_profile_qty"]',
-            'input[data-fieldname="custom_calculate_profile_qty"]'
+            'button[data-fieldname="custom_calculate_jalousie_qty"]',
+            'button[data-fieldname*="calculate_jalousie"]',
+            '.btn[data-fieldname="custom_calculate_jalousie_qty"]',
+            'input[data-fieldname="custom_calculate_jalousie_qty"]'
         ];
         
         let buttons = $();
@@ -105,8 +88,8 @@ window.styleProfileButtons = function() {
         if (buttons.length > 0) {
             buttons.each(function() {
                 $(this).css({
-                    'background-color': '#dc3545 !important',
-                    'border-color': '#dc3545 !important', 
+                    'background-color': '#28a745 !important',
+                    'border-color': '#28a745 !important',
                     'color': 'white !important',
                     'font-weight': 'bold',
                     'border-radius': '4px',
@@ -117,15 +100,15 @@ window.styleProfileButtons = function() {
             // Hover efekti
             buttons.hover(
                 function() { 
-                    $(this).css('background-color', '#c82333 !important'); 
+                    $(this).css('background-color', '#218838 !important'); 
                 },
                 function() { 
-                    $(this).css('background-color', '#dc3545 !important'); 
+                    $(this).css('background-color', '#28a745 !important'); 
                 }
             );
             
             // Class ekle (daha kalıcı olması için)
-            buttons.addClass('btn btn-danger');
+            buttons.addClass('btn btn-success');
             
             return true;
         }
@@ -150,13 +133,13 @@ window.styleProfileButtons = function() {
 
 // Purchase Receipt
 frappe.ui.form.on('Purchase Receipt Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -164,19 +147,19 @@ frappe.ui.form.on('Purchase Receipt Item', {
 
 frappe.ui.form.on('Purchase Receipt', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Delivery Note
 frappe.ui.form.on('Delivery Note Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -184,19 +167,19 @@ frappe.ui.form.on('Delivery Note Item', {
 
 frappe.ui.form.on('Delivery Note', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Sales Invoice
 frappe.ui.form.on('Sales Invoice Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -204,19 +187,19 @@ frappe.ui.form.on('Sales Invoice Item', {
 
 frappe.ui.form.on('Sales Invoice', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Purchase Invoice
 frappe.ui.form.on('Purchase Invoice Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -224,19 +207,19 @@ frappe.ui.form.on('Purchase Invoice Item', {
 
 frappe.ui.form.on('Purchase Invoice', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Stock Entry
 frappe.ui.form.on('Stock Entry Detail', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -244,19 +227,19 @@ frappe.ui.form.on('Stock Entry Detail', {
 
 frappe.ui.form.on('Stock Entry', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Material Request
 frappe.ui.form.on('Material Request Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -264,19 +247,19 @@ frappe.ui.form.on('Material Request Item', {
 
 frappe.ui.form.on('Material Request', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Sales Order
 frappe.ui.form.on('Sales Order Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -284,19 +267,19 @@ frappe.ui.form.on('Sales Order Item', {
 
 frappe.ui.form.on('Sales Order', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
 
 // Purchase Order
 frappe.ui.form.on('Purchase Order Item', {
-    custom_calculate_profile_qty: function(frm, cdt, cdn) {
-        window.calculateProfileQty(frm, cdt, cdn);
+    custom_calculate_jalousie_qty: function(frm, cdt, cdn) {
+        window.calculateJalousieQty(frm, cdt, cdn);
     },
-    custom_is_profile: function(frm, cdt, cdn) {
+    custom_is_jalousie: function(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
-        if (row.custom_is_profile) {
-            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        if (row.custom_is_jalousie) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
     }
@@ -304,6 +287,6 @@ frappe.ui.form.on('Purchase Order Item', {
 
 frappe.ui.form.on('Purchase Order', {
     refresh: function(frm) {
-        window.styleProfileButtons();
+        window.styleJalousieButtons();
     }
 });
