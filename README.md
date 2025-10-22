@@ -104,16 +104,9 @@ Yazdırma formatında (Print Format) sadece boyut alanları görüntülenir:
 - **Jaluzi:** "Jaluzi: 2.5m (En) × 1.8m (Boy) = 4.50 m²"
 
 #### **İrsaliye Çıktıları**
-Delivery Note (Sevk İrsaliyesi) ve Purchase Receipt (Alış İrsaliyesi) print format'ında fiyat bilgileri gizlidir:
-- ❌ `Rate` - Birim Fiyat
-- ❌ `Amount` - Tutar
-- ❌ `Discount Amount` - İndirim Tutarı
-- ❌ `Stock UOM Rate` - Stok Birim Fiyatı
-- ❌ `Quantity and Rate` - Miktar ve Fiyat
+Delivery Note (Sevk İrsaliyesi) ve Purchase Receipt (Alış İrsaliyesi) print format'ında fiyat bilgileri tamamen gizlidir:
 
-Bu sayede irsaliye çıktılarında sadece miktar ve ürün bilgileri görünür, fiyat detayları gizli kalır.
-
-**Gizlenen Fiyat Alanları:**
+**Gizlenen Fiyat Alanları (Item Seviyesi):**
 - ❌ `Rate` - Birim Fiyat
 - ❌ `Amount` - Tutar
 - ❌ `Discount Amount` - İndirim Tutarı
@@ -121,6 +114,25 @@ Bu sayede irsaliye çıktılarında sadece miktar ve ürün bilgileri görünür
 - ❌ `Rate and Amount` - Fiyat ve Tutar
 - ❌ `Stock UOM Rate` - Stok Birim Fiyatı
 - ❌ `Base Rate With Margin` - Marjlı Fiyat (Şirket Para Birimi)
+
+**Gizlenen Toplam Alanları (Belge Seviyesi):**
+- ❌ `Total` - Toplam
+- ❌ `Grand Total` - Genel Toplam
+- ❌ `Rounded Total` - Yuvarlatılmış Toplam
+- ❌ `In Words` - Yazıyla Tutar
+- ❌ `Tax Withholding Net Total` - Vergi Tevkifatı Net Toplamı (Purchase Receipt)
+- ❌ `Amount Eligible for Commission` - Komisyona Uygun Tutar (Delivery Note)
+
+**Gizlenen Diğer Alanlar:**
+- ❌ `Use Serial No / Batch Fields` - Seri No / Parti Alanlarını Kullanın
+- ❌ `Grant Commission` - Komisyona İzin ver (Delivery Note)
+
+**Görünen Alanlar:**
+- ✅ Item Code, Description, Quantity, UOM
+- ✅ Profil/Jaluzi boyut bilgileri (varsa)
+- ✅ Tedarikçi/Müşteri, tarih, adres bilgileri
+
+Bu sayede irsaliye çıktılarında sadece miktar ve ürün bilgileri görünür, tüm fiyat detayları gizli kalır.
 
 ### **Kurulum ve Konfigürasyon**
 
@@ -323,9 +335,11 @@ Yazdırma formatlarıyla ilgili tüm geliştirmeler `print_format_manager.py` do
 
 #### **PrintFormatManager Sınıfı**
 - **Custom Field Ayarları:** `get_custom_field_print_settings()`
-- **Fiyat Alanları:** `get_price_fields_to_hide()`
+- **Fiyat Alanları:** `get_price_fields_to_hide()` - Tüm fiyat, komisyon ve seri no alanları
 - **Description Güncellemeleri:** `update_item_descriptions_for_print()`
-- **Property Setter Yönetimi:** `hide_price_fields_in_delivery_note()`
+- **Property Setter Yönetimi:** 
+  - `hide_price_fields_in_delivery_note()` - Delivery Note için fiyat alanlarını gizler
+  - `hide_price_fields_in_purchase_receipt()` - Purchase Receipt için fiyat alanlarını gizler
 
 #### **Kullanım Örnekleri**
 ```python

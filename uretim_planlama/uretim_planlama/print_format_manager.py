@@ -58,6 +58,8 @@ class PrintFormatManager:
             "rate_and_amount",                # Fiyat ve Tutar
             "stock_uom_rate",                 # Stok Birim Fiyatı
             "base_rate_with_margin",          # Marjlı Fiyat (Şirket Para Birimi)
+            "use_serial_batch_fields",        # Seri No / Parti Alanlarını Kullanın
+            "grant_commission",               # Komisyona İzin ver
         ]
     
     # =============================================================================
@@ -126,10 +128,23 @@ class PrintFormatManager:
         """
         Delivery Note'da fiyat alanlarını gizler
         """
+        # Item seviyesinde fiyat alanları
         doctype = "Delivery Note Item"
         price_fields = PrintFormatManager.get_price_fields_to_hide()
         
         for field_name in price_fields:
+            PrintFormatManager.set_property_setter(
+                doctype=doctype,
+                fieldname=field_name,
+                property="print_hide",
+                value="1"
+            )
+        
+        # Belge seviyesinde toplam alanları
+        doctype = "Delivery Note"
+        total_fields = ["total", "grand_total", "rounded_total", "in_words", "amount_eligible_for_commission"]
+        
+        for field_name in total_fields:
             PrintFormatManager.set_property_setter(
                 doctype=doctype,
                 fieldname=field_name,
@@ -142,10 +157,23 @@ class PrintFormatManager:
         """
         Purchase Receipt'te fiyat alanlarını gizler
         """
+        # Item seviyesinde fiyat alanları
         doctype = "Purchase Receipt Item"
         price_fields = PrintFormatManager.get_price_fields_to_hide()
         
         for field_name in price_fields:
+            PrintFormatManager.set_property_setter(
+                doctype=doctype,
+                fieldname=field_name,
+                property="print_hide",
+                value="1"
+            )
+        
+        # Belge seviyesinde toplam alanları
+        doctype = "Purchase Receipt"
+        total_fields = ["total", "grand_total", "tax_withholding_net_total", "rounded_total", "in_words"]
+        
+        for field_name in total_fields:
             PrintFormatManager.set_property_setter(
                 doctype=doctype,
                 fieldname=field_name,
