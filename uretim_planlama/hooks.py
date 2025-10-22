@@ -33,10 +33,10 @@ app_include_css = [
 ]
 
 app_include_js = [
-	"/assets/uretim_planlama/js/profile_calculator.js",
-	"/assets/uretim_planlama/js/jalousie_calculator.js",
 	"/assets/uretim_planlama/js/item_auto_fill.js",
 ]
+
+# Not: profile_calculator.js ve jalousie_calculator.js artık DocType-specific olarak yükleniyor (doctype_js)
 
 # Dashboard Chart Sources kaldırıldı
 
@@ -59,37 +59,53 @@ doctype_js = {
 	"Sales Order": [
 		"public/js/sales_order/sales_order.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
 	"Delivery Note": [
 		"public/js/delivery_note_assembly_accessory_html.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Purchase Order": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Purchase Receipt": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Stock Entry": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Sales Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Purchase Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Material Request": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Profile Entry Item": "uretim_planlama/uretim_planlama/doctype/profile_entry_item/profile_entry_item.js",
 	"Profile Exit Item": "uretim_planlama/uretim_planlama/doctype/profile_exit_item/profile_exit_item.js",

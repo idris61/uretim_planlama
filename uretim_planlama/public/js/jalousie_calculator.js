@@ -65,67 +65,56 @@ window.calculateJalousieQty = function(frm, cdt, cdn) {
 };
 
 /**
- * Jaluzi hesaplama butonlarını stillendirir
+ * Jaluzi butonlarını yeşil yapma fonksiyonu
  */
-window.styleJalousieButtons = function() {
-    const tryStyleButtons = () => {
-        const selectors = [
-            'button[data-fieldname="custom_calculate_jalousie_qty"]',
-            'button[data-fieldname*="calculate_jalousie"]',
-            '.btn[data-fieldname="custom_calculate_jalousie_qty"]',
-            'input[data-fieldname="custom_calculate_jalousie_qty"]'
-        ];
-        
-        let buttons = $();
-        for (const selector of selectors) {
-            const found = $(selector);
-            if (found.length > 0) {
-                buttons = found;
-                break;
-            }
-        }
-        
+window.forceJalousieButtonsGreen = function() {
+    const selectors = [
+        'button[data-fieldname="custom_calculate_jalousie_qty"]',
+        '.btn[data-fieldname="custom_calculate_jalousie_qty"]',
+        '[data-fieldname="custom_calculate_jalousie_qty"] button',
+        '[data-fieldname="custom_calculate_jalousie_qty"] .btn',
+        '.frappe-control[data-fieldname="custom_calculate_jalousie_qty"] button',
+        '.frappe-control[data-fieldname="custom_calculate_jalousie_qty"] .btn',
+        'input[data-fieldname="custom_calculate_jalousie_qty"] + button',
+        '.form-control[data-fieldname="custom_calculate_jalousie_qty"]'
+    ];
+    
+    let found = false;
+    selectors.forEach(selector => {
+        const buttons = $(selector);
         if (buttons.length > 0) {
             buttons.each(function() {
-                $(this).css({
+                const $btn = $(this);
+                $btn.removeAttr('style');
+                $btn.css({
                     'background-color': '#28a745 !important',
                     'border-color': '#28a745 !important',
                     'color': 'white !important',
-                    'font-weight': 'bold',
-                    'border-radius': '4px',
-                    'padding': '5px 12px'
+                    'font-weight': 'bold !important',
+                    'background': '#28a745 !important',
+                    'border': '1px solid #28a745 !important'
                 });
+                $btn.addClass('btn-success');
+                $btn.attr('style', 'background-color: #28a745 !important; border-color: #28a745 !important; color: white !important; font-weight: bold !important;');
             });
-            
-            // Hover efekti
-            buttons.hover(
-                function() { 
-                    $(this).css('background-color', '#218838 !important'); 
-                },
-                function() { 
-                    $(this).css('background-color', '#28a745 !important'); 
-                }
-            );
-            
-            // Class ekle (daha kalıcı olması için)
-            buttons.addClass('btn btn-success');
-            
-            return true;
+            found = true;
         }
-        return false;
-    };
+    });
     
-    // İlk deneme
-    if (!tryStyleButtons()) {
-        // 1 saniye sonra tekrar dene
-        setTimeout(() => {
-            if (!tryStyleButtons()) {
-                // 2 saniye sonra son deneme
-                setTimeout(tryStyleButtons, 2000);
-            }
-        }, 1000);
-    }
+    return found;
 };
+
+// Sayfa yüklendiğinde çalıştır
+$(document).ready(function() {
+    setTimeout(() => window.forceJalousieButtonsGreen(), 1000);
+});
+
+// Eski fonksiyon adı için backward compatibility
+window.styleJalousieButtonsGreen = window.forceJalousieButtonsGreen;
+
+// =============================================================================
+// TÜM DOCTYPE'LAR İÇİN FORM EVENT'LERİ - TEK DOSYADA
+// =============================================================================
 
 // =============================================================================
 // TÜM DOCTYPE'LAR İÇİN FORM EVENT'LERİ - TEK DOSYADA
@@ -142,12 +131,13 @@ frappe.ui.form.on('Purchase Receipt Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Purchase Receipt', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -162,12 +152,13 @@ frappe.ui.form.on('Delivery Note Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Delivery Note', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -182,12 +173,13 @@ frappe.ui.form.on('Sales Invoice Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Sales Invoice', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -202,12 +194,13 @@ frappe.ui.form.on('Purchase Invoice Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Purchase Invoice', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -222,12 +215,13 @@ frappe.ui.form.on('Stock Entry Detail', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Stock Entry', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -242,12 +236,13 @@ frappe.ui.form.on('Material Request Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Material Request', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -262,12 +257,13 @@ frappe.ui.form.on('Sales Order Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Sales Order', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });
 
@@ -282,11 +278,12 @@ frappe.ui.form.on('Purchase Order Item', {
             frappe.model.set_value(cdt, cdn, 'custom_is_profile', 0);
         }
         frm.refresh_field('items');
+        setTimeout(() => window.forceJalousieButtonsGreen(), 300);
     }
 });
 
 frappe.ui.form.on('Purchase Order', {
     refresh: function(frm) {
-        window.styleJalousieButtons();
+        setTimeout(() => window.forceJalousieButtonsGreen(), 500);
     }
 });

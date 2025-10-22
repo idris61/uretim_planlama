@@ -185,34 +185,7 @@ def normalize_profile_quantity(qty_value):
 # PROFİL UTILITY FONKSİYONLARI
 # ============================================================================
 
-def parse_length(length_str):
-    """Boy string'ini float'a çevirir"""
-    try:
-        return float(str(length_str).replace(' m', '').replace(',', '.'))
-    except ValueError:
-        frappe.throw(_("Geçersiz boy formatı: {0}").format(length_str))
-
-
-def normalize_length_to_string(length_value):
-    """
-    Import sırasında length float olarak gelebilir, string'e çevirir.
-    Boy DocType'ında Link olarak kullanılabilmesi için normalize eder.
-    
-    Args:
-        length_value: Boy değeri (string, float, int)
-        
-    Returns:
-        str: String olarak boy değeri
-    """
-    if length_value is None:
-        return None
-    
-    # Float veya int ise string'e çevir
-    if isinstance(length_value, (int, float)):
-        return str(float(length_value))
-    
-    # Zaten string ise döndür
-    return str(length_value)
+# Duplicate fonksiyonlar kaldırıldı - yukarıdaki tanımlar kullanılıyor
 
 
 def get_length_value_from_boy_doctype(length_name):

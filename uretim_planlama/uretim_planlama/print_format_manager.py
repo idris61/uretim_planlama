@@ -374,6 +374,7 @@ class PrintFormatManager:
     def fix_custom_field_print_settings():
         """
         Custom field'ların print ayarlarını düzeltir
+        Tüm DocType'larda profil ve jaluzi field'ları için print ayarlarını yapar
         """
         doctypes = [
             "Material Request Item",
