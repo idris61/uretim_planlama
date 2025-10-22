@@ -140,9 +140,30 @@ class PrintFormatManager:
                 value="1"
             )
         
-        # Belge seviyesinde toplam alanları
+        # Belge seviyesinde toplam ve fiyat alanları
         doctype = "Delivery Note"
-        total_fields = ["total", "grand_total", "rounded_total", "in_words", "amount_eligible_for_commission"]
+        total_fields = [
+            "total",
+            "grand_total",
+            "rounded_total",
+            "in_words",
+            "amount_eligible_for_commission",
+            "base_total",
+            "base_net_total",
+            "net_total",
+            "base_grand_total",
+            "base_rounded_total",
+            "discount_amount",
+            "base_discount_amount",
+            "additional_discount_percentage",
+            "apply_discount_on",
+            "taxes_section",
+            "taxes_and_charges",
+            "taxes",
+            "base_total_taxes_and_charges",
+            "total_taxes_and_charges",
+            "total_commission"
+        ]
         
         for field_name in total_fields:
             PrintFormatManager.set_property_setter(
@@ -169,9 +190,44 @@ class PrintFormatManager:
                 value="1"
             )
         
-        # Belge seviyesinde toplam alanları
+        # Ek gizlenecek sütunlar
+        additional_hidden_fields = [
+            "apply_tds",
+            "expense_account",
+            "material_request_item"
+        ]
+        
+        for field_name in additional_hidden_fields:
+            PrintFormatManager.set_property_setter(
+                doctype=doctype,
+                fieldname=field_name,
+                property="print_hide",
+                value="1"
+            )
+        
+        # Belge seviyesinde toplam ve fiyat alanları
         doctype = "Purchase Receipt"
-        total_fields = ["total", "grand_total", "tax_withholding_net_total", "rounded_total", "in_words"]
+        total_fields = [
+            "total",
+            "grand_total",
+            "tax_withholding_net_total",
+            "rounded_total",
+            "in_words",
+            "base_total",
+            "base_net_total",
+            "net_total",
+            "base_grand_total",
+            "base_rounded_total",
+            "discount_amount",
+            "base_discount_amount",
+            "additional_discount_percentage",
+            "apply_discount_on",
+            "taxes_section",
+            "taxes_and_charges",
+            "taxes",
+            "base_total_taxes_and_charges",
+            "total_taxes_and_charges"
+        ]
         
         for field_name in total_fields:
             PrintFormatManager.set_property_setter(
