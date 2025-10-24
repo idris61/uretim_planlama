@@ -124,7 +124,13 @@ doc_events = {
 	},
 	"Purchase Order": {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
-		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+		"validate": [
+			"uretim_planlama.uretim_planlama.utils.validate",
+			"uretim_planlama.purchase_order_events.validate"
+		],
+		"on_submit": "uretim_planlama.purchase_order_events.on_submit",
+		"on_cancel": "uretim_planlama.purchase_order_events.on_cancel",
+		"on_update_after_submit": "uretim_planlama.purchase_order_events.on_update_after_submit"
 	},
 	"Purchase Receipt": {
 		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit",

@@ -29,6 +29,33 @@ window.uretim_planlama = window.uretim_planlama || {};
 		return target;
 	}
 
+	function mergeMaterialRequestReferences(rows) {
+		/**
+		 * Birden fazla satırdaki Material Request referanslarını birleştirir
+		 * Duplicate referansları temizler
+		 * Virgülle ayrılmış string formatında döner: "MR-001, MR-002, MR-003"
+		 */
+		const uniqueMRs = new Set();
+
+		rows.forEach((row) => {
+			// Virgülle ayrılmış string formatındaki referansları al
+			const mrRefsStr = row.custom_material_request_references || "";
+			
+			// String'i listeye çevir, boşlukları temizle
+			const mrList = mrRefsStr.split(",").map(s => s.trim()).filter(s => s);
+			
+			// Unique set'e ekle
+			mrList.forEach((mr) => {
+				if (mr) {
+					uniqueMRs.add(mr);
+				}
+			});
+		});
+
+		// Set'i virgülle ayrılmış string'e çevir
+		return Array.from(uniqueMRs).join(", ");
+	}
+
 	function sumNumbers(a, b) {
 		const x = (typeof a === "number" ? a : (window.flt ? flt(a || 0) : +(a || 0)));
 		const y = (typeof b === "number" ? b : (window.flt ? flt(b || 0) : +(b || 0)));
@@ -61,6 +88,27 @@ window.uretim_planlama = window.uretim_planlama || {};
 		frm.__uretim_planlama_merging__ = true;
 
 		try {
+			// Purchase Order için: Merge'den ÖNCE her row'un material_request field'ını custom field'a kopyala
+			if (childFieldname === "items" && frm.doc.doctype === "Purchase Order") {
+				rows.forEach((row) => {
+					if (row.material_request && row.material_request.trim()) {
+						// Mevcut custom_material_request_references'ı al
+						let existingRefs = (row.custom_material_request_references || "").trim();
+						
+						// Virgülle ayrılmış listeye çevir
+						let refList = existingRefs ? existingRefs.split(",").map(s => s.trim()).filter(s => s) : [];
+						
+						// Eğer bu MR zaten listede yoksa ekle
+						if (!refList.includes(row.material_request)) {
+							refList.push(row.material_request);
+						}
+						
+						// Listeyi tekrar string'e çevir
+						row.custom_material_request_references = refList.join(", ");
+					}
+				});
+			}
+
 			const groupKeyToAgg = {};
 			const orderOfKeys = [];
 
@@ -70,10 +118,12 @@ window.uretim_planlama = window.uretim_planlama || {};
 					groupKeyToAgg[key] = {
 						template: row,
 						summedQty: row[qtyField] || 0,
+						allRows: [row]
 					};
 					orderOfKeys.push(key);
 				} else {
 					groupKeyToAgg[key].summedQty = sumNumbers(groupKeyToAgg[key].summedQty, row[qtyField] || 0);
+					groupKeyToAgg[key].allRows.push(row);
 				}
 			});
 
@@ -103,6 +153,14 @@ window.uretim_planlama = window.uretim_planlama || {};
 				Object.keys(cloned).forEach((field) => {
 					newChild[field] = cloned[field];
 				});
+
+				// Material Request referanslarını birleştir (sadece Purchase Order için)
+				if (childFieldname === "items" && frm.doc.doctype === "Purchase Order") {
+					const mergedMRsStr = mergeMaterialRequestReferences(agg.allRows);
+					if (mergedMRsStr) {
+						newChild.custom_material_request_references = mergedMRsStr;
+					}
+				}
 			});
 
 			frm.refresh_field(childFieldname);
