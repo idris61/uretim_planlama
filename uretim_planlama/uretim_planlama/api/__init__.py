@@ -6,6 +6,8 @@ API Module Exports
 Bu modül tüm API fonksiyonlarını merkezi olarak export eder.
 """
 
+import frappe
+
 # Production Planning API
 from uretim_planlama.uretim_planlama.api.production_planning import (
     get_daily_cutting_matrix,

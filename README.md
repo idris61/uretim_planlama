@@ -2,7 +2,77 @@
 
 ERPNext tabanlı üretim planlama uygulaması
 
-## 🚀 **YENİ ÖZELLİK: PROFESYONEL PROFİL STOK YÖNETİMİ**
+## 🚀 **YENİ ÖZELLİK: BİRLEŞTİRİLMİŞ MALZEME TALEBİ SİSTEMİ** 🆕
+
+### **Genel Bakış**
+Birden fazla Material Request'i tek bir Stock Entry, Purchase Order veya Purchase Receipt belgesinde birleştirerek işleme imkanı sağlar. Aynı ürünler tek satırda toplanır ve tüm MR referansları kaydedilir.
+
+### **Temel Özellikler**
+- ✅ **Otomatik Merge**: Aynı ürünler tek satırda toplanır
+- ✅ **Referans Saklama**: Tüm MR referansları `custom_material_request_references` field'ında saklanır
+- ✅ **Otomatik Statü Güncelleme**: Tüm birleştirilmiş MR'ların statüsü doğru şekilde güncellenir
+- ✅ **Material Transfer**: İki MR → Tek Stock Entry → Her ikisi "Transferred"
+- ✅ **Purchase Flow**: İki MR → Tek PO → Tek PR → Her ikisi "Ordered" → "Received"
+- ✅ **Cancel Desteği**: Cancel işleminde tüm MR'lar "Pending"e döner
+
+### **Kullanım Senaryoları**
+
+#### **Material Transfer (Stok Hareketi)**
+```
+1. İki Material Request oluştur (Material Transfer tipi)
+   - MAT-MR-001: Item ABC, 20 adet
+   - MAT-MR-002: Item ABC, 30 adet
+
+2. Stock Entry oluştur
+   - Get Items From → Material Request → MAT-MR-001 seç
+   - Get Items From → Material Request → MAT-MR-002 seç
+   - Otomatik merge: 50 adet (tek satır)
+   - Material Request References: "MAT-MR-001, MAT-MR-002"
+
+3. Submit et
+   - MAT-MR-001: "Transferred" ✅
+   - MAT-MR-002: "Transferred" ✅
+```
+
+#### **Purchase Flow (Satınalma Akışı)**
+```
+1. İki Material Request oluştur (Purchase tipi)
+   - MAT-MR-001: Item XYZ, 100 adet
+   - MAT-MR-002: Item XYZ, 150 adet
+
+2. Purchase Order oluştur
+   - Get Items From → Material Request → İki MR'ı seç
+   - Otomatik merge: 250 adet (tek satır)
+   - Material Request References: "MAT-MR-001, MAT-MR-002"
+   - Submit: Her ikisi "Ordered" ✅
+
+3. Purchase Receipt oluştur
+   - Make → Purchase Receipt (From Purchase Order)
+   - Custom field otomatik kopyalanır
+   - Submit: Her ikisi "Received" ✅
+```
+
+### **Teknik Detaylar**
+
+#### **Custom Fields**
+- `custom_material_request_references` (Small Text)
+  - Purchase Order Item
+  - Stock Entry Detail
+  - Purchase Receipt Item
+
+#### **Frontend Merge (`get_items_merge.js`)**
+- Aynı ürünleri tek satırda toplar
+- MR referanslarını birleştirir
+- Purchase Order, Stock Entry, Purchase Receipt için çalışır
+
+#### **Backend Hooks**
+- `stock_entry_events.py`: Material Transfer statü güncellemeleri
+- `purchase_order_events.py`: Purchase Order statü güncellemeleri
+- `purchase_receipt_events.py`: Purchase Receipt statü güncellemeleri
+
+---
+
+## 🚀 **PROFESYONEL PROFİL STOK YÖNETİMİ**
 
 ### **Genel Bakış**
 Bu uygulama, profil ürünlerinin hem ERPNext orijinal stok takibinde (mtül) hem de özel boy bazında stok takibinde senkronize olarak yönetilmesini sağlar.
