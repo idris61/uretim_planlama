@@ -22,11 +22,11 @@ def _get_reorder_rule(profile_type: str, length: float, warehouse: str | None):
 	rules = frappe.get_all(
 		"Profile Reorder Rule",
 		filters={
-			"profile_type": profile_type,
+			"item_code": profile_type,
 			"length": ("in", list(candidates)),
 			"active": 1,
 		},
-		fields=["name", "min_qty", "reorder_qty", "default_supplier", "warehouse", "length"],
+		fields=["name", "min_qty", "reorder_qty", "default_supplier", "length"],
 		limit=1,
 	)
 	
@@ -136,13 +136,13 @@ def profile_reorder_sweep():
 	stocks = frappe.get_all(
 		"Profile Stock Ledger",
 		filters={"is_scrap_piece": 0},
-		fields=["profile_type", "length", "qty"],
+		fields=["item_code", "length", "qty"],
 		limit=10000,
 	)
 	created = 0
 	for s in stocks:
 		try:
-			mr = ensure_reorder_for_profile(s["profile_type"], float(s["length"]), float(s["qty"]))
+			mr = ensure_reorder_for_profile(s["item_code"], float(s["length"]), float(s["qty"]))
 			if mr:
 				created += 1
 		except Exception as e:
@@ -169,7 +169,7 @@ def ensure_reorder_for_profile(profile_type: str, length: float, current_qty: fl
 			return None
 		
 		# Zaten draft MR var mı kontrol et
-		if _check_draft_purchase_mr(profile_type, warehouse or rule.get("warehouse")):
+		if _check_draft_purchase_mr(profile_type, None):
 			frappe.logger().info(f"Draft MR already exists for {profile_type}")
 			return None
 		
@@ -182,7 +182,7 @@ def ensure_reorder_for_profile(profile_type: str, length: float, current_qty: fl
 		mr_name = _create_material_request(
 			profile_type,
 			reorder_qty,
-			warehouse or rule.get("warehouse"),
+			None,  # warehouse yok
 			rule.get("default_supplier"),
 			length,
 			int(reorder_qty)  # profile_qty parametresi

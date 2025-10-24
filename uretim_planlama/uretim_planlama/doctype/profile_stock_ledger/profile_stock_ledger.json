@@ -5,7 +5,9 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "profile_type",
+  "item_code",
+  "item_name",
+  "item_group",
   "length",
   "qty",
   "total_length",
@@ -13,38 +15,55 @@
  ],
  "fields": [
   {
-   "fieldname": "profile_type",
+   "fieldname": "item_code",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Profile Type",
+   "label": "Profil Tipi",
    "options": "Item",
-   "reqd": 1
+   "reqd": 1,
+   "get_query": "uretim_planlama.uretim_planlama.api.profile_items.get_profile_items_filter"
   },
   {
-   "fieldname": "length",
-   "fieldtype": "Float",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Length (m)",
-   "reqd": 1
+   "label": "Ürün Adı",
+   "read_only": 1
   },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ürün Grubu",
+   "options": "Item Group",
+   "read_only": 1
+  },
+   {
+     "fieldname": "length",
+     "fieldtype": "Link",
+     "in_list_view": 1,
+     "label": "Boy (m)",
+     "options": "Boy",
+     "reqd": 1
+   },
   {
    "fieldname": "qty",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Quantity",
+   "label": "Miktar",
    "reqd": 1
   },
   {
    "fieldname": "total_length",
    "fieldtype": "Float",
-   "label": "Total Length (m)",
+   "label": "Toplam Boy (m)",
    "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "is_scrap_piece",
    "fieldtype": "Check",
-   "label": "Is Scrap Piece"
+   "label": "Hurda Parça"
   }
  ],
  "links": [],
@@ -58,20 +77,33 @@
    "create": 1,
    "delete": 1,
    "read": 1,
+   "report": 1,
    "role": "System Manager",
    "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "read": 1,
-   "role": "Manufacturing Manager"
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "read": 1,
-   "role": "Manufacturing User"
+   "report": 1,
+   "role": "Manufacturing User",
+   "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
    "read": 1,
-   "role": "All"
+   "report": 1,
+   "role": "All",
+   "write": 1
   }
  ],
  "row_format": "Dynamic",

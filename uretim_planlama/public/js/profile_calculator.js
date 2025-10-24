@@ -1,8 +1,6 @@
 // Profil Miktar Hesaplama - Tüm DocType'lar İçin Tek Dosya
 // Copyright (c) 2025, idris and contributors
 
-console.log('Profile Calculator JS V6 yüklendi - Tek Dosya Yapısı');
-
 /**
  * Profil miktar hesaplama ana fonksiyonu
  * Tüm DocType'larda kullanılabilir
@@ -37,12 +35,6 @@ window.calculateProfileQty = function(frm, cdt, cdn) {
         });
         return;
     }
-    
-    // Loading göster
-    frappe.show_alert({
-        message: 'Hesaplanıyor...',
-        indicator: 'blue'
-    });
     
     // Backend API çağrısı
     frappe.call({
@@ -93,32 +85,63 @@ window.calculateProfileQty = function(frm, cdt, cdn) {
  * Profil hesaplama butonlarını stillendirir
  */
 window.styleProfileButtons = function() {
-    setTimeout(() => {
-        const buttons = $('button[data-fieldname="custom_calculate_profile_qty"]');
+    const tryStyleButtons = () => {
+        const selectors = [
+            'button[data-fieldname="custom_calculate_profile_qty"]',
+            'button[data-fieldname*="calculate_profile"]',
+            '.btn[data-fieldname="custom_calculate_profile_qty"]',
+            'input[data-fieldname="custom_calculate_profile_qty"]'
+        ];
+        
+        let buttons = $();
+        for (const selector of selectors) {
+            const found = $(selector);
+            if (found.length > 0) {
+                buttons = found;
+                break;
+            }
+        }
+        
         if (buttons.length > 0) {
-            buttons.css({
-                'background-color': '#dc3545',
-                'border-color': '#dc3545', 
-                'color': 'white',
-                'font-weight': 'bold',
-                'border-radius': '4px'
+            buttons.each(function() {
+                $(this).css({
+                    'background-color': '#dc3545 !important',
+                    'border-color': '#dc3545 !important', 
+                    'color': 'white !important',
+                    'font-weight': 'bold',
+                    'border-radius': '4px',
+                    'padding': '5px 12px'
+                });
             });
             
             // Hover efekti
             buttons.hover(
                 function() { 
-                    $(this).css('background-color', '#c82333'); 
+                    $(this).css('background-color', '#c82333 !important'); 
                 },
                 function() { 
-                    $(this).css('background-color', '#dc3545'); 
+                    $(this).css('background-color', '#dc3545 !important'); 
                 }
             );
             
-            console.log(`✅ Profil butonları stillendirildi: ${buttons.length} buton`);
-        } else {
-            console.log('⚠️ Profil hesaplama butonları bulunamadı');
+            // Class ekle (daha kalıcı olması için)
+            buttons.addClass('btn btn-danger');
+            
+            return true;
         }
-    }, 500);
+        return false;
+    };
+    
+    // İlk deneme
+    if (!tryStyleButtons()) {
+        // 1 saniye sonra tekrar dene
+        setTimeout(() => {
+            if (!tryStyleButtons()) {
+                // 2 saniye sonra son deneme
+                setTimeout(tryStyleButtons, 2000);
+            }
+        }, 1000);
+    }
 };
 
 // =============================================================================
@@ -129,6 +152,13 @@ window.styleProfileButtons = function() {
 frappe.ui.form.on('Purchase Receipt Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -142,6 +172,13 @@ frappe.ui.form.on('Purchase Receipt', {
 frappe.ui.form.on('Delivery Note Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -155,6 +192,13 @@ frappe.ui.form.on('Delivery Note', {
 frappe.ui.form.on('Sales Invoice Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -168,6 +212,13 @@ frappe.ui.form.on('Sales Invoice', {
 frappe.ui.form.on('Purchase Invoice Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -181,6 +232,13 @@ frappe.ui.form.on('Purchase Invoice', {
 frappe.ui.form.on('Stock Entry Detail', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -194,6 +252,13 @@ frappe.ui.form.on('Stock Entry', {
 frappe.ui.form.on('Material Request Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -207,6 +272,13 @@ frappe.ui.form.on('Material Request', {
 frappe.ui.form.on('Sales Order Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 
@@ -220,6 +292,13 @@ frappe.ui.form.on('Sales Order', {
 frappe.ui.form.on('Purchase Order Item', {
     custom_calculate_profile_qty: function(frm, cdt, cdn) {
         window.calculateProfileQty(frm, cdt, cdn);
+    },
+    custom_is_profile: function(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (row.custom_is_profile) {
+            frappe.model.set_value(cdt, cdn, 'custom_is_jalousie', 0);
+        }
+        frm.refresh_field('items');
     }
 });
 

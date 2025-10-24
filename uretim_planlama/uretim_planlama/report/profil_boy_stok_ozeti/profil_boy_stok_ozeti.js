@@ -1,29 +1,35 @@
-frappe.query_reports["Profil Boy Stok Özeti"] = {
+frappe.query_reports["Profil Boy Stok Ozeti"] = {
     filters: [
         {
-            fieldname: "profile_type",
-            label: __("Profile"),
+            fieldname: "item_code",
+            label: __("Ürün Kodu"),
             fieldtype: "Link",
             options: "Item",
-            reqd: 0
+            reqd: 0,
+            default: "",
+            get_query: function() {
+                return {
+                    filters: {
+                        "item_group": ["like", "%profil%"]
+                    }
+                };
+            }
+        },
+        {
+            fieldname: "item_group",
+            label: __("Ürün Grubu"),
+            fieldtype: "Link",
+            options: "Item Group",
+            reqd: 0,
+            default: ""
         },
         {
             fieldname: "length",
-            label: __("Length (m)"),
+            label: __("Boy (m)"),
             fieldtype: "Link",
-            options: "Boy"
-        },
-        {
-            fieldname: "warehouse",
-            label: __("Warehouse"),
-            fieldtype: "Link",
-            options: "Warehouse"
-        },
-        {
-            fieldname: "is_scrap_piece",
-            label: __("Only Scrap Pieces"),
-            fieldtype: "Check",
-            default: 0
+            options: "Boy",
+            reqd: 0,
+            default: ""
         }
     ]
 };

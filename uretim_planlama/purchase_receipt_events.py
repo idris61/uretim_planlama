@@ -27,6 +27,10 @@ def on_submit(doc, method=None):
             continue
             
         try:
+            # Item bilgilerini al
+            item_data = frappe.db.get_value("Item", item.item_code, 
+                                          ["item_name", "item_group"], as_dict=True)
+            
             # Profile Entry oluştur
             profile_entry = frappe.get_doc({
                 "doctype": "Profile Entry",
@@ -36,6 +40,8 @@ def on_submit(doc, method=None):
                 "remarks": f"Purchase Receipt: {doc.name}",
                 "items": [{
                     "item_code": item.item_code,
+                    "item_name": item_data.item_name if item_data else "",
+                    "item_group": item_data.item_group if item_data else "",
                     "length": boy_name,
                     "received_quantity": int(qty),
                     "total_length": float(length) * float(qty),

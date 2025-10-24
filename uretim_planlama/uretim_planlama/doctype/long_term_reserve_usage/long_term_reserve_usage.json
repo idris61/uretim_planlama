@@ -8,13 +8,14 @@
     {"fieldname": "parent_sales_order", "fieldtype": "Link", "label": "Parent Sales Order", "options": "Sales Order", "in_list_view": 1, "reqd": 0, "read_only": 0},
     {"fieldname": "item_code", "fieldtype": "Link", "label": "Hammadde", "options": "Item", "reqd": 1, "in_list_view": 1},
     {"fieldname": "item_name", "fieldtype": "Data", "label": "Hammadde Adı", "read_only": 1, "in_list_view": 1},
+    {"fieldname": "item_group", "fieldtype": "Link", "label": "Ürün Grubu", "options": "Item Group", "read_only": 1, "in_list_view": 1},
     {"fieldname": "used_qty", "fieldtype": "Float", "label": "Kullanılan Miktar", "reqd": 1, "in_list_view": 1},
     {"fieldname": "usage_date", "fieldtype": "Date", "label": "Kullanım Tarihi", "default": "Today", "in_list_view": 1},
     {"fieldname": "description", "fieldtype": "Data", "label": "Açıklama", "in_list_view": 1},
     {"fieldname": "status", "fieldtype": "Select", "label": "Durum", "options": "Aktif\nYenilendi", "default": "Aktif", "in_list_view": 1}
   ],
   "field_order": [
-    "sales_order", "item_code", "item_name", "used_qty", "usage_date", "description", "status"
+    "sales_order", "parent_sales_order", "item_code", "item_name", "item_group", "used_qty", "usage_date", "description", "status"
   ],
   "permissions": [
     {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "submit": 1, "cancel": 1, "amend": 1},

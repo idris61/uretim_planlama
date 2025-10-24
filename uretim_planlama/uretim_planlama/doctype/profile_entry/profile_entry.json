@@ -9,6 +9,9 @@
   "items",
   "total_received_length",
   "total_received_qty",
+  "item_code",
+  "received_quantity",
+  "length",
   "remarks",
   "amended_from"
  ],
@@ -46,7 +49,7 @@
    "fieldname": "total_received_length",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Total Received Length (m)",
+   "label": "Toplam Boy (m)",
    "precision": "3",
    "read_only": 1
   },
@@ -56,7 +59,31 @@
    "fieldname": "total_received_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Total Received Quantity",
+   "label": "Toplam Miktar",
+   "read_only": 1
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ürün Kodu",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "received_quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Alınan Miktar",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "length",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Boy (m)",
+   "options": "Boy",
    "read_only": 1
   },
   {

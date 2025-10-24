@@ -161,3 +161,11 @@
 "Birim","Birim"
 "Bu sipariş(ler) için montaj/yardımcı malzeme bulunamadı.","Bu sipariş(ler) için montaj/yardımcı malzeme bulunamadı."
 
+"Is Jalousie","Jaluzi mi?"
+"Jalousie Width (m)","Jaluzi Eni (m)"
+"Jalousie Height (m)","Jaluzi Boyu (m)"
+"Calculate Quantity","Miktarı Hesapla"
+"Width and Height are required!","En ve Boy gereklidir!"
+"Width and Height must be positive!","En ve Boy pozitif olmalıdır!"
+"Invalid width or height value!","Geçersiz en veya boy değeri!"
+

@@ -5,7 +5,7 @@ app_name = "uretim_planlama"
 app_title = "Üretim Planlama"
 app_publisher = "idris"
 app_description = "ERPNext tabanlı üretim planlama uygulaması"
-app_email = "idris@example.com"
+app_email = "idris.gemici61@gmail.com"
 app_license = "MIT"
 
 # Fixtures (isteğe bağlı özelleştirilebilir)
@@ -13,6 +13,7 @@ fixtures = [
 	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Workflow"},
 	# {"dt": "Workflow State"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
@@ -32,8 +33,12 @@ app_include_css = [
 ]
 
 app_include_js = [
-	"/assets/uretim_planlama/js/profile_calculator.js"
+	"/assets/uretim_planlama/js/item_auto_fill.js",
 ]
+
+# Not: profile_calculator.js ve jalousie_calculator.js artık DocType-specific olarak yükleniyor (doctype_js)
+
+# Dashboard Chart Sources kaldırıldı
 
 
 # Sayfa konfigürasyonu
@@ -49,42 +54,61 @@ doctype_js = {
 		"public/js/production_plan_table.js",
 		"public/js/opti_plan_table.js",
 		"public/js/production_plan_po_items.js",
+		"public/js/production_plan_auto_warehouse.js",
 	],
 	"Sales Order": [
 		"public/js/sales_order/sales_order.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
 	"Delivery Note": [
 		"public/js/delivery_note_assembly_accessory_html.js",
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Purchase Order": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Purchase Receipt": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Stock Entry": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Sales Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Purchase Invoice": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
 	"Material Request": [
 		"public/js/get_items_merge.js",
-		"public/js/uom_filter.js"
+		"public/js/uom_filter.js",
+		"public/js/profile_calculator.js",
+		"public/js/jalousie_calculator.js"
 	],
+	"Profile Entry Item": "uretim_planlama/uretim_planlama/doctype/profile_entry_item/profile_entry_item.js",
+	"Profile Exit Item": "uretim_planlama/uretim_planlama/doctype/profile_exit_item/profile_exit_item.js",
 }
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
@@ -93,10 +117,14 @@ doc_events = {
 		"on_submit": "uretim_planlama.custom_hooks.production_plan.on_submit.on_submit",
 		"on_cancel": "uretim_planlama.custom_hooks.production_plan.on_cancel.on_cancel",
 	},
+	"Work Order": {
+		"before_validate": "uretim_planlama.custom_hooks.work_order.before_validate.auto_wip_warehouse",
+	},
 	"Sales Order": {
 		"on_submit": [
 			"uretim_planlama.sales_order_hooks.raw_materials.create_reserved_raw_materials_on_submit",
 			"uretim_planlama.sales_order_hooks.raw_materials.handle_child_sales_order_reserves",
+			"uretim_planlama.sales_order_hooks.profile_reorder.check_profile_reorder_on_sales_order",
 		],
 		"on_cancel": [
 			"uretim_planlama.sales_order_hooks.raw_materials.delete_reserved_raw_materials_on_cancel",
@@ -114,6 +142,7 @@ doc_events = {
 	# 	"on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
 	# },
 	"Work Order": {
+		"before_validate": "uretim_planlama.custom_hooks.work_order.before_validate.auto_wip_warehouse",
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
 	},
 	"Delivery Note": {
@@ -154,6 +183,11 @@ doc_events = {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
+	"Item Group": {
+		"after_insert": "uretim_planlama.uretim_planlama.api.cache_utils.clear_profile_groups_cache",
+		"on_update": "uretim_planlama.uretim_planlama.api.cache_utils.clear_profile_groups_cache",
+		"on_trash": "uretim_planlama.uretim_planlama.api.cache_utils.clear_profile_groups_cache"
+	},
 
 }
 
@@ -173,6 +207,20 @@ modules = {
 scheduler_events = {
 	"daily": [
 		"uretim_planlama.uretim_planlama.api.reorder.profile_reorder_sweep",
-	]
+	],
+	"cron": {
+		# Her 5 dakikada cache refresh (yoğun saatlerde)
+		"*/5 8-18 * * 1-5": [
+			"uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.refresh_cache_background"
+		],
+		# Her 15 dakikada cache refresh (normal saatlerde)
+		"*/15 0-7,19-23 * * *": [
+			"uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.refresh_cache_background"
+		],
+		# Hafta sonları saatlik
+		"0 * * * 6,0": [
+			"uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.refresh_cache_background"
+		]
+	}
 }
 

@@ -1,3 +1,7 @@
+// IIFE ile scope izolasyonu sağla - duplicate değişken hatalarını önle
+(function() {
+'use strict';
+
 // Modal yönetimi fonksiyonları - Enhanced
 const modalManager = {
     activeModals: new Set(),
@@ -45,7 +49,7 @@ const modalManager = {
                                 <span>&times;</span>
                             </button>
                         </div>
-                        <div class="modal-body" style="max-height: 70vh; overflow-y: scroll; background: white; color: #333;">
+                        <div class="modal-body" style="max-height: 80vh; overflow-y: auto; background: white; color: #333; padding: 15px;">
                             <div id="modal-content-${modalId}" class="modal-content-inner">
                                 <div class="text-center p-4">
                                     <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
@@ -379,11 +383,17 @@ const state = {
     }
 };
 
-// Configuration - Sadece gerekli olanlar
+// Configuration - Performance optimized
 const CONFIG = {
-    // Performance settings
-    CACHE_DURATION: 300000, // 5 dakika - cache süresi artırıldı
-    DATA_LOAD_TIMEOUT: 120000 // 2 dakika - timeout artırıldı
+    // Performance settings - optimize edildi
+    CACHE_DURATION: 600000, // 10 dakika - cache süresi artırıldı
+    DATA_LOAD_TIMEOUT: 60000, // 1 dakika - timeout düşürüldü
+    FAST_TIMEOUT: 30000, // 30 saniye - hızlı işlemler için
+    MODAL_TIMEOUT: 15000, // 15 saniye - modal içerikler için
+    // Virtual scrolling settings
+    VIRTUAL_SCROLL_THRESHOLD: 100, // 100+ kayıt varsa virtual scrolling aktif
+    VIRTUAL_SCROLL_BUFFER: 10, // Görünür alanın üst/altında kaç kayıt render edilsin
+    VIRTUAL_SCROLL_ROW_HEIGHT: 45 // Ortalama satır yüksekliği (px)
 };
 
 frappe.pages['uretim_planlama_paneli'] = frappe.pages['uretim_planlama_paneli'] || {};
@@ -435,11 +445,8 @@ class UretimPlanlamaPaneli {
 			this.initCuttingTable();
 			this.bindEvents();
 			
-			// Load initial data for both tables independently
-			await Promise.all([
-				this.loadPlannedData(),
-				this.loadUnplannedData()
-			]);
+		// Asenkron veri yükleme - optimize edilmiş
+		await this.loadDataAsync();
 			
 			// Overview summary'yi yükle
 			this.loadOverviewSummaryData();
@@ -2232,10 +2239,10 @@ class UretimPlanlamaPaneli {
 		// Veriyi sadece modal açıldığında yükle
 		const contentDiv = document.getElementById(`order-details-content-${salesOrderId}`);
 		if (contentDiv && !contentDiv.dataset.loaded) {
-			frappe.call({
-				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
-				args: { sales_order: salesOrderId },
-				timeout: 30000, // 30 saniye timeout
+		frappe.call({
+			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_sales_order_details_v2',
+			args: { sales_order: salesOrderId },
+			timeout: CONFIG.MODAL_TIMEOUT, // Optimize edilmiş timeout
 				callback: (r) => {
 					if (r.exc) {
 						console.error('Sipariş detayları yüklenirken hata:', r.exc);
@@ -2331,10 +2338,10 @@ class UretimPlanlamaPaneli {
 		}
 
 		// Önce opti detaylarını getir, sipariş detayları modalını aç
-		frappe.call({
-			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_opti_details',
-			args: { opti_no: optiNo },
-			timeout: 30000, // 30 saniye timeout
+	frappe.call({
+		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_opti_details',
+		args: { opti_no: optiNo },
+		timeout: CONFIG.MODAL_TIMEOUT, // Optimize edilmiş timeout
 			callback: (r) => {
 				if (r.exc) {
 					frappe.show_alert({
@@ -2389,6 +2396,15 @@ class UretimPlanlamaPaneli {
 			`Opti ${optiNo} - Sipariş Detayları`,
 			'modal-xl'
 		);
+		
+		// Modal genişliğini maksimum yap
+		if (modal) {
+			modal.find('.modal-dialog').css({
+				'max-width': '95vw',
+				'width': '95vw',
+				'margin': '1rem auto'
+			});
+		}
 		
 		if (!modal) return;
 
@@ -2490,20 +2506,20 @@ class UretimPlanlamaPaneli {
 				</div>
 			</div>
 
-			<!-- Sipariş Tablosu -->
-			<div class="table-responsive">
-				<table class="table table-sm" style="background: white;">
-					<thead style="background: #007bff; color: white;">
+			<!-- Sipariş Tablosu - Scroll edilebilir -->
+			<div class="table-responsive" style="max-height: 50vh; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+				<table class="table table-sm table-hover mb-0" style="background: white;">
+					<thead style="background: #007bff; color: white; position: sticky; top: 0; z-index: 10;">
 						<tr>
-							<th style="padding: 8px;">Sipariş No</th>
-							<th style="padding: 8px;">Bayi</th>
-							<th style="padding: 8px;">Müşteri</th>
-							<th style="padding: 8px;">Seri</th>
-							<th style="padding: 8px;">Renk</th>
-							<th style="padding: 8px;">Adet</th>
-							<th style="padding: 8px;">MTÜL/m²</th>
-							<th style="padding: 8px;">Durum & Açıklama</th>
-							<th style="padding: 8px;">İşlemler</th>
+							<th style="padding: 8px; min-width: 120px;">Sipariş No</th>
+							<th style="padding: 8px; min-width: 150px;">Bayi</th>
+							<th style="padding: 8px; min-width: 150px;">Müşteri</th>
+							<th style="padding: 8px; min-width: 100px;">Seri</th>
+							<th style="padding: 8px; min-width: 100px;">Renk</th>
+							<th style="padding: 8px; min-width: 120px;">Adet</th>
+							<th style="padding: 8px; min-width: 100px;">MTÜL/m²</th>
+							<th style="padding: 8px; min-width: 200px;">Durum & Açıklama</th>
+							<th style="padding: 8px; min-width: 120px;">İşlemler</th>
 						</tr>
 					</thead>
 					<tbody style="background: white;">
@@ -2545,36 +2561,39 @@ class UretimPlanlamaPaneli {
 				`<span class="badge" style="background: #28a745; color: white; margin-bottom: 5px;"><i class="fa fa-check"></i> NORMAL</span>`;
 			
 			modalContent += `
-				<tr class="cursor-pointer sales-order-row" data-sales-order="${order.sales_order}" style="background: white;">
-					<td style="padding: 8px;">
+				<tr class="cursor-pointer sales-order-row" data-sales-order="${order.sales_order}" 
+					style="background: white; border-bottom: 1px solid #dee2e6; transition: background-color 0.2s ease;"
+					onmouseover="this.style.backgroundColor='#f8f9fa';" 
+					onmouseout="this.style.backgroundColor='white';">
+					<td style="padding: 8px; min-width: 120px; word-wrap: break-word;">
 						<strong style="color: #17a2b8;">${order.sales_order}</strong>
 						<br><small style="color: #6c757d;">${siparisDate}</small>
 					</td>
-					<td style="padding: 8px;">${utils.escapeHtml(bayi)}</td>
-					<td style="padding: 8px;">
+					<td style="padding: 8px; min-width: 150px; word-wrap: break-word;">${utils.escapeHtml(bayi)}</td>
+					<td style="padding: 8px; min-width: 150px; word-wrap: break-word;">
 						<strong>${utils.escapeHtml(musteri)}</strong>
 					</td>
-					<td style="padding: 8px;">${seriBadge}</td>
-					<td style="padding: 8px;">${renkBadge}</td>
-					<td style="padding: 8px;">
+					<td style="padding: 8px; min-width: 100px;">${seriBadge}</td>
+					<td style="padding: 8px; min-width: 100px;">${renkBadge}</td>
+					<td style="padding: 8px; min-width: 120px; text-align: center;">
 						${profileBadge}
 						${camBadge}
 					</td>
-					<td style="padding: 8px;">
+					<td style="padding: 8px; min-width: 100px; text-align: center;">
 						<span class="badge" style="background: #28a745; color: white;">${mtul.toFixed(2)}</span>
 					</td>
-					<td style="padding: 8px;">
+					<td style="padding: 8px; min-width: 200px; max-width: 250px; word-wrap: break-word;">
 						${durumBadge}
-						${remarks ? `<br><small style="color: #6c757d;">${utils.escapeHtml(remarks)}</small>` : ''}
+						${remarks ? `<br><small style="color: #6c757d; line-height: 1.2;">${utils.escapeHtml(remarks.substring(0, 100))}${remarks.length > 100 ? '...' : ''}</small>` : ''}
 					</td>
-					<td style="padding: 8px;">
+					<td style="padding: 8px; min-width: 120px; text-align: center;">
 						<div class="btn-group-vertical" style="width: 100%;">
 							<button class="btn btn-sm sales-order-btn" data-sales-order="${order.sales_order}" 
-								style="background: #28a745; color: white; border: none; margin-bottom: 2px; font-size: 11px;">
+								style="background: #28a745; color: white; border: none; margin-bottom: 2px; font-size: 10px; padding: 4px 6px;">
 								<i class="fa fa-external-link mr-1"></i>Sipariş
 							</button>
 							<button class="btn btn-sm work-orders-btn" data-sales-order="${order.sales_order}" 
-								style="background: #ffc107; color: black; border: none; font-size:11px;">
+								style="background: #ffc107; color: black; border: none; font-size: 10px; padding: 4px 6px;">
 								<i class="fa fa-cogs mr-1"></i>İş Emirleri
 							</button>
 						</div>
@@ -2587,6 +2606,47 @@ class UretimPlanlamaPaneli {
 					</tbody>
 				</table>
 			</div>
+			
+			<!-- Tablo Bilgileri -->
+			<div class="row mt-3">
+				<div class="col-12">
+					<div class="d-flex justify-content-between align-items-center">
+						<small class="text-muted">
+							<i class="fa fa-info-circle mr-1"></i>
+							Toplam ${orders.length} sipariş gösteriliyor
+						</small>
+						<div>
+							<button class="btn btn-sm btn-outline-primary mr-2" onclick="location.reload();" 
+								style="font-size: 11px; padding: 2px 8px;">
+								<i class="fa fa-refresh mr-1"></i>Yenile
+							</button>
+							<small class="text-muted">
+								<i class="fa fa-mouse-pointer mr-1"></i>
+								Detaylar için sipariş satırına tıklayın
+							</small>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Custom Scroll Style -->
+			<style>
+				.table-responsive::-webkit-scrollbar {
+					width: 8px;
+					height: 8px;
+				}
+				.table-responsive::-webkit-scrollbar-track {
+					background: #f1f1f1;
+					border-radius: 4px;
+				}
+				.table-responsive::-webkit-scrollbar-thumb {
+					background: #007bff;
+					border-radius: 4px;
+				}
+				.table-responsive::-webkit-scrollbar-thumb:hover {
+					background: #0056b3;
+				}
+			</style>
 		`;
 
 		// Modal header'ını güncelle - siyah yerine kırmızı
@@ -3122,6 +3182,82 @@ class UretimPlanlamaPaneli {
 		tbody.innerHTML = html;
 	}
 
+	// Asenkron veri yükleme - Performance optimized
+	async loadDataAsync() {
+		try {
+			// 1. Önce hızlı verileri yükle (cache'den)
+			const plannedPromise = this.loadPlannedData();
+			const unplannedPromise = this.loadUnplannedData();
+			
+			// 2. Paralel yükleme ile hızlandır
+			await Promise.allSettled([plannedPromise, unplannedPromise]);
+			
+			// 3. Work Order durumlarını ayrı olarak yükle (opsiyonel)
+			this.loadWorkOrderStatusesAsync();
+			
+		} catch (error) {
+			console.error('Asenkron veri yükleme hatası:', error);
+			this.showError('Veriler yüklenirken hata oluştu: ' + error.message);
+		}
+	}
+
+	// Work Order durumlarını ayrı olarak yükle
+	async loadWorkOrderStatusesAsync() {
+		try {
+			if (!this.plannedTable.data || this.plannedTable.data.length === 0) {
+				return;
+			}
+			
+			// Üretim planı ID'lerini topla
+			const productionPlans = [...new Set(
+				this.plannedTable.data.map(item => item.uretim_plani).filter(Boolean)
+			)];
+			
+			if (productionPlans.length === 0) return;
+			
+			// Work Order durumlarını getir
+			const response = await frappe.call({
+				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_statuses',
+				args: { production_plans: JSON.stringify(productionPlans) },
+				timeout: CONFIG.FAST_TIMEOUT
+			});
+			
+			if (response.message) {
+				// Durumları tabloya uygula
+				this.applyWorkOrderStatuses(response.message);
+			}
+			
+		} catch (error) {
+			console.warn('Work Order durumları yüklenemedi:', error);
+			// Hata durumunda sessizce devam et
+		}
+	}
+
+	// Work Order durumlarını tabloya uygula
+	applyWorkOrderStatuses(statusMap) {
+		try {
+			let updated = false;
+			
+			this.plannedTable.data.forEach(item => {
+				if (item.uretim_plani && statusMap[item.uretim_plani]) {
+					const newStatus = statusMap[item.uretim_plani];
+					if (item.plan_status !== newStatus) {
+						item.plan_status = newStatus;
+						updated = true;
+					}
+				}
+			});
+			
+			// Güncelleme varsa tabloyu yeniden render et
+			if (updated) {
+				this.renderPlannedTable();
+			}
+			
+		} catch (error) {
+			console.error('Work Order durumları uygulanırken hata:', error);
+		}
+	}
+
 	// Independent table data loading methods
 	async loadPlannedData() {
 		if (this.plannedTable.isLoading) return;
@@ -3157,7 +3293,7 @@ class UretimPlanlamaPaneli {
 			const apiCall = frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_production_planning_data',
 				args: { filters: JSON.stringify(filters) },
-				timeout: 120000, // 2 dakika timeout
+				timeout: CONFIG.DATA_LOAD_TIMEOUT, // Optimize edilmiş timeout
 				callback: (r) => {
 					this.plannedTable.isLoading = false;
 					this.hideTableLoading('planned');
@@ -3245,7 +3381,7 @@ class UretimPlanlamaPaneli {
 			const apiCall = frappe.call({
 				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_unplanned_data',
 				args: { filters: JSON.stringify(filters) },
-				timeout: 60000, // 60 saniye timeout
+				timeout: CONFIG.FAST_TIMEOUT, // Optimize edilmiş timeout
 				callback: (r) => {
 					this.unplannedTable.isLoading = false;
 					this.hideTableLoading('unplanned');
@@ -3980,7 +4116,7 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 			sales_order: salesOrderId,
 			production_plan: null  // Tüm iş emirlerini getir
 		},
-		timeout: 10000, // 10 saniye timeout
+		timeout: CONFIG.MODAL_TIMEOUT, // Optimize edilmiş timeout
 		callback: function(r) {
 			const contentDiv = modal.fields_dict.work_orders_content.$wrapper;
 			
@@ -4130,7 +4266,7 @@ function loadWorkOrderOperations(workOrderName, container) {
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_order_operations',
 		args: { work_order: workOrderName },
-		timeout: 5000, // 5 saniye timeout
+		timeout: CONFIG.MODAL_TIMEOUT, // Optimize edilmiş timeout
 		callback: function(r) {
 			if (r.exc) {
 				container.html(`
@@ -4212,7 +4348,6 @@ function updateWorkOrderOperationsContent(data, container) {
 					<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
 						<tr style="color: white;">
 							<th style="padding: 12px; font-weight: 600; border: none;">Operasyon</th>
-							<th style="padding: 12px; font-weight: 600; border: none;">İş İstasyonu</th>
 							<th style="padding: 12px; font-weight: 600; border: none;">Durum</th>
 							<th style="padding: 12px; font-weight: 600; border: none; text-align: center;">Tamamlanan</th>
 							<th style="padding: 12px; font-weight: 600; border: none;">Planlanan Başlangıç</th>
@@ -4240,7 +4375,6 @@ function updateWorkOrderOperationsContent(data, container) {
                  opsHtml += `
                      <tr>
                          <td style="padding: 8px;">${op.operation || '-'}</td>
-                         <td style="padding: 8px;">${op.workstation || '-'}</td>
                          <td style="padding: 8px;">${opStatus}</td>
                          <td style="padding: 8px; text-align: center;">${op.completed_qty || 0}</td>
                          <td style="padding: 8px;">${formatDateTime(op.planned_start_formatted)}</td>
@@ -4284,3 +4418,10 @@ frappe.pages['uretim_planlama_paneli'].on_page_load = function(wrapper) {
 		frappe.msgprint('Sayfa yüklenirken kritik hata oluştu: ' + error.message);
 	}
 };
+
+// Global scope'a expose edilmesi gereken fonksiyonlar (onclick için)
+window.toggleWorkOrderSection = toggleWorkOrderSection;
+window.loadWorkOrderOperations = loadWorkOrderOperations;
+window.modalManager = modalManager;
+
+})(); // IIFE sonu

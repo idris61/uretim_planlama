@@ -7,3 +7,5 @@
 
 uretim_planlama.patches.add_custom_raw_materials_html_field
 uretim_planlama.patches.add_parent_sales_order_fields
+uretim_planlama.patches.add_production_panel_performance_indexes
+uretim_planlama.uretim_planlama.patches.rename_profile_type_to_item_code

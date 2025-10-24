@@ -74,13 +74,81 @@ Bu uygulama, profil ürünlerinin hem ERPNext orijinal stok takibinde (mtül) he
 - Düşük stok uyarıları
 - Hareket geçmişi takibi
 
+#### **Jaluzi İşlemleri**
+1. İlgili dokümanda (SO, DN, PR, vb.) satır eklenir
+2. `custom_is_jalousie` işaretlenir (otomatik olarak profil alanları devre dışı kalır)
+3. `custom_jalousie_width` (en) ve `custom_jalousie_height` (boy) girilir
+4. "Miktarı Hesapla" butonuna basılır
+5. Sistem otomatik olarak alan hesabını yapar: En × Boy = Alan (m²)
+6. Hesaplanan değer `qty` ve `stock_qty` alanlarına yazılır
+
+**Örnek:** 2.5m × 1.8m = 4.5 m²
+
+#### **Yazdırma Formatı**
+Yazdırma formatında (Print Format) sadece boyut alanları görüntülenir:
+
+**Görünen Alanlar:**
+- ✅ `Profile Length (m)` - Profil boyu
+- ✅ `Profile Length Qty` - Profil adedi  
+- ✅ `Jalousie Width (m)` - Jaluzi eni
+- ✅ `Jalousie Height (m)` - Jaluzi boyu
+
+**Gizlenen Alanlar:**
+- ❌ `Is Profile` checkbox
+- ❌ `Is Jaluzi` checkbox
+- ❌ `Calculate Quantity` butonları
+
+**Otomatik Description Güncellemesi:**
+- Item `description` alanına teknik detaylar eklenir
+- **Profil:** "Profil: 6.0m × 5 adet"
+- **Jaluzi:** "Jaluzi: 2.5m (En) × 1.8m (Boy) = 4.50 m²"
+
+#### **İrsaliye Çıktıları**
+Delivery Note (Sevk İrsaliyesi) ve Purchase Receipt (Alış İrsaliyesi) print format'ında fiyat bilgileri tamamen gizlidir:
+
+**Gizlenen Fiyat Alanları (Item Seviyesi):**
+- ❌ `Rate` - Birim Fiyat
+- ❌ `Amount` - Tutar
+- ❌ `Discount Amount` - İndirim Tutarı
+- ❌ `Distributed Discount Amount` - Dağıtılmış İndirim Tutarı
+- ❌ `Rate and Amount` - Fiyat ve Tutar
+- ❌ `Stock UOM Rate` - Stok Birim Fiyatı
+- ❌ `Base Rate With Margin` - Marjlı Fiyat (Şirket Para Birimi)
+
+**Gizlenen Toplam Alanları (Belge Seviyesi):**
+- ❌ `Total` - Toplam
+- ❌ `Grand Total` - Genel Toplam
+- ❌ `Rounded Total` - Yuvarlatılmış Toplam
+- ❌ `In Words` - Yazıyla Tutar
+- ❌ `Tax Withholding Net Total` - Vergi Tevkifatı Net Toplamı (Purchase Receipt)
+- ❌ `Amount Eligible for Commission` - Komisyona Uygun Tutar (Delivery Note)
+
+**Gizlenen Diğer Alanlar:**
+- ❌ `Use Serial No / Batch Fields` - Seri No / Parti Alanlarını Kullanın
+- ❌ `Grant Commission` - Komisyona İzin ver (Delivery Note)
+
+**Görünen Alanlar:**
+- ✅ Item Code, Description, Quantity, UOM
+- ✅ Profil/Jaluzi boyut bilgileri (varsa)
+- ✅ Tedarikçi/Müşteri, tarih, adres bilgileri
+
+Bu sayede irsaliye çıktılarında sadece miktar ve ürün bilgileri görünür, tüm fiyat detayları gizli kalır.
+
 ### **Kurulum ve Konfigürasyon**
 
 #### **1. Custom Field'lar**
-Aşağıdaki custom field'lar otomatik olarak yüklenir:
+
+##### **Profil Ürünler İçin:**
 - `custom_is_profile`: Profil ürün kontrolü
 - `custom_profile_length_m`: Boy bilgisi
 - `custom_profile_length_qty`: Adet bilgisi
+
+##### **Jaluzi Ürünler İçin:**
+- `custom_is_jalousie`: Jaluzi ürün kontrolü
+- `custom_jalousie_width`: En bilgisi (m)
+- `custom_jalousie_height`: Boy bilgisi (m)
+
+**Not:** Profil ve Jaluzi alanları birbirini dışlar. Bir satır ya profil ya da jaluzi olarak işaretlenebilir.
 
 #### **2. Event Hook'ları**
 `hooks.py` dosyasında tüm gerekli event hook'ları tanımlanmıştır.
@@ -121,8 +189,9 @@ result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_prof
 ### **Performans Optimizasyonu**
 - Gereksiz veritabanı sorguları minimize edilir
 - Batch işlemler için optimize edilmiş fonksiyonlar
-- Cache mekanizmaları ile hızlı erişim
+- Cache mekanizmaları ile hızlı erişim (Profil grupları 5 dakika cache)
 - Asenkron işlem desteği
+- Otomatik cache invalidation (Item Group değişikliklerinde)
 
 ### **Güvenlik**
 - Tüm API fonksiyonları `@frappe.whitelist()` ile korunur
@@ -136,6 +205,58 @@ result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_prof
 - Hata durumları test edilir
 - Performans testleri
 
+### **Yardımcı Araçlar (Utilities)**
+
+#### **Toplu Profil Stok İçe Aktarma**
+```bash
+# CSV dosyasından toplu profil stok içe aktarma
+bench --site sitename execute uretim_planlama.api.bulk_profile_import.process_bulk_import \
+    --args "{'file_path': '/path/to/file.csv', 'create_profile_entries': True, 'submit_entries': True}"
+```
+
+**Özellikler:**
+- Toplu CSV import desteği
+- Otomatik Profile Entry oluşturma
+- Tarih bazında gruplama
+- Import özet raporu
+
+#### **Duplicate Kayıt Birleştirme**
+```bash
+# Duplicate profil stok kayıtlarını birleştirme (Dry Run)
+bench --site sitename execute uretim_planlama.api.consolidate_profile_stock.consolidate_duplicates \
+    --args "{'dry_run': True}"
+
+# Gerçek birleştirme
+bench --site sitename execute uretim_planlama.api.consolidate_profile_stock.consolidate_duplicates \
+    --args "{'dry_run': False}"
+```
+
+**Özellikler:**
+- Duplicate kayıt tespiti
+- Dry run modu
+- Detaylı rapor
+- Güvenli birleştirme
+
+#### **Import Öncesi Kontrol**
+- Sayım güncellemesi öncesi mevcut stokları kontrol eder
+- Stok farkları gösterir
+- Yeni ürünleri listeler
+- Data Import ekranında kullanılabilir
+
+#### **Otomatik Form Doldurma**
+- Ürün kodu seçildiğinde ürün adı ve ürün grubu otomatik doldurulur
+- Tüm profil DocType'larında çalışır
+- Hata yönetimi ile güvenli
+
+#### **Cache Yönetimi**
+```python
+# Profil grupları cache'ini temizle
+frappe.call('uretim_planlama.api.cache_utils.clear_profile_groups_cache')
+
+# Cache bilgilerini görüntüle
+frappe.call('uretim_planlama.api.cache_utils.get_cache_info')
+```
+
 ### **Gelecek Geliştirmeler**
 - [ ] Dashboard widget'ları
 - [ ] E-posta uyarıları
@@ -147,6 +268,16 @@ result = frappe.call('uretim_planlama.uretim_planlama.profile_stock_api.get_prof
 ---
 
 ## 📋 **Genel Uygulama Özellikleri**
+
+### **Otomatik Depo Seçim Sistemi** 🆕
+- **Üretim Planı Otomatik Depo Seçimleri**:
+  - "Üretim için Camları Getir" butonu: `for_warehouse` otomatik "CAM ÜRETİM DEPO - O"
+  - "Üretim için PVC'leri Getir" butonu: `for_warehouse` otomatik "PVC ÜRETİM DEPO - O"
+  - "Transfer için Hammaddeleri Getir" diyalogunda "Transfer Edilecek Depo" alanına otomatik "ANA DEPO - O"
+- **İş Emri Otomatik WIP Depo Seçimi**:
+  - `before_validate` hook ile production_item'ın item_group'ına göre:
+    - PVC ürünleri → "PVC ÜRETİM DEPO - O"
+    - Cam ürünleri → "CAM ÜRETİM DEPO - O"
 
 ### **Üretim Planlama Paneli**
 - Haftalık üretim planı görünümü
@@ -183,7 +314,7 @@ bench migrate
 
 ## 📚 **Dokümantasyon**
 
-Detaylı dokümantasyon için [Wiki](link-to-wiki) sayfasını ziyaret edin.
+Detaylı dokümantasyon için [Wiki](https://github.com/idris/uretim_planlama/wiki) sayfasını ziyaret edin.
 
 ## 🤝 **Katkıda Bulunma**
 
@@ -199,6 +330,42 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `license.txt` 
 
 ## 📞 **İletişim**
 
+### **Print Format Yönetimi**
+Yazdırma formatlarıyla ilgili tüm geliştirmeler `print_format_manager.py` dosyasında organize edilmiştir:
+
+#### **PrintFormatManager Sınıfı**
+- **Custom Field Ayarları:** `get_custom_field_print_settings()`
+- **Fiyat Alanları:** `get_price_fields_to_hide()` - Tüm fiyat, komisyon ve seri no alanları
+- **Description Güncellemeleri:** `update_item_descriptions_for_print()`
+- **Property Setter Yönetimi:** 
+  - `hide_price_fields_in_delivery_note()` - Delivery Note için fiyat alanlarını gizler
+  - `hide_price_fields_in_purchase_receipt()` - Purchase Receipt için fiyat alanlarını gizler
+
+#### **Kullanım Örnekleri**
+```python
+# Print format ayarlarını başlat
+from uretim_planlama.print_format_manager import initialize_print_format_settings
+initialize_print_format_settings()
+
+# Print format bilgilerini al
+from uretim_planlama.print_format_manager import PrintFormatManager
+info = PrintFormatManager.get_print_format_summary()
+
+# Item detaylarını al
+details = PrintFormatManager.get_item_details_for_print(item_row)
+```
+
+#### **Bench Commands**
+```bash
+# Print format ayarlarını başlat
+bench --site ozerpan.com execute "uretim_planlama.uretim_planlama.print_format_manager.initialize_print_format_settings"
+
+# Print format bilgilerini al
+bench --site ozerpan.com execute "uretim_planlama.uretim_planlama.print_format_manager.get_print_format_info"
+```
+
+---
+
 - **Geliştirici**: idris
-- **E-posta**: idris@example.com
-- **Proje Linki**: [GitHub Repository](link-to-repo)
+- **E-posta**: idris.gemici61@gmail.com
+- **Proje Linki**: [GitHub Repository](https://github.com/idris/uretim_planlama)

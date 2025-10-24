@@ -20,7 +20,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                 <div class="col-md-2 col-12 mb-1 mb-md-0 d-flex align-items-center" style="height: 28px;">
                     <div class="form-check d-flex align-items-center" style="margin-top: 6px;">
                         <input type="checkbox" id="scrap-filter" class="form-check-input" style="margin-top: 0; width: 16px; height: 16px;">
-                        <label class="form-check-label ms-1" for="scrap-filter" style="font-weight: 500; color: #333; font-size: 0.92rem; margin-left: 4px;">Sadece Parça</label>
+                        <label class="form-check-label ms-1" for="scrap-filter" style="font-weight: 500; color: #333; font-size: 0.92rem; margin-left: 4px;">Sadece Parça Profil</label>
                 </div>
                 </div>
                 <div class="col-md-2 col-12 mb-1 mb-md-0 d-flex align-items-center" style="height: 28px;">
@@ -233,6 +233,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             </thead>
             <tbody>`;
         data.forEach((row, i) => {
+            if ((Number(row.toplam_stok_mtul) || 0) <= 0) { return; }
             tablo += `<tr>
                 <td class="sticky-col">${i+1}</td>
                 <td>${row.depo}</td>
@@ -268,7 +269,9 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
             <tbody>`;
         data.forEach((row, i) => {
             let tarih = row.guncelleme ? frappe.datetime.str_to_user(row.guncelleme) : '';
-            let rezerv = (typeof row.rezerv !== 'undefined') ? row.rezerv : '-';
+            let rezervRaw = Number(row.rezerv) || 0;
+            let rezerv = rezervRaw > 0 ? rezervRaw : '';
+            if (((Number(row.mtul) || 0) <= 0) && ((Number(row.adet) || 0) <= 0)) { return; }
             tablo += `<tr>
                 <td class="sticky-col">${i+1}</td>
                 <td>${row.profil}</td>

@@ -39,6 +39,7 @@ status_map = {
 def get_daily_cutting_matrix(from_date, to_date):
 	"""
 	Belirtilen tarih aralığındaki kesim planlarını getirir.
+	Önce Cutting Machine Plan tablosundan, yoksa Production Plan'dan veri çeker.
 	"""
 	try:
 		# API çağrısı başladı
@@ -53,8 +54,8 @@ def get_daily_cutting_matrix(from_date, to_date):
 		except Exception as e:
 			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
 			return []
-		# Tarihler formatlandı ve SQL sorgusu başlatılıyor
-		# SQL sorgusundan docstatus filtresi kaldırıldı
+		
+		# Önce Cutting Machine Plan tablosundan veri çek
 		result = frappe.db.sql(
 			"""
             SELECT
@@ -70,29 +71,50 @@ def get_daily_cutting_matrix(from_date, to_date):
 			(from_date, to_date),
 			as_dict=True,
 		)
-		# SQL sorgusu tamamlandı
-		if not result:
-			# Veri yoksa örnek veri oluştur
-			# Sorgudan veri gelmedi, örnek veri oluşturuluyor
-			current_date = frappe.utils.getdate(from_date)
-			end_date = frappe.utils.getdate(to_date)
-			result = []
-			while current_date <= end_date:
-				result.append(
-					{
-						"date": current_date.strftime("%Y-%m-%d"),
-						"workstation": "Kesim 1",
-						"total_mtul": 0,
-						"total_quantity": 0,
-					}
-				)
-				current_date = frappe.utils.add_days(current_date, 1)
-			# Örnek veri oluşturuldu
-		return result
+		
+		# Cutting Machine Plan'da veri varsa döndür
+		if result:
+			frappe.logger().info(f"[API] Cutting Machine Plan'dan {len(result)} kayıt getirildi")
+			return result
+		
+		# Cutting Machine Plan'da veri yoksa Production Plan'dan çek
+		frappe.logger().info("[API] Cutting Machine Plan boş, Production Plan'dan veri çekiliyor")
+		result = frappe.db.sql(
+			"""
+            SELECT
+                DATE(ppi.planned_start_date) AS date,
+                ppi.custom_workstation AS workstation,
+                SUM(COALESCE(ppi.custom_mtul_per_piece, 0) * COALESCE(ppi.planned_qty, 0)) AS total_mtul,
+                SUM(COALESCE(ppi.planned_qty, 0)) AS total_quantity
+            FROM `tabProduction Plan Item` ppi
+            INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+            WHERE DATE(ppi.planned_start_date) BETWEEN %s AND %s
+            AND ppi.custom_workstation IS NOT NULL
+            AND ppi.custom_workstation != ''
+            AND pp.docstatus = 1
+            GROUP BY DATE(ppi.planned_start_date), ppi.custom_workstation
+            ORDER BY DATE(ppi.planned_start_date), ppi.custom_workstation
+        """,
+			(from_date, to_date),
+			as_dict=True,
+		)
+		
+		frappe.logger().info(f"[API] Production Plan'dan {len(result)} kayıt getirildi")
+		return result if result else []
+		
 	except Exception as e:
 		frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
 		frappe.logger().error(frappe.get_traceback())
 		return []
+
+
+@frappe.whitelist()
+def get_daily_cutting_table(from_date, to_date):
+	"""
+	Günlük kesim istasyonu tablosu için veri getirir.
+	get_daily_cutting_matrix ile aynı veriyi döndürür (duplicate kodu önlemek için).
+	"""
+	return get_daily_cutting_matrix(from_date, to_date)
 
 
 @frappe.whitelist()
@@ -101,7 +123,7 @@ def get_weekly_production_schedule(
 ):
     """Haftalık üretim takvimi verisi döner"""
     try:
-        print(f"DEBUG: get_weekly_production_schedule çağrıldı - week_start: {week_start}, week_end: {week_end}")
+        frappe.logger().debug(f"get_weekly_production_schedule çağrıldı - week_start: {week_start}, week_end: {week_end}")
         
         if year and month:
             start_date = getdate(f"{year}-{month}-01")
@@ -117,14 +139,14 @@ def get_weekly_production_schedule(
         while start_date.weekday() != 0:
             start_date -= timedelta(days=1)
 
-        print(f"DEBUG: Tarih aralığı - start_date: {start_date}, end_date: {end_date}")
+        frappe.logger().debug(f"Tarih aralığı - start_date: {start_date}, end_date: {end_date}")
 
         workstation_filters = {"name": workstation} if workstation else {}
         workstations = frappe.get_all(
             "Workstation", filters=workstation_filters, fields=["name", "holiday_list"]
         )
         
-        print(f"DEBUG: Workstations bulundu: {len(workstations)} adet")
+        frappe.logger().debug(f"Workstations bulundu: {len(workstations)} adet")
 
         # Çalışma saatlerini toplu çek ve hazırla (N+1 azaltma)
         ws_names = [ws["name"] for ws in workstations]
@@ -489,7 +511,7 @@ def get_weekly_production_schedule(
         }
         
     except Exception as e:
-        print(f"DEBUG: get_weekly_production_schedule hatası: {str(e)}")
+        frappe.logger().error(f"get_weekly_production_schedule hatası: {str(e)}")
         frappe.log_error(f"get_weekly_production_schedule hatası: {str(e)}")
         return {
             "workstations": [],

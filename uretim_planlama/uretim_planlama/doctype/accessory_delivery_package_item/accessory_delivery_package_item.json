@@ -14,7 +14,15 @@
     {
       "fieldname": "item_name",
       "label": "Item Name",
-      "fieldtype": "Data"
+      "fieldtype": "Data",
+      "read_only": 1
+    },
+    {
+      "fieldname": "item_group",
+      "label": "Ürün Grubu",
+      "fieldtype": "Link",
+      "options": "Item Group",
+      "read_only": 1
     },
     {
       "fieldname": "qty",

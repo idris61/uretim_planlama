@@ -4,7 +4,9 @@
   "doctype": "DocType",
   "engine": "InnoDB",
   "field_order": [
-    "profile_type",
+    "item_code",
+    "item_name",
+    "item_group",
     "length",
     "min_qty",
     "reorder_qty",
@@ -13,7 +15,9 @@
     "last_request_on"
   ],
   "fields": [
-    {"fieldname": "profile_type", "fieldtype": "Link", "in_list_view": 1, "label": "Profile Type", "options": "Item", "reqd": 1},
+    {"fieldname": "item_code", "fieldtype": "Link", "in_list_view": 1, "label": "Profile Type", "options": "Item", "reqd": 1},
+    {"fieldname": "item_name", "fieldtype": "Data", "in_list_view": 1, "label": "Ürün Adı", "read_only": 1},
+    {"fieldname": "item_group", "fieldtype": "Link", "in_list_view": 1, "label": "Ürün Grubu", "options": "Item Group", "read_only": 1},
     {"fieldname": "length", "fieldtype": "Link", "in_list_view": 1, "label": "Length (m)", "options": "Boy", "reqd": 1},
     {"fieldname": "min_qty", "fieldtype": "Int", "in_list_view": 1, "label": "Minimum Quantity", "reqd": 1},
     {"fieldname": "reorder_qty", "fieldtype": "Int", "label": "Reorder Quantity", "reqd": 1},

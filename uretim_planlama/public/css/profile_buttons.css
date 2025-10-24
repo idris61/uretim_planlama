@@ -51,3 +51,59 @@ input[data-fieldname="custom_calculate_profile_qty"] + button:active {
     font-weight: bold !important;
 }
 
+/* ===================================================================== */
+/* Jaluzi Miktar Hesapla Butonları - Yeşil Stil */
+/* ===================================================================== */
+
+/* Profil butonu gibi basit selector'lar */
+button[data-fieldname="custom_calculate_jalousie_qty"],
+.btn[data-fieldname="custom_calculate_jalousie_qty"],
+input[data-fieldname="custom_calculate_jalousie_qty"] + button,
+.form-control[data-fieldname="custom_calculate_jalousie_qty"] {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: white !important;
+    font-weight: bold !important;
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+}
+
+button[data-fieldname="custom_calculate_jalousie_qty"]:hover,
+.btn[data-fieldname="custom_calculate_jalousie_qty"]:hover,
+input[data-fieldname="custom_calculate_jalousie_qty"] + button:hover {
+    background-color: #218838 !important;
+    border-color: #1e7e34 !important;
+    color: white !important;
+}
+
+button[data-fieldname="custom_calculate_jalousie_qty"]:active,
+.btn[data-fieldname="custom_calculate_jalousie_qty"]:active,
+input[data-fieldname="custom_calculate_jalousie_qty"] + button:active {
+    background-color: #1e7e34 !important;
+    border-color: #1c7430 !important;
+    color: white !important;
+}
+
+/* Grid içindeki jaluzi butonları için özel stil */
+.grid-row button[data-fieldname="custom_calculate_jalousie_qty"] {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    margin: 2px !important;
+}
+
+/* Jaluzi button field container */
+.frappe-control[data-fieldname="custom_calculate_jalousie_qty"] {
+    margin-top: 5px !important;
+}
+
+.frappe-control[data-fieldname="custom_calculate_jalousie_qty"] button {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: white !important;
+    font-weight: bold !important;
+}
