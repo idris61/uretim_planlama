@@ -105,7 +105,8 @@ doctype_js = {
 		"public/js/get_items_merge.js",
 		"public/js/uom_filter.js",
 		"public/js/profile_calculator.js",
-		"public/js/jalousie_calculator.js"
+		"public/js/jalousie_calculator.js",
+		"public/js/material_request_item_supplier.js"
 	],
 	"Profile Entry Item": "uretim_planlama/uretim_planlama/doctype/profile_entry_item/profile_entry_item.js",
 	"Profile Exit Item": "uretim_planlama/uretim_planlama/doctype/profile_exit_item/profile_exit_item.js",
@@ -167,9 +168,16 @@ doc_events = {
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
 	"Stock Entry": {
-		"on_submit": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry",
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
-		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+		"validate": [
+			"uretim_planlama.uretim_planlama.utils.validate",
+			"uretim_planlama.stock_entry_events.validate"
+		],
+		"on_submit": [
+			"uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_stock_entry",
+			"uretim_planlama.stock_entry_events.on_submit"
+		],
+		"on_cancel": "uretim_planlama.stock_entry_events.on_cancel",
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save"
 	},
 	"Sales Invoice": {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
