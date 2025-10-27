@@ -163,9 +163,12 @@ doc_events = {
 		"on_update_after_submit": "uretim_planlama.purchase_order_events.on_update_after_submit"
 	},
 	"Purchase Receipt": {
+		"validate": [
+			"uretim_planlama.uretim_planlama.utils.validate",
+			"uretim_planlama.purchase_receipt_events.validate"
+		],
 		"on_submit": "uretim_planlama.purchase_receipt_events.on_submit",
-		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
-		"validate": "uretim_planlama.uretim_planlama.utils.validate"
+		"before_save": "uretim_planlama.uretim_planlama.utils.before_save"
 	},
 	"Stock Entry": {
 		"validate": [

@@ -109,6 +109,48 @@ window.uretim_planlama = window.uretim_planlama || {};
 				});
 			}
 
+			// Stock Entry için: Merge'den ÖNCE her row'un material_request field'ını custom field'a kopyala
+			if (childFieldname === "items" && frm.doc.doctype === "Stock Entry") {
+				rows.forEach((row) => {
+					if (row.material_request && row.material_request.trim()) {
+						// Mevcut custom_material_request_references'ı al
+						let existingRefs = (row.custom_material_request_references || "").trim();
+						
+						// Virgülle ayrılmış listeye çevir
+						let refList = existingRefs ? existingRefs.split(",").map(s => s.trim()).filter(s => s) : [];
+						
+						// Eğer bu MR zaten listede yoksa ekle
+						if (!refList.includes(row.material_request)) {
+							refList.push(row.material_request);
+						}
+						
+						// Listeyi tekrar string'e çevir
+						row.custom_material_request_references = refList.join(", ");
+					}
+				});
+			}
+
+			// Purchase Receipt için: Merge'den ÖNCE her row'un material_request field'ını custom field'a kopyala
+			if (childFieldname === "items" && frm.doc.doctype === "Purchase Receipt") {
+				rows.forEach((row) => {
+					if (row.material_request && row.material_request.trim()) {
+						// Mevcut custom_material_request_references'ı al
+						let existingRefs = (row.custom_material_request_references || "").trim();
+						
+						// Virgülle ayrılmış listeye çevir
+						let refList = existingRefs ? existingRefs.split(",").map(s => s.trim()).filter(s => s) : [];
+						
+						// Eğer bu MR zaten listede yoksa ekle
+						if (!refList.includes(row.material_request)) {
+							refList.push(row.material_request);
+						}
+						
+						// Listeyi tekrar string'e çevir
+						row.custom_material_request_references = refList.join(", ");
+					}
+				});
+			}
+
 			const groupKeyToAgg = {};
 			const orderOfKeys = [];
 
@@ -154,8 +196,24 @@ window.uretim_planlama = window.uretim_planlama || {};
 					newChild[field] = cloned[field];
 				});
 
-				// Material Request referanslarını birleştir (sadece Purchase Order için)
+				// Material Request referanslarını birleştir (Purchase Order için)
 				if (childFieldname === "items" && frm.doc.doctype === "Purchase Order") {
+					const mergedMRsStr = mergeMaterialRequestReferences(agg.allRows);
+					if (mergedMRsStr) {
+						newChild.custom_material_request_references = mergedMRsStr;
+					}
+				}
+
+				// Material Request referanslarını birleştir (Stock Entry için)
+				if (childFieldname === "items" && frm.doc.doctype === "Stock Entry") {
+					const mergedMRsStr = mergeMaterialRequestReferences(agg.allRows);
+					if (mergedMRsStr) {
+						newChild.custom_material_request_references = mergedMRsStr;
+					}
+				}
+
+				// Material Request referanslarını birleştir (Purchase Receipt için)
+				if (childFieldname === "items" && frm.doc.doctype === "Purchase Receipt") {
 					const mergedMRsStr = mergeMaterialRequestReferences(agg.allRows);
 					if (mergedMRsStr) {
 						newChild.custom_material_request_references = mergedMRsStr;
