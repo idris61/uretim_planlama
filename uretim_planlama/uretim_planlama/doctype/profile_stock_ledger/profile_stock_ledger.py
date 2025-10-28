@@ -324,8 +324,6 @@ class ProfileStockLedger(Document):
 					"doctype": "Profile Entry",
 					"date": frappe.utils.today(),
 					"supplier": None,
-					"reference_type": None,
-					"reference_name": None,
 					"remarks": f"Import Sayım Artışı - {frappe.session.user} | "
 							  f"Mevcut: {old_qty} → Yeni: {new_qty} | "
 							  f"Artış: +{stock_difference} adet",
@@ -374,8 +372,6 @@ class ProfileStockLedger(Document):
 					"doctype": "Profile Exit",
 					"date": frappe.utils.today(),
 					"customer": None,
-					"reference_type": None,
-					"reference_name": None,
 					"remarks": f"Import Sayım Azalışı - {frappe.session.user} | "
 							  f"Mevcut: {old_qty} → Yeni: {new_qty} | "
 							  f"Azalış: {stock_difference} adet",

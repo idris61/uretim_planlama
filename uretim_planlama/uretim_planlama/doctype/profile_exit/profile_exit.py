@@ -43,8 +43,8 @@ class ProfileExit(Document):
 		
 		for item in self.items:
 			try:
-			# Import sırasında length float olarak gelebilir, string'e çevir
-			item.length = normalize_length_to_string(item.length)
+				# Import sırasında length float olarak gelebilir, string'e çevir
+				item.length = normalize_length_to_string(item.length)
 				
 				# Boy değerini Boy DocType'ından al
 				length_value = get_length_value_from_boy_doctype(item.length)
