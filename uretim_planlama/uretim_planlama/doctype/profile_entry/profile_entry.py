@@ -104,21 +104,21 @@ class ProfileEntry(Document):
 					length=item.length,
 					qty=item.received_quantity,
 					action="add"
-			)
-			
-			success_count += 1
-			log_profile_operation("Entry", item.item_code, item.length, item.received_quantity, "in")
-			
-		except Exception as e:
-			error_count += 1
-			# Import sırasında database bağlantısı kopabiliyor, güvenli loglama
-			try:
-				frappe.log_error(f"Profile Entry stok güncelleme hatası: {str(e)}", "Profile Entry Stock Error")
-			except:
-				# Database bağlantısı yoksa sadece print ile logla
-				print(f"Profile Entry stok güncelleme hatası: {str(e)}")
-	
-	show_operation_result(success_count, error_count, self.total_received_length, self.total_received_qty, "Entry")
+				)
+				
+				success_count += 1
+				log_profile_operation("Entry", item.item_code, item.length, item.received_quantity, "in")
+				
+			except Exception as e:
+				error_count += 1
+				# Import sırasında database bağlantısı kopabiliyor, güvenli loglama
+				try:
+					frappe.log_error(f"Profile Entry stok güncelleme hatası: {str(e)}", "Profile Entry Stock Error")
+				except:
+					# Database bağlantısı yoksa sadece print ile logla
+					print(f"Profile Entry stok güncelleme hatası: {str(e)}")
+		
+		show_operation_result(success_count, error_count, self.total_received_length, self.total_received_qty, "Entry")
 
 	def on_cancel(self):
 		"""Giriş iptal edildiğinde stok azalt (geri al)"""
@@ -134,14 +134,14 @@ class ProfileEntry(Document):
 						length=item.length,
 						qty=item.received_quantity,
 						action="subtract"
-				)
-				
-				success_count += 1
-				log_profile_operation("Entry Cancel", item.item_code, item.length, item.received_quantity, "out")
-				
-			except Exception as e:
-				error_count += 1
-				frappe.log_error(f"Profile Entry cancel stok hatası: {str(e)[:100]}", "Profile Entry Cancel Error")
+					)
+					
+					success_count += 1
+					log_profile_operation("Entry Cancel", item.item_code, item.length, item.received_quantity, "out")
+					
+				except Exception as e:
+					error_count += 1
+					frappe.log_error(f"Profile Entry cancel stok hatası: {str(e)[:100]}", "Profile Entry Cancel Error")
 			
 			# Sonuç bildirimi
 			if error_count == 0:
