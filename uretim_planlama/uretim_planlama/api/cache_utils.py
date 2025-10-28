@@ -6,7 +6,7 @@ from frappe import _
 
 
 @frappe.whitelist()
-def clear_profile_groups_cache():
+def clear_profile_groups_cache(doc=None, method=None):
     """Profil grupları cache'ini temizle"""
     try:
         cache_key = "allowed_profile_groups"
