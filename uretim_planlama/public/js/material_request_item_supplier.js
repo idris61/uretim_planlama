@@ -22,7 +22,7 @@ frappe.ui.form.on('Material Request Item', {
 					if (r.message && r.message.supplier_items && r.message.supplier_items.length > 0) {
 						// İlk supplier'ı al
 						let first_supplier = r.message.supplier_items[0].supplier;
-						frappe.model.set_value(cdt, cdn, 'supplier', first_supplier);
+						frappe.model.set_value(cdt, cdn, 'custom_supplier', first_supplier);
 					}
 				}
 			});
