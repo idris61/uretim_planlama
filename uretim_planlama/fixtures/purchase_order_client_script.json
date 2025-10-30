@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Purchase Order",
+  "enabled": 1,
+  "module": "Uretim Planlama",
+  "name": "Purchase Order-Material Request Filter Override",
+  "script": "/**\n * Purchase Order - Material Request child item filtreleme deste\u011fi\n * ERPNext'in map_current_doc fonksiyonunu wrap eder ve \n * Material Request -> Purchase Order i\u015flemlerinde custom metodumuzu kullan\u0131r\n * \n * @module uretim_planlama\n * @author Ozerpan ERP Team\n */\n\n// Global override sadece bir kez yap\nif (!window.__uretim_planlama_po_mr_override__) {\n    window.__uretim_planlama_po_mr_override__ = true;\n    \n    // Orijinal fonksiyonu sakla\n    const original_map_current_doc = erpnext.utils.map_current_doc;\n    \n    /**\n     * ERPNext'in map_current_doc fonksiyonunu wrap eder\n     * Sadece Material Request -> Purchase Order i\u015flemlerini intercept eder\n     */\n    erpnext.utils.map_current_doc = function(opts) {\n        // Sadece Material Request -> Purchase Order i\u015flemlerini intercept et\n        if (opts.method === \"erpnext.stock.doctype.material_request.material_request.make_purchase_order\") {\n            // Custom metodumuzu kullan (child item filtreleme deste\u011fi ile)\n            opts.method = \"uretim_planlama.purchase_order_material_request.make_purchase_order_with_filters\";\n            \n            // Child item filtreleme zaten var, sadece metodumuzu kullanmas\u0131n\u0131 sa\u011fl\u0131yoruz\n            // opts.allow_child_item_selection = true;  // Zaten var\n            // opts.child_fieldname = \"items\";  // Zaten var\n            // opts.child_columns = [\"item_code\", \"item_name\", \"qty\", \"ordered_qty\"];  // Zaten var\n        }\n        \n        // Orijinal fonksiyonu \u00e7a\u011f\u0131r\n        return original_map_current_doc.call(this, opts);\n    };\n}",
+  "view": "Form"
+ }
+]
+
