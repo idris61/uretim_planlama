@@ -65,7 +65,6 @@ doctype_js = {
 	],
 	"Accessory Delivery Package": "uretim_planlama/uretim_planlama/doctype/accessory_delivery_package/accessory_delivery_package.js",
 	"Delivery Note": [
-		"public/js/delivery_note_assembly_accessory_html.js",
 		"public/js/get_items_merge.js",
 		"public/js/uom_filter.js",
 		"public/js/profile_calculator.js",

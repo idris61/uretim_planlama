@@ -60,23 +60,22 @@ def __getattr__(name):
     Lazy import for parent api.py methods.
     Bu fonksiyon çağrıldığında parent api.py'den metodları yükler.
     """
-    # Parent api.py'deki metodlar listesi
-    parent_api_methods = [
-        "get_approved_opti_nos",
-        "get_sales_orders_by_opti",
-        "get_bom_materials_by_sales_order",
-        "create_delivery_package",
-        "get_job_card_detail",
-        "get_holidays_for_calendar",
-        "get_work_orders_for_calendar",
-        "get_work_order_detail",
-        "update_work_order_date",
-        "get_assembly_accessory_materials",
-        "get_sales_order_details",
-        "get_materials",
-        "generate_cutting_plan",
-        "delete_cutting_plans",
-    ]
+	# Parent api.py'deki metodlar listesi
+	parent_api_methods = [
+		"get_approved_opti_nos",
+		"get_sales_orders_by_opti",
+		"get_bom_materials_by_sales_order",
+		"create_delivery_package",
+		"get_job_card_detail",
+		"get_holidays_for_calendar",
+		"get_work_orders_for_calendar",
+		"get_work_order_detail",
+		"update_work_order_date",
+		"get_sales_order_details",
+		"get_materials",
+		"generate_cutting_plan",
+		"delete_cutting_plans",
+	]
     
     if name in parent_api_methods:
         parent_api = _get_parent_api()
