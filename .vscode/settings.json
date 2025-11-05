@@ -1,0 +1,114 @@
+{
+  // Python Interpreter
+  "python.defaultInterpreterPath": "${workspaceFolder}/../../env/bin/python",
+  
+  // ═══════════════════════════════════════════════════════════
+  // OTOMATIK FORMAT (Kaydettiğinde)
+  // ═══════════════════════════════════════════════════════════
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  
+  // ═══════════════════════════════════════════════════════════
+  // PYTHON INDENT EKLENTISI AYARLARI
+  // ═══════════════════════════════════════════════════════════
+  "python.analysis.autoIndent": true,
+  "python.analysis.completeFunctionParens": true,
+  
+  // ═══════════════════════════════════════════════════════════
+  // TAB/SPACE AYARLARI (Python için)
+  // ═══════════════════════════════════════════════════════════
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.rulers": [80, 120],
+    "editor.wordWrap": "off"
+  },
+  
+  // ═══════════════════════════════════════════════════════════
+  // BLACK FORMATTER
+  // ═══════════════════════════════════════════════════════════
+  "black-formatter.args": [
+    "--line-length=120"
+  ],
+  
+  // ═══════════════════════════════════════════════════════════
+  // LINTING (Hata Kontrolü)
+  // ═══════════════════════════════════════════════════════════
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=120",
+    "--ignore=E203,E266,E501,W503"
+  ],
+  "python.linting.lintOnSave": true,
+  
+  // ═══════════════════════════════════════════════════════════
+  // IMPORT SORTING
+  // ═══════════════════════════════════════════════════════════
+  "isort.args": ["--profile", "black"],
+  
+  // ═══════════════════════════════════════════════════════════
+  // GİRİNTİ GÖRSELLEŞTİRME (ÇOK ÖNEMLİ!)
+  // ═══════════════════════════════════════════════════════════
+  "editor.renderWhitespace": "all",
+  "editor.guides.indentation": true,
+  "editor.guides.bracketPairs": true,
+  "editor.bracketPairColorization.enabled": true,
+  
+  // Indent Rainbow ayarları
+  "indentRainbow.colors": [
+    "rgba(255,64,64,0.1)",
+    "rgba(255,165,0,0.1)",
+    "rgba(255,255,0,0.1)",
+    "rgba(0,255,0,0.1)",
+    "rgba(64,64,255,0.1)",
+    "rgba(160,32,240,0.1)"
+  ],
+  "indentRainbow.errorColor": "rgba(255,0,0,0.3)",
+  "indentRainbow.tabmixColor": "rgba(255,0,0,0.5)",
+  
+  // ═══════════════════════════════════════════════════════════
+  // ERROR LENS (Hataları Satırda Göster)
+  // ═══════════════════════════════════════════════════════════
+  "errorLens.enabled": true,
+  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+  "errorLens.fontSize": "12",
+  "errorLens.fontWeight": "600",
+  
+  // ═══════════════════════════════════════════════════════════
+  // OTOMATIK KAYDETME
+  // ═══════════════════════════════════════════════════════════
+  "files.autoSave": "onFocusChange",
+  "files.autoSaveDelay": 1000,
+  
+  // ═══════════════════════════════════════════════════════════
+  // TEMİZLİK
+  // ═══════════════════════════════════════════════════════════
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  
+  // ═══════════════════════════════════════════════════════════
+  // PYTHON ANALİZ
+  // ═══════════════════════════════════════════════════════════
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.inlayHints.variableTypes": true,
+  
+  // ═══════════════════════════════════════════════════════════
+  // MİNİMAP (Kod Haritası)
+  // ═══════════════════════════════════════════════════════════
+  "editor.minimap.enabled": true,
+  "editor.minimap.renderCharacters": false,
+  "editor.minimap.maxColumn": 120
+}

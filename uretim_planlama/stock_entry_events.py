@@ -180,15 +180,15 @@ def update_material_request_statuses(doc, is_submit=True):
 				for item_code, original_qty in item_qty_map.items():
 					# Bu MR ve item_code için TÜM submitted SE'lerin toplam qty'sini hesapla
 					total_transferred = frappe.db.sql("""
-						SELECT COALESCE(SUM(sed.qty), 0) as total
-						FROM `tabStock Entry Detail` sed
-						JOIN `tabStock Entry` se ON se.name = sed.parent
-						WHERE se.docstatus = 1
-						  AND se.stock_entry_type = 'Material Transfer'
-						  AND sed.item_code = %s
-						  AND (sed.custom_material_request_references LIKE %s
-						       OR sed.material_request = %s)
-					""", (item_code, f"%{mr_name}%", mr_name))[0][0] or 0
+					SELECT COALESCE(SUM(sed.qty), 0) as total
+					FROM `tabStock Entry Detail` sed
+					JOIN `tabStock Entry` se ON se.name = sed.parent
+					WHERE se.docstatus = 1
+						AND se.stock_entry_type = 'Material Transfer'
+						AND sed.item_code = %s
+						AND (sed.custom_material_request_references LIKE %s
+							OR sed.material_request = %s)
+				""", (item_code, f"%{mr_name}%", mr_name))[0][0] or 0
 					
 					# ordered_qty'yi doğru değere SET et (stock_qty'yi aşmasın)
 					correct_qty = min(total_transferred, original_qty)
@@ -208,11 +208,11 @@ def update_material_request_statuses(doc, is_submit=True):
 						FROM `tabStock Entry Detail` sed
 						JOIN `tabStock Entry` se ON se.name = sed.parent
 						WHERE se.docstatus = 1
-						  AND se.name != %s
-						  AND se.stock_entry_type = 'Material Transfer'
-						  AND sed.item_code = %s
-						  AND (sed.custom_material_request_references LIKE %s
-						       OR sed.material_request = %s)
+						AND se.name != %s
+						AND se.stock_entry_type = 'Material Transfer'
+						AND sed.item_code = %s
+						AND (sed.custom_material_request_references LIKE %s
+						OR sed.material_request = %s)
 					""", (doc.name, item_code, f"%{mr_name}%", mr_name))[0][0] or 0
 					
 					# ordered_qty'yi doğru değere SET et

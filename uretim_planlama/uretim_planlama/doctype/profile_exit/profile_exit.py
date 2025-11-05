@@ -85,8 +85,8 @@ class ProfileExit(Document):
 		"""Stok yeterliliğini kontrol et"""
 		for item in self.items:
 			try:
-			# Import sırasında length float olarak gelebilir, string'e çevir
-			item.length = normalize_length_to_string(item.length)
+				# Import sırasında length float olarak gelebilir, string'e çevir
+				item.length = normalize_length_to_string(item.length)
 				
 				# Boy değerini Boy DocType'ından al
 				length_value = get_length_value_from_boy_doctype(item.length)
@@ -98,7 +98,7 @@ class ProfileExit(Document):
 					frappe.throw(_("Satır {0}: Yetersiz stok! {1} {2}m profilden {3} adet çıkış yapılamaz. Mevcut stok: {4} adet").format(
 						item.idx, item.item_code, length_value, item.output_quantity, available_qty), 
 						title=_("Yetersiz Stok Hatası"))
-						
+					
 			except Exception as e:
 				frappe.throw(_("Satır {0}: {1}").format(item.idx, str(e)), title=_("Stok Kontrol Hatası"))
 	
@@ -123,22 +123,22 @@ class ProfileExit(Document):
 						length=item.length,
 						qty=item.output_quantity,
 						action="subtract"
-				)
-				
-				success_count += 1
-				log_profile_operation("Exit", item.item_code, item.length, item.output_quantity, "out")
-				
-			except Exception as e:
-				error_count += 1
-				# Import sırasında database bağlantısı kopabiliyor, güvenli loglama
-				try:
-					frappe.log_error(f"Profile Exit stok güncelleme hatası: {str(e)}", "Profile Exit Stock Error")
-				except:
-					# Database bağlantısı yoksa sadece print ile logla
-					print(f"Profile Exit stok güncelleme hatası: {str(e)}")
-		
-		# Sonuç bildirimi
-		show_operation_result(success_count, error_count, self.total_output_length, self.total_output_qty, "Exit")
+					)
+					
+					success_count += 1
+					log_profile_operation("Exit", item.item_code, item.length, item.output_quantity, "out")
+					
+				except Exception as e:
+					error_count += 1
+					# Import sırasında database bağlantısı kopabiliyor, güvenli loglama
+					try:
+						frappe.log_error(f"Profile Exit stok güncelleme hatası: {str(e)}", "Profile Exit Stock Error")
+					except:
+						# Database bağlantısı yoksa sadece print ile logla
+						print(f"Profile Exit stok güncelleme hatası: {str(e)}")
+			
+			# Sonuç bildirimi
+			show_operation_result(success_count, error_count, self.total_output_length, self.total_output_qty, "Exit")
 				
 		except Exception as e:
 			# Import sırasında database bağlantısı kopabiliyor, güvenli loglama
@@ -163,14 +163,14 @@ class ProfileExit(Document):
 						length=item.length,
 						qty=item.output_quantity,
 						action="add"
-				)
-				
-				success_count += 1
-				log_profile_operation("Exit Cancel", item.item_code, item.length, item.output_quantity, "in")
-				
-			except Exception as e:
-				error_count += 1
-				frappe.log_error(f"Profile Exit cancel stok güncelleme hatası: {str(e)}", "Profile Exit Cancel Stock Error")
+					)
+					
+					success_count += 1
+					log_profile_operation("Exit Cancel", item.item_code, item.length, item.output_quantity, "in")
+					
+				except Exception as e:
+					error_count += 1
+					frappe.log_error(f"Profile Exit cancel stok güncelleme hatası: {str(e)}", "Profile Exit Cancel Stock Error")
 			
 			# Sonuç bildirimi (cancel için özel mesaj - geri ekleme)
 			if error_count == 0:

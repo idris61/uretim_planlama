@@ -1,21 +1,33 @@
-# Root editor config file
+# EditorConfig - Tüm editörlerde çalışır
+# https://editorconfig.org
+
 root = true
 
-# Common settings
+# Tüm dosyalar için
 [*]
+charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
-charset = utf-8
 
-# python, js indentation settings
-[{*.py,*.js,*.vue,*.css,*.scss,*.html}]
+# Python dosyaları
+[*.py]
 indent_style = tab
 indent_size = 4
-max_line_length = 99
+max_line_length = 120
 
-# JSON files - mostly doctype schema files
-[{*.json}]
-insert_final_newline = false
+# JSON, YAML
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+# JavaScript, CSS
+[*.{js,css}]
 indent_style = space
 indent_size = 2

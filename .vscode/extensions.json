@@ -1,0 +1,35 @@
+{
+  "recommendations": [
+    // Python Temel
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    
+    // Python Formatters
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    
+    // Linters
+    "ms-python.flake8",
+    
+    // Indentation Görselleştirme
+    "oderwat.indent-rainbow",
+    "aaron-bond.better-comments",
+    
+    // Error Lens (Hataları satırda gösterir)
+    "usernamehw.errorlens",
+    
+    // Auto Close/Rename Tags
+    "formulahendry.auto-close-tag",
+    "formulahendry.auto-rename-tag",
+    
+    // Bracket Pair Colorizer
+    "CoenraadS.bracket-pair-colorizer-2",
+    
+    // Git
+    "eamodio.gitlens",
+    
+    // Code Spell Checker (Türkçe)
+    "streetsidesoftware.code-spell-checker",
+    "streetsidesoftware.code-spell-checker-turkish"
+  ]
+}

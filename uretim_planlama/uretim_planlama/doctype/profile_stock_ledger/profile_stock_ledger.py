@@ -325,8 +325,8 @@ class ProfileStockLedger(Document):
 					"date": frappe.utils.today(),
 					"supplier": None,
 					"remarks": f"Import Sayım Artışı - {frappe.session.user} | "
-							  f"Mevcut: {old_qty} → Yeni: {new_qty} | "
-							  f"Artış: +{stock_difference} adet",
+							f"Mevcut: {old_qty} → Yeni: {new_qty} | "
+							f"Artış: +{stock_difference} adet",
 					"items": [{
 						"doctype": "Profile Entry Item",
 						"item_code": self.item_code,
@@ -373,8 +373,8 @@ class ProfileStockLedger(Document):
 					"date": frappe.utils.today(),
 					"customer": None,
 					"remarks": f"Import Sayım Azalışı - {frappe.session.user} | "
-							  f"Mevcut: {old_qty} → Yeni: {new_qty} | "
-							  f"Azalış: {stock_difference} adet",
+							f"Mevcut: {old_qty} → Yeni: {new_qty} | "
+							f"Azalış: {stock_difference} adet",
 					"items": [{
 						"doctype": "Profile Exit Item",
 						"item_code": self.item_code,
@@ -486,8 +486,8 @@ class ProfileStockLedger(Document):
 				"date": frappe.utils.today(),
 				"customer": None,  # Sayım için müşteri bilgisi yok
 				"remarks": f"Sayım Güncellemesi (Stok Azalması) - {frappe.session.user} | "
-						  f"Mevcut: {old_stock} adet → Yeni: {new_stock} adet | "
-						  f"Çıkış: {exit_qty} adet",
+							f"Mevcut: {old_stock} adet → Yeni: {new_stock} adet | "
+							f"Çıkış: {exit_qty} adet",
 				"items": [{
 					"doctype": "Profile Exit Item",
 					"item_code": item_code,
