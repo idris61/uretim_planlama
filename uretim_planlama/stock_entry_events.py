@@ -13,6 +13,10 @@ def on_submit(doc, method=None):
 	"""
 	Stock Entry submit olduğunda, birleştirilmiş itemların
 	Material Request referanslarını bulup transferred_qty'lerini artırır ve statuslerini günceller
+	
+	NOT: ERPNext'in kendi update_completed_and_requested_qty fonksiyonu da çalışır.
+	Bizim kodumuz SADECE custom_material_request_references field'ı olan itemlar için çalışır.
+	Normal itemlar için ERPNext'in kendi kodu çalışır (çekirdek fonksiyon korunur).
 	"""
 	# ERPNext'in kendi işlemleri bittikten SONRA çalışması için after_commit kullan
 	frappe.db.after_commit.add(lambda: update_material_request_statuses(doc, is_submit=True))
@@ -65,6 +69,10 @@ def update_material_request_statuses(doc, is_submit=True):
 	"""
 	Stock Entry Item'larındaki Material Request referanslarını bulup
 	MR items'larının transferred_qty'sini ve MR statuslerini günceller
+	
+	KALICI ÇÖZÜM: ordered_qty'yi EKLE (+=) değil, DOĞRU DEĞERE SET (=) eder.
+	Böylece ERPNext'in kendi kodu ile çakışma olsa bile doğru sonuç çıkar.
+	Çekirdek fonksiyonlar etkilenmez.
 	
 	Args:
 		doc: Stock Entry document
@@ -150,22 +158,71 @@ def update_material_request_statuses(doc, is_submit=True):
 				continue
 			
 			# MR Items'ların transferred_qty'sini güncelle
-			# Submit: Tüm MR items'ın ordered_qty'sini stock_qty'ye eşitle (100% transferred)
-			# Cancel: ordered_qty'yi sıfırla
+			# SADECE Stock Entry'deki item_code'lar için ordered_qty güncellenir
+			
+			# Her item_code için bu MR'nin orijinal qty'sini hesapla
+			item_qty_map = {}
+			for item_data in items_data:
+				item_code = item_data["item_code"]
+				if item_code not in item_qty_map:
+					# Bu item_code için MR'deki orijinal stock_qty'yi al
+					mr_item_qty = frappe.db.get_value(
+						"Material Request Item",
+						{"parent": mr_name, "item_code": item_code},
+						"stock_qty"
+					) or 0
+					item_qty_map[item_code] = mr_item_qty
+			
 			if is_submit:
-				# Submit: Tüm MR'yi transferred say
-				frappe.db.sql("""
-					UPDATE `tabMaterial Request Item`
-					SET ordered_qty = stock_qty
-					WHERE parent = %s
-				""", (mr_name,))
+				# Submit: KALICI ÇÖZÜM - ordered_qty'yi SET et (EKLE değil!)
+				# Tüm submitted SE'lerin toplam qty'sini hesapla ve SET et
+				# Böylece ERPNext'in kodu 2x eklese bile doğru sonuç çıkar
+				for item_code, original_qty in item_qty_map.items():
+					# Bu MR ve item_code için TÜM submitted SE'lerin toplam qty'sini hesapla
+					total_transferred = frappe.db.sql("""
+						SELECT COALESCE(SUM(sed.qty), 0) as total
+						FROM `tabStock Entry Detail` sed
+						JOIN `tabStock Entry` se ON se.name = sed.parent
+						WHERE se.docstatus = 1
+						  AND se.stock_entry_type = 'Material Transfer'
+						  AND sed.item_code = %s
+						  AND (sed.custom_material_request_references LIKE %s
+						       OR sed.material_request = %s)
+					""", (item_code, f"%{mr_name}%", mr_name))[0][0] or 0
+					
+					# ordered_qty'yi doğru değere SET et (stock_qty'yi aşmasın)
+					correct_qty = min(total_transferred, original_qty)
+					
+					frappe.db.sql("""
+						UPDATE `tabMaterial Request Item`
+						SET ordered_qty = %s
+						WHERE parent = %s AND item_code = %s
+					""", (correct_qty, mr_name, item_code))
 			else:
-				# Cancel: ordered_qty'leri sıfırla
-				frappe.db.sql("""
-					UPDATE `tabMaterial Request Item`
-					SET ordered_qty = 0
-					WHERE parent = %s
-				""", (mr_name,))
+				# Cancel: KALICI ÇÖZÜM - ordered_qty'yi SET et (AZALT değil!)
+				# Kalan submitted SE'lerin toplam qty'sini hesapla ve SET et
+				for item_code, original_qty in item_qty_map.items():
+					# Bu SE hariç kalan submitted SE'lerin toplam qty'si
+					total_transferred = frappe.db.sql("""
+						SELECT COALESCE(SUM(sed.qty), 0) as total
+						FROM `tabStock Entry Detail` sed
+						JOIN `tabStock Entry` se ON se.name = sed.parent
+						WHERE se.docstatus = 1
+						  AND se.name != %s
+						  AND se.stock_entry_type = 'Material Transfer'
+						  AND sed.item_code = %s
+						  AND (sed.custom_material_request_references LIKE %s
+						       OR sed.material_request = %s)
+					""", (doc.name, item_code, f"%{mr_name}%", mr_name))[0][0] or 0
+					
+					# ordered_qty'yi doğru değere SET et
+					correct_qty = min(total_transferred, original_qty)
+					
+					frappe.db.sql("""
+						UPDATE `tabMaterial Request Item`
+						SET ordered_qty = %s
+						WHERE parent = %s AND item_code = %s
+					""", (correct_qty, mr_name, item_code))
 			
 			# per_ordered yüzdesini hesapla ve güncelle
 			frappe.db.sql("""
@@ -188,10 +245,11 @@ def update_material_request_statuses(doc, is_submit=True):
 			mr_doc.reload()
 			
 			# per_ordered'a göre status belirle
+			# Material Transfer için doğru status isimleri
 			if mr_doc.per_ordered >= 100:
 				final_status = "Transferred"
 			elif mr_doc.per_ordered > 0:
-				final_status = "Partially Ordered"
+				final_status = "Partially Received"
 			else:
 				final_status = "Pending"
 			

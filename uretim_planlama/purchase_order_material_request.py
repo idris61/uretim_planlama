@@ -113,11 +113,23 @@ def make_purchase_order_with_filters(source_name, target_doc=None, args=None):
 		# Varsayılan: eşitlik kontrolü
 		return doc_value == filter_value
 	
+	# KALICI ÇÖZÜM: "Malzeme Talebi Kalemi Seçimi" checkbox için filtered_children desteği
+	filtered_children = args.get("filtered_children", [])
+	
 	def select_item(d):
 		"""
 		Item'ın dahil edilip edilmeyeceğini kontrol eder
-		Tüm filtreleri dinamik olarak uygular
+		
+		1. Önce filtered_children kontrolü (checkbox işaretli ve itemlar seçiliyse)
+		2. Sonra kalan miktar kontrolü
+		3. Son olarak filtreleri uygula
 		"""
+		# KALICI ÇÖZÜM: Eğer filtered_children varsa (child item selection yapıldıysa)
+		# Sadece seçilen itemları dahil et
+		if filtered_children:
+			if d.name not in filtered_children:
+				return False  # Bu item seçilmemiş, dahil etme
+		
 		# ERPNext standard: Kalan miktar kontrolü
 		qty = d.ordered_qty or d.received_qty
 		if not (qty < d.stock_qty):
@@ -188,4 +200,5 @@ def make_purchase_order_with_filters(source_name, target_doc=None, args=None):
 	
 	doclist.set_onload("load_after_mapping", False)
 	return doclist
+
 

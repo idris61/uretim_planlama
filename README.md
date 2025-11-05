@@ -2,9 +2,54 @@
 
 ERPNext tabanlı üretim planlama uygulaması
 
-## 🚀 **YENİ ÖZELLİK: BİRLEŞTİRİLMİŞ MALZEME TALEBİ SİSTEMİ** 🆕
+## 🚀 **YENİ ÖZELLİKLER** 🆕
 
-### **Genel Bakış**
+### **1. MALZEME TALEBİ KALEM SEÇİMİ (Material Request Item Selection)** ⭐
+
+#### **Genel Bakış**
+Material Request'ten Stock Entry veya Purchase Order oluştururken **belirli itemları seçerek** ekleme imkanı sağlar. Artık tüm MR'yi değil, sadece ihtiyacınız olan itemları seçip aktarabilirsiniz!
+
+#### **Temel Özellikler**
+- ✅ **Item Bazında Seçim**: MR'deki itemlardan sadece istediğinizi seçin
+- ✅ **Çoklu MR Desteği**: Birden fazla MR'den farklı itemlar seçebilirsiniz
+- ✅ **Filtreleme**: Item Code, Item Group gibi alanlara göre filtreleyin
+- ✅ **Otomatik Statü**: Kısmi transfer edilen MR'lar "Partially Received" olur
+- ✅ **ERPNext Uyumlu**: Çekirdek fonksiyonlara dokunmadan çalışır
+
+#### **Kullanım**
+
+##### **Stock Entry İçin:**
+```
+1. Stock Entry oluştur
+2. "Öğeleri Burdan Al" → "Malzeme Talebi"
+3. ☑️ "Malzeme Talebi Kalemi Seçimi" kutusunu işaretle
+4. Bir veya birden fazla MR seç
+5. Tablo açılır - istediğiniz itemları seçin
+6. "Ürünleri Getir" butonu
+7. ✅ Sadece seçili itemlar Stock Entry'e eklenir
+```
+
+##### **Purchase Order İçin:**
+```
+1. Purchase Order oluştur
+2. "Get Items From" → "Material Request"
+3. ☑️ "Malzeme Talebi Kalemi Seçimi" kutusunu işaretle
+4. MR seç → Item seç → "Get Items"
+5. ✅ Sadece seçili itemlar PO'ya eklenir
+```
+
+#### **Teknik Detaylar**
+- **Frontend**: Custom Client Script - ERPNext'in `map_current_doc` fonksiyonunu wrap eder
+- **Backend**: 
+  - `stock_entry_material_request.py`: Stock Entry için custom mapping
+  - `purchase_order_material_request.py`: Purchase Order için custom mapping
+- **Mantık**: `filtered_children` parametresi ile seçili item name'leri backend'e gönderilir
+
+---
+
+### **2. BİRLEŞTİRİLMİŞ MALZEME TALEBİ SİSTEMİ**
+
+#### **Genel Bakış**
 Birden fazla Material Request'i tek bir Stock Entry, Purchase Order veya Purchase Receipt belgesinde birleştirerek işleme imkanı sağlar. Aynı ürünler tek satırda toplanır ve tüm MR referansları kaydedilir.
 
 ### **Temel Özellikler**

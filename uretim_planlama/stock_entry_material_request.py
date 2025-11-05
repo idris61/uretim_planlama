@@ -60,6 +60,11 @@ def make_stock_entry_with_filters(source_name, target_doc=None, args=None):
 	elif args is None:
 		args = {}
 	
+	# filtered_children'ı ÖNCE çıkar (filtre olarak parse edilmesin!)
+	filtered_children = args.pop("filtered_children", [])
+	allow_child_item_selection = args.pop("allow_child_item_selection", 0)
+	child_fieldname = args.pop("child_fieldname", "items")
+	
 	# Filtreleri parse et - tüm filtreler için generic
 	filters = {}
 	for key, value in args.items():
@@ -117,9 +122,18 @@ def make_stock_entry_with_filters(source_name, target_doc=None, args=None):
 	def should_include_item(doc):
 		"""
 		Item'ın dahil edilip edilmeyeceğini kontrol eder
-		Tüm filtreleri dinamik olarak uygular
+		
+		1. Önce filtered_children kontrolü (checkbox işaretli ve itemlar seçiliyse)
+		2. Sonra kalan miktar kontrolü
+		3. Son olarak filtreleri uygula
 		"""
-		# ERPNext standard: Kalan miktar kontrolü
+		# Eğer filtered_children varsa (child item selection yapıldıysa)
+		# Sadece seçilen itemları dahil et
+		if filtered_children:
+			if doc.name not in filtered_children:
+				return False
+		
+		# Kalan miktar kontrolü
 		if flt(doc.ordered_qty, doc.precision("ordered_qty")) >= flt(doc.stock_qty, doc.precision("ordered_qty")):
 			return False
 		
