@@ -3,28 +3,44 @@ from datetime import datetime, timedelta
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 
-# FLOAT/PRECISION/TOLERANCE ile ilgili tüm fonksiyonlar kaldırıldı. Artık miktar işlemlerinde gelen qty olduğu gibi kullanılacaktır.
+# Utility functions for quantity handling - ERPNext flt() ile hassasiyet kontrolü
+# flt() fonksiyonu float'ları belirli bir hassasiyette normalize eder ve küsürat sorunlarını önler
 
-# Utility functions for quantity handling - Gerçek değerlerle çalışır, yuvarlama yapmaz
-def get_real_qty(qty):
-    """Get real quantity value without any rounding or precision changes"""
+def get_real_qty(qty, precision=6):
+    """
+    Miktarı ERPNext'in flt() fonksiyonu ile normalize eder.
+    precision: Ondalık basamak sayısı (default: 6, ERPNext standart)
+    """
     if qty is None:
-        return 0.0
-    return float(qty)
+        return flt(0, precision)
+    return flt(qty, precision)
 
-def qty_equals(qty1, qty2):
-    """Check if two quantities are exactly equal"""
-    return get_real_qty(qty1) == get_real_qty(qty2)
+def qty_equals(qty1, qty2, precision=6):
+    """
+    İki miktarın eşit olup olmadığını kontrol eder.
+    Tolerance kullanarak küsürat sorunlarını önler.
+    """
+    normalized_qty1 = flt(qty1, precision)
+    normalized_qty2 = flt(qty2, precision)
+    return normalized_qty1 == normalized_qty2
 
-def qty_greater_or_equal(qty1, qty2):
-    """Check if qty1 is greater than or equal to qty2"""
-    return get_real_qty(qty1) >= get_real_qty(qty2)
+def qty_greater_or_equal(qty1, qty2, precision=6):
+    """
+    qty1'in qty2'den büyük veya eşit olup olmadığını kontrol eder.
+    """
+    normalized_qty1 = flt(qty1, precision)
+    normalized_qty2 = flt(qty2, precision)
+    return normalized_qty1 >= normalized_qty2
 
-def safe_qty_compare(qty1, qty2):
-    """Safely compare two quantities, returns True if qty1 >= qty2"""
-    return qty_greater_or_equal(qty1, qty2)
+def safe_qty_compare(qty1, qty2, precision=6):
+    """
+    İki miktarı güvenli şekilde karşılaştırır.
+    qty1 >= qty2 ise True döner.
+    """
+    return qty_greater_or_equal(qty1, qty2, precision)
 
 
 def get_rezerv_map(item_codes):
@@ -549,15 +565,22 @@ def get_used_long_term_reserve_details(item_code):
 
 def update_or_delete_reserved_raw_material(row_name, consume_qty):
     """
-    Rezerved Raw Materials kaydını verilen miktar kadar azaltır, sıfırlanırsa siler. Ek olarak, hata durumunda otomatik log atar.
+    Rezerved Raw Materials kaydını verilen miktar kadar azaltır, sıfırlanırsa siler. 
+    flt() ile normalize ederek küsürat sorunlarını önler.
     """
     try:
         rm_doc = frappe.get_doc("Rezerved Raw Materials", row_name)
-        rm_doc.quantity = get_real_qty(rm_doc.quantity) - get_real_qty(consume_qty)
-        if rm_doc.quantity <= 0:
+        # Her iki miktarı da normalize et
+        current_qty = flt(rm_doc.quantity, 6)
+        consume = flt(consume_qty, 6)
+        new_qty = flt(current_qty - consume, 6)
+        
+        # Negatif veya sıfır kontrolü - tolerance ile
+        if new_qty <= flt(0.000001, 6):
             rm_doc.delete(ignore_permissions=True)
-            frappe.logger().info(f"Rezerv {row_name} sifirlandi ve silindi. Kalan miktar: {rm_doc.quantity}")
+            frappe.logger().info(f"Rezerv {row_name} sifirlandi ve silindi. Kalan miktar: {new_qty}")
         else:
+            rm_doc.quantity = new_qty
             rm_doc.save(ignore_permissions=True)
     except Exception as e:
         frappe.log_error(f"update_or_delete_reserved_raw_material ERROR: {e}", frappe.get_traceback())
@@ -565,15 +588,22 @@ def update_or_delete_reserved_raw_material(row_name, consume_qty):
 
 def update_or_delete_long_term_reserve_usage(usage_name, consume_qty):
     """
-    Long Term Reserve Usage kaydını verilen miktar kadar azaltır, sıfırlanırsa siler. Ek olarak hata durumunda log atar.
+    Long Term Reserve Usage kaydını verilen miktar kadar azaltır, sıfırlanırsa siler. 
+    flt() ile normalize ederek küsürat sorunlarını önler.
     """
     try:
         usage_doc = frappe.get_doc("Long Term Reserve Usage", usage_name)
-        usage_doc.used_qty = get_real_qty(usage_doc.used_qty) - get_real_qty(consume_qty)
-        if usage_doc.used_qty <= 0:
+        # Her iki miktarı da normalize et
+        current_used_qty = flt(usage_doc.used_qty, 6)
+        consume = flt(consume_qty, 6)
+        new_used_qty = flt(current_used_qty - consume, 6)
+        
+        # Negatif veya sıfır kontrolü - tolerance ile
+        if new_used_qty <= flt(0.000001, 6):
             usage_doc.delete(ignore_permissions=True)
-            frappe.logger().info(f"Usage {usage_name} sifirlandi ve silindi. Kalan miktar: {usage_doc.used_qty}")
+            frappe.logger().info(f"Usage {usage_name} sifirlandi ve silindi. Kalan miktar: {new_used_qty}")
         else:
+            usage_doc.used_qty = new_used_qty
             usage_doc.save(ignore_permissions=True)
     except Exception as e:
         frappe.log_error(f"update_or_delete_long_term_reserve_usage ERROR: {e}", frappe.get_traceback())
@@ -601,11 +631,11 @@ def release_reservations_on_stock_entry(doc, method):
 			order_by="creation asc",
 		)
 		for row in reserved_rows:
-			if qty_to_consume <= 0:
+			if flt(qty_to_consume, 6) <= flt(0.000001, 6):
 				break
-			consume_qty = min(qty_to_consume, row.quantity or 0)
+			consume_qty = flt(min(qty_to_consume, flt(row.quantity or 0, 6)), 6)
 			update_or_delete_reserved_raw_material(row.name, consume_qty)
-			qty_to_consume -= consume_qty
+			qty_to_consume = flt(qty_to_consume - consume_qty, 6)
 		long_term_rows = frappe.get_all(
 			"Long Term Reserve Usage",
 			filters={"sales_order": sales_order, "item_code": item.item_code},
@@ -613,11 +643,11 @@ def release_reservations_on_stock_entry(doc, method):
 			order_by="creation asc",
 		)
 		for usage in long_term_rows:
-			if qty_to_consume <= 0:
+			if flt(qty_to_consume, 6) <= flt(0.000001, 6):
 				break
-			consume_qty = min(qty_to_consume, usage.used_qty or 0)
+			consume_qty = flt(min(qty_to_consume, flt(usage.used_qty or 0, 6)), 6)
 			update_or_delete_long_term_reserve_usage(usage.name, consume_qty)
-			qty_to_consume -= consume_qty
+			qty_to_consume = flt(qty_to_consume - consume_qty, 6)
 	frappe.db.commit()
 	frappe.msgprint(
 		_("Stok hareketi ile ilişkili rezervler güncellendi."), indicator="green"
@@ -629,14 +659,17 @@ def upsert_reserved_raw_material(
 ):
 	"""
 	Verilen satış siparişi ve hammadde için Rezerved Raw Materials kaydını ekler veya günceller.
+	Miktarı flt() ile normalize ederek küsürat sorunlarını önler.
 	"""
-	# qty'yi normalize etmiyoruz
+	# Miktarı normalize et (6 ondalık basamak)
+	normalized_qty = flt(qty, 6)
+	
 	existing = frappe.db.exists(
 		"Rezerved Raw Materials", {"sales_order": sales_order, "item_code": item_code}
 	)
 	if existing:
 		rm_doc = frappe.get_doc("Rezerved Raw Materials", existing)
-		rm_doc.quantity = get_real_qty(qty)
+		rm_doc.quantity = normalized_qty
 		rm_doc.item_name = item_name
 		rm_doc.customer = customer
 		rm_doc.end_customer = end_customer
@@ -645,7 +678,7 @@ def upsert_reserved_raw_material(
 		rm_doc = frappe.new_doc("Rezerved Raw Materials")
 		rm_doc.sales_order = sales_order
 		rm_doc.item_code = item_code
-		rm_doc.quantity = get_real_qty(qty)
+		rm_doc.quantity = normalized_qty
 		rm_doc.item_name = item_name
 		rm_doc.customer = customer
 		rm_doc.end_customer = end_customer
@@ -832,9 +865,9 @@ def delete_long_term_reserve_usage_on_cancel(doc, method):
 					reserve_doc = frappe.get_doc(
 						"Rezerved Raw Materials", parent_reserve[0]["name"]
 					)
-					reserve_doc.quantity = get_real_qty(
-						reserve_doc.quantity + get_real_qty(row["used_qty"])
-					)
+					current_qty = flt(reserve_doc.quantity, 6)
+					used_qty = flt(row["used_qty"], 6)
+					reserve_doc.quantity = flt(current_qty + used_qty, 6)
 					reserve_doc.save(ignore_permissions=True)
 				else:
 					upsert_reserved_raw_material(
@@ -877,8 +910,11 @@ def upsert_long_term_reserve_usage(
 	"""
 	Verilen satış siparişi ve hammadde için Long Term Reserve Usage kaydını ekler veya günceller.
 	Child siparişlerde parent_sales_order referansı da eklenir.
+	Miktarı flt() ile normalize ederek küsürat sorunlarını önler.
 	"""
-	# qty'yi normalize etmiyoruz
+	# Miktarı normalize et (6 ondalık basamak)
+	normalized_qty = flt(qty, 6)
+	
 	existing = frappe.get_all(
 		"Long Term Reserve Usage",
 		filters={"sales_order": sales_order, "item_code": item_code},
@@ -886,7 +922,7 @@ def upsert_long_term_reserve_usage(
 	)
 	if existing:
 		usage_doc = frappe.get_doc("Long Term Reserve Usage", existing[0]["name"])
-		usage_doc.used_qty = get_real_qty(qty)  # <-- Birikmeli değil, yeni miktarı yaz
+		usage_doc.used_qty = normalized_qty  # <-- Birikmeli değil, yeni miktarı yaz
 		usage_doc.usage_date = frappe.utils.nowdate()
 		if is_long_term_child and parent_sales_order:
 			usage_doc.parent_sales_order = parent_sales_order
@@ -895,7 +931,7 @@ def upsert_long_term_reserve_usage(
 		usage_doc = frappe.new_doc("Long Term Reserve Usage")
 		usage_doc.sales_order = sales_order
 		usage_doc.item_code = item_code
-		usage_doc.used_qty = get_real_qty(qty)
+		usage_doc.used_qty = normalized_qty
 		usage_doc.usage_date = frappe.utils.nowdate()
 		if is_long_term_child and parent_sales_order:
 			usage_doc.parent_sales_order = parent_sales_order
@@ -980,10 +1016,14 @@ def use_long_term_reserve_bulk(sales_order, usage_data):
 					reserve_doc = frappe.get_doc(
 						"Rezerved Raw Materials", parent_reserve[0]["name"]
 					)
-					reserve_doc.quantity -= qty
-					if get_real_qty(reserve_doc.quantity) <= 0:
+					current_qty = flt(reserve_doc.quantity, 6)
+					qty_to_deduct = flt(qty, 6)
+					new_qty = flt(current_qty - qty_to_deduct, 6)
+					
+					if new_qty <= flt(0.000001, 6):
 						reserve_doc.delete(ignore_permissions=True)
 					else:
+						reserve_doc.quantity = new_qty
 						reserve_doc.save(ignore_permissions=True)
 				# Child'a yeni rezerv oluşturulmaz!
 			else:
@@ -1157,10 +1197,14 @@ def handle_child_sales_order_reserves(doc, method):
 				reserve_doc = frappe.get_doc(
 					"Rezerved Raw Materials", parent_reserve[0]["name"]
 				)
-				reserve_doc.quantity = get_real_qty(reserve_doc.quantity - ihtiyac)
-				if get_real_qty(reserve_doc.quantity) <= 0:
+				current_qty = flt(reserve_doc.quantity, 6)
+				ihtiyac_normalized = flt(ihtiyac, 6)
+				new_qty = flt(current_qty - ihtiyac_normalized, 6)
+				
+				if new_qty <= flt(0.000001, 6):
 					reserve_doc.delete(ignore_permissions=True)
 				else:
+					reserve_doc.quantity = new_qty
 					reserve_doc.save(ignore_permissions=True)
 				upsert_long_term_reserve_usage(
 					sales_order=doc.name,
@@ -1379,7 +1423,7 @@ def cleanup_unused_reserves():
     deleted = 0
     for row in rows:
         try:
-            if get_real_qty(row['quantity']) <= 0.0:
+            if flt(row['quantity'], 6) <= flt(0.000001, 6):
                 frappe.delete_doc("Rezerved Raw Materials", row["name"], ignore_permissions=True)
                 deleted += 1
         except Exception as e:
@@ -1589,11 +1633,11 @@ def remove_reservations_on_work_order_complete(doc, method):
             fields=["name", "quantity"],
             order_by="creation asc",
         )
-        for row in reserved_rows:
-            if qty_to_consume <= 0:
-                break
-            consume_qty = min(qty_to_consume, row["quantity"] or 0)
-            update_or_delete_reserved_raw_material(row["name"], consume_qty)
-            qty_to_consume -= consume_qty
+		for row in reserved_rows:
+			if flt(qty_to_consume, 6) <= flt(0.000001, 6):
+				break
+			consume_qty = flt(min(qty_to_consume, flt(row["quantity"] or 0, 6)), 6)
+			update_or_delete_reserved_raw_material(row["name"], consume_qty)
+			qty_to_consume = flt(qty_to_consume - consume_qty, 6)
     frappe.db.commit()
     frappe.msgprint(_("İş emri tamamlandı, rezervler güncellendi."), indicator="green")
