@@ -3,30 +3,7 @@
 
 frappe.ui.form.on("Accessory Delivery Package", {
 	refresh(frm) {
-		// Teslim edilmemiş Opti'leri filtrele
-		frm.set_query("opti", () => ({
-			filters: { delivered: 0 }
-		}));
-
-		// Opti'ye ait Sales Order'ları filtrele
-		frm.set_query("sales_order", () => {
-			if (!frm.doc.opti) return {};
-			
-			return {
-				query: "uretim_planlama.uretim_planlama.doctype.accessory_delivery_package.accessory_delivery_package.get_sales_orders_for_opti",
-				filters: { opti: frm.doc.opti }
-			};
-		});
-	},
-
-	opti(frm) {
-		// Opti değiştiğinde tabloları temizle
-		frm.set_value("sales_order", null);
-		clear_tables(frm);
-		
-		if (!frm.doc.opti) {
-			clear_sales_order_data(frm);
-		}
+		// Sales Order filtreleme (isteğe göre eklenebilir)
 	},
 
 	sales_order(frm) {
@@ -35,9 +12,7 @@ frappe.ui.form.on("Accessory Delivery Package", {
 		if (frm.doc.sales_order) {
 			load_sales_order_details(frm);
 			// Otomatik malzeme yükle
-			if (frm.doc.opti) {
-				load_materials(frm);
-			}
+			load_materials(frm);
 		} else {
 			clear_sales_order_data(frm);
 		}
@@ -63,15 +38,14 @@ function load_sales_order_details(frm) {
 
 // Malzeme listesini yükle
 function load_materials(frm) {
-	if (!frm.doc.opti || !frm.doc.sales_order) {
-		frappe.msgprint(__("Lütfen Opti ve Satış Siparişi seçiniz"));
+	if (!frm.doc.sales_order) {
+		frappe.msgprint(__("Lütfen Satış Siparişi seçiniz"));
 		return;
 	}
 	
 	frappe.call({
 		method: "uretim_planlama.uretim_planlama.doctype.accessory_delivery_package.accessory_delivery_package.get_materials",
 		args: {
-			opti_no: frm.doc.opti,
 			sales_order: frm.doc.sales_order
 		},
 		callback: (r) => {

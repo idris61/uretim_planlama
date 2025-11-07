@@ -5,7 +5,6 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "opti",
   "sales_order",
   "dealer",
   "end_customer",
@@ -102,14 +101,6 @@
    "fieldtype": "Data",
    "label": "End Customer",
    "read_only": 1
-  },
-  {
-   "fieldname": "opti",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Opti",
-   "options": "Opti",
-   "reqd": 1
   }
  ],
  "is_submittable": 1,

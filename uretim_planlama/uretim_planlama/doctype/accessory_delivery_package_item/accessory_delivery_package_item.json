@@ -9,32 +9,37 @@
       "label": "Item Code",
       "fieldtype": "Link",
       "options": "Item",
-      "reqd": 1
+      "reqd": 1,
+      "in_list_view": 1
     },
     {
       "fieldname": "item_name",
       "label": "Item Name",
       "fieldtype": "Data",
-      "read_only": 1
+      "read_only": 1,
+      "in_list_view": 1
     },
     {
       "fieldname": "item_group",
       "label": "Ürün Grubu",
       "fieldtype": "Link",
       "options": "Item Group",
-      "read_only": 1
+      "read_only": 1,
+      "in_list_view": 1
     },
     {
       "fieldname": "qty",
       "label": "Quantity",
       "fieldtype": "Float",
-      "reqd": 1
+      "reqd": 1,
+      "in_list_view": 1
     },
     {
       "fieldname": "uom",
       "label": "UOM",
       "fieldtype": "Link",
-      "options": "UOM"
+      "options": "UOM",
+      "in_list_view": 1
     }
   ],
   "permissions": [
