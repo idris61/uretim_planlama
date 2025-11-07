@@ -5,6 +5,26 @@ import frappe
 from frappe.model.document import Document
 
 
+@frappe.whitelist()
+def get_sales_orders_for_opti(opti):
+	"""Opti için teslim edilmemiş Sales Order'ları döndür"""
+	if not opti:
+		return []
+	
+	# Opti SO Item child table'dan sales_order'ları çek
+	sales_orders = frappe.db.get_all(
+		"Opti SO Item",
+		filters={
+			"parent": opti,
+			"delivered": 0
+		},
+		fields=["sales_order"],
+		pluck="sales_order"
+	)
+	
+	return sales_orders or []
+
+
 class AccessoryDeliveryPackage(Document):
 	"""Aksesuar Teslimat Paketi - Opti bazlı teslimat yönetimi"""
 	

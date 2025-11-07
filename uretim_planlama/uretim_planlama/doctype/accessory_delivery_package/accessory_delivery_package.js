@@ -11,12 +11,11 @@ frappe.ui.form.on("Accessory Delivery Package", {
 		// Opti'ye ait Sales Order'ları filtrele
 		frm.set_query("sales_order", () => {
 			if (!frm.doc.opti) return {};
+			
+			// Opti'ye ait sales order'ları backend'den al
 			return {
-				query: "frappe.desk.search.search_link",
-				filters: [
-					["Opti SO Item", "parent", "=", frm.doc.opti],
-					["Opti SO Item", "delivered", "=", 0]
-				]
+				query: "uretim_planlama.uretim_planlama.doctype.accessory_delivery_package.accessory_delivery_package.get_sales_orders_for_opti",
+				filters: { opti: frm.doc.opti }
 			};
 		});
 	},
