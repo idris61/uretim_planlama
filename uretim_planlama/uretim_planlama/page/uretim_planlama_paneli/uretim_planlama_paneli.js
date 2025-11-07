@@ -405,14 +405,12 @@ class UretimPlanlamaPaneli {
 
 	async init() {
 		try {
-			this.addCustomStyles();
-			this.ensureSidebarOpen();
-			this.createPage();
-			this.initControls();
-			this.initSummary();
-			this.initTables();
-			this.initCuttingTable();
-			this.bindEvents();
+		this.addCustomStyles();
+		this.ensureSidebarOpen();
+		this.createPage();
+		this.initTables();
+		this.initCuttingTable();
+		this.bindEvents();
 			
 		// Asenkron veri yükleme - optimize edilmiş
 		await this.loadDataAsync();
