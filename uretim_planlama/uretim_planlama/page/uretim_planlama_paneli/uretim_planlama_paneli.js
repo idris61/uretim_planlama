@@ -1966,13 +1966,12 @@ class UretimPlanlamaPaneli {
 			siparis_no: $('#planlanan-siparis-filter').val(),
 			bayi: $('#planlanan-bayi-filter').val(),
 			musteri: $('#planlanan-musteri-filter').val(),
-			seri: $('#planlanan-seri-filter').val(),
-			renk: $('#planlanan-renk-filter').val(),
-			tip: $('#planlanan-tip-filter').val(),
-			from_date: normalizeDate($('#planlanan-from-date').val()),
-			to_date: normalizeDate($('#planlanan-to-date').val()),
-			limit: 200
-		};
+		seri: $('#planlanan-seri-filter').val(),
+		renk: $('#planlanan-renk-filter').val(),
+		tip: $('#planlanan-tip-filter').val(),
+		from_date: normalizeDate($('#planlanan-from-date').val()),
+		to_date: normalizeDate($('#planlanan-to-date').val())
+	};
 	}
 
 	// Enhanced filter clear - Array based approach
@@ -2053,16 +2052,13 @@ class UretimPlanlamaPaneli {
 		// Tamamlananları göster/gizle filtresi
 		let filteredData = this.plannedTable.data;
 		
-		if (!this.plannedTable.showCompleted) {
-			filteredData = this.plannedTable.data.filter(item => item.plan_status !== 'Completed');
-		}
-		
-		// Performans için sadece ilk 200 kayıt
-		if (filteredData.length > 200) {
-			filteredData = filteredData.slice(0, 200);
-		}
-		
-		// Opti numarasına göre gruplandır
+	if (!this.plannedTable.showCompleted) {
+		filteredData = this.plannedTable.data.filter(item => item.plan_status !== 'Completed');
+	}
+	
+	// TÜM VERİLERİ GÖSTER - LIMIT YOK
+	
+	// Opti numarasına göre gruplandır
 		const optiGroups = {};
 		filteredData.forEach(order => {
 			const optiNo = order.opti_no;
@@ -3819,16 +3815,13 @@ class UretimPlanlamaPaneli {
 		
 		// Tamamlananları göster/gizle filtresi
 		let filteredData = rows;
-		if (!filters.showCompleted) {
-			filteredData = rows.filter(item => item.plan_status !== 'Completed');
-		}
-		
-		// Performans için sadece ilk 200 kayıt
-		if (filteredData.length > 200) {
-			filteredData = filteredData.slice(0, 200);
-		}
-		
-		// Opti numarasına göre gruplandır
+	if (!filters.showCompleted) {
+		filteredData = rows.filter(item => item.plan_status !== 'Completed');
+	}
+	
+	// TÜM VERİLERİ GÖSTER - LIMIT YOK
+	
+	// Opti numarasına göre gruplandır
 		const optiGroups = {};
 		filteredData.forEach(order => {
 			const optiNo = order.opti_no;
