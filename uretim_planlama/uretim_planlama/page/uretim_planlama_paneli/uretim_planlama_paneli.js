@@ -4019,9 +4019,9 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 
 	modal.show();
 
-	// API çağrısı - production_plan gönder ki sadece planlananlar gelsin
+	// API çağrısı - Takip sayfasındaki fonksiyonu kullan (çalışan versiyon)
 	frappe.call({
-		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_orders_for_sales_order',
+		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_takip.uretim_planlama_takip.get_work_orders_for_takip',
 		args: { 
 			sales_order: salesOrderId,
 			production_plan: productionPlan  // Sadece bu plandaki iş emirleri
@@ -4040,15 +4040,18 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 				return;
 			}
 
-			if (!r.message || !r.message.work_orders || r.message.work_orders.length === 0) {
-				contentDiv.html(`
-					<div class="alert alert-info">
-						<i class="fa fa-info-circle mr-2"></i>
-						Bu sipariş için iş emri bulunamadı.
-					</div>
-				`);
-				return;
-			}
+		// Takip sayfası LIST döndürüyor, Panel sayfası DICT döndürüyordu
+		const workOrders = Array.isArray(r.message) ? r.message : (r.message.work_orders || []);
+		
+		if (!workOrders || workOrders.length === 0) {
+			contentDiv.html(`
+				<div class="alert alert-info">
+					<i class="fa fa-info-circle mr-2"></i>
+					Bu sipariş için iş emri bulunamadı.
+				</div>
+			`);
+			return;
+		}
 
 			// Tarih formatla fonksiyonu
 			const formatDateTime = (dateTime) => {
@@ -4063,12 +4066,12 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 				}
 			};
 
-			// İş emirleri accordion şeklinde - Takip sayfasındaki mantık
-			let html = `
-				<div class="wo-accordion">
-			`;
+		// İş emirleri accordion şeklinde - Takip sayfasındaki mantık
+		let html = `
+			<div class="wo-accordion">
+		`;
 
-			r.message.work_orders.forEach((wo, index) => {
+		workOrders.forEach((wo, index) => {
 				const statusBadge = getWorkOrderStatusBadge(wo.status);
 				const safeId = makeSafeId(wo.name);
 				const pozLabel = (wo.production_item || wo.sales_order_item || wo.so_detail || wo.item_name || wo.item_code || '').toString();
