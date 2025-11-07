@@ -1276,14 +1276,15 @@ def get_work_orders_for_sales_order(sales_order=None, production_plan=None) -> D
         
         # Üretim planına göre filtreleme (takip sayfasındaki mantık)
         if production_plan:
-            # Opti numarası ile Production Plan'ı bul
+            # Opti numarası ile Production Plan'ı bul - EN SON OLUŞTURULAN AKTİF PLAN
             production_plans = frappe.get_all(
                 "Production Plan",
                 filters={
                     "custom_opti_no": production_plan,
-                    "docstatus": ["in", [0, 1]]
+                    "docstatus": 1  # Sadece onaylı planlar
                 },
-                fields=["name"],
+                fields=["name", "creation"],
+                order_by="creation DESC",  # En son oluşturulandan başla
                 limit=1
             )
             
@@ -1299,7 +1300,9 @@ def get_work_orders_for_sales_order(sales_order=None, production_plan=None) -> D
                     FROM `tabWork Order` wo
                     INNER JOIN `tabProduction Plan Item` ppi ON wo.production_plan_item = ppi.name
                     INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
-                    WHERE wo.sales_order = %s AND pp.name = %s
+                    WHERE wo.sales_order = %s 
+                    AND pp.name = %s
+                    AND pp.docstatus = 1
                     ORDER BY wo.creation DESC
                 """, (sales_order, plan_name), as_dict=1)
             else:
