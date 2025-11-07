@@ -1633,11 +1633,11 @@ def remove_reservations_on_work_order_complete(doc, method):
             fields=["name", "quantity"],
             order_by="creation asc",
         )
-		for row in reserved_rows:
-			if flt(qty_to_consume, 6) <= flt(0.000001, 6):
-				break
-			consume_qty = flt(min(qty_to_consume, flt(row["quantity"] or 0, 6)), 6)
-			update_or_delete_reserved_raw_material(row["name"], consume_qty)
-			qty_to_consume = flt(qty_to_consume - consume_qty, 6)
+        for row in reserved_rows:
+            if flt(qty_to_consume, 6) <= flt(0.000001, 6):
+                break
+            consume_qty = flt(min(qty_to_consume, flt(row["quantity"] or 0, 6)), 6)
+            update_or_delete_reserved_raw_material(row["name"], consume_qty)
+            qty_to_consume = flt(qty_to_consume - consume_qty, 6)
     frappe.db.commit()
     frappe.msgprint(_("İş emri tamamlandı, rezervler güncellendi."), indicator="green")
