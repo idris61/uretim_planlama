@@ -53,6 +53,7 @@ def get_materials(opti_no, sales_order):
     """, {"opti_no": opti_no, "sales_order": sales_order}, as_dict=1)
     
     # Montaj ve İzolasyon, PVC Kolları, PVC Montaj Aksesuarları malzemelerini çek
+    # Case-insensitive karşılaştırma ile tüm varyantları yakala
     materials = frappe.db.sql("""
         SELECT
             bi.item_code,
@@ -70,8 +71,8 @@ def get_materials(opti_no, sales_order):
         WHERE pp.custom_opti_no = %(opti_no)s
         AND ppi.sales_order = %(sales_order)s
         AND (
-            i.item_group IN ('Montaj ve İzolasyon', 'Pvc Kollar', 'PVC KOLLARI', 'Pvc Kolları', 'Pvc Montaj Aksesuarları')
-            OR ig.parent_item_group IN ('Montaj ve İzolasyon', 'Pvc Kollar', 'PVC KOLLARI', 'Pvc Kolları', 'Pvc Montaj Aksesuarları')
+            LOWER(i.item_group) IN ('montaj ve i̇zolasyon', 'pvc kollar', 'pvc kolları', 'pvc montaj aksesuarları')
+            OR LOWER(ig.parent_item_group) IN ('montaj ve i̇zolasyon', 'pvc kollar', 'pvc kolları', 'pvc montaj aksesuarları')
         )
         GROUP BY bi.item_code, i.item_group, ig.parent_item_group, i.stock_uom
         ORDER BY i.item_group, bi.item_code
