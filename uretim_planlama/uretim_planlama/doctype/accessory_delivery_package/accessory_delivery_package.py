@@ -6,61 +6,91 @@ from frappe.model.document import Document
 
 
 class AccessoryDeliveryPackage(Document):
+	"""Aksesuar Teslimat Paketi - Opti bazlı teslimat yönetimi"""
+	
 	def validate(self):
-		pass
+		"""Doküman validasyonu - Opti ve Sales Order kontrolü"""
+		# Opti kontrolü
+		if not self.opti:
+			frappe.throw(frappe._("Opti numarası zorunludur"))
+		
+		# Sales Order kontrolü
+		if not self.sales_order:
+			frappe.throw(frappe._("Satış Siparişi zorunludur"))
+		
+		# Opti ve SO kombinasyonu geçerli mi?
+		if not self._validate_opti_sales_order():
+			frappe.throw(
+				frappe._("Satış Siparişi [{0}], Opti [{1}] içinde bulunamadı").format(
+					self.sales_order, self.opti
+				)
+			)
 
 	def on_submit(self):
-		so_item_doc = self._find_so_item_doc()
-		if so_item_doc.delivered:
+		"""Submit - Teslimat durumunu güncelle"""
+		# SO Item teslimat durumu kontrol ve güncelleme
+		if self._is_already_delivered():
 			frappe.throw(
-				frappe._(
-					"These items are already delivered, please change Opti or Sales Order"
-				)
+				frappe._("Bu ürünler zaten teslim edilmiş. Lütfen Opti veya Sipariş değiştirin")
 			)
-		so_item_doc.delivered = 1
-		so_item_doc.save(ignore_permissions=True)
-
-		opti_doc = self._find_opti_doc()
-		all_delivered = all(item.delivered for item in opti_doc.sales_orders)
-		if all_delivered:
-			opti_doc.delivered = 1
-		opti_doc.save(ignore_permissions=True)
+		
+		self._mark_so_item_delivered()
+		self._update_opti_delivery_status()
 
 	def on_cancel(self):
-		so_item_doc = self._find_so_item_doc()
-		so_item_doc.delivered = 0
-		so_item_doc.save(ignore_permissions=True)
+		"""Cancel - Teslimat durumunu geri al"""
+		self._mark_so_item_undelivered()
+		self._update_opti_delivery_status_on_cancel()
 
-		opti_doc = self._find_opti_doc()
-		if opti_doc.delivered != 0:
-			opti_doc.delivered = 0
-			opti_doc.save(ignore_permissions=True)
+	def _validate_opti_sales_order(self):
+		"""Opti ve Sales Order kombinasyonunu kontrol et"""
+		return frappe.db.exists(
+			"Opti SO Item",
+			{"parent": self.opti, "sales_order": self.sales_order}
+		)
 
-	def _find_opti_doc(self):
-		try:
-			opti_doc = frappe.get_doc("Opti", self.opti)
-		except frappe.DoesNotExistError:
-			frappe.throw(frappe._("Opti [{0}] not found").format(self.opti))
-		except Exception as e:
-			frappe.log_error(f"Opti document error: {str(e)}", "Accessory Delivery Package Error")
-			frappe.throw(frappe._("An error occured"))
+	def _is_already_delivered(self):
+		"""SO Item zaten teslim edilmiş mi?"""
+		delivered = frappe.db.get_value(
+			"Opti SO Item",
+			{"parent": self.opti, "sales_order": self.sales_order},
+			"delivered"
+		)
+		return delivered == 1
 
-		return opti_doc
+	def _mark_so_item_delivered(self):
+		"""SO Item'ı teslim edildi olarak işaretle"""
+		frappe.db.set_value(
+			"Opti SO Item",
+			{"parent": self.opti, "sales_order": self.sales_order},
+			"delivered",
+			1
+		)
 
-	def _find_so_item_doc(self):
-		try:
-			so_item_doc = frappe.get_doc(
-				"Opti SO Item", {"parent": self.opti, "sales_order": self.sales_order}
-			)
-		except frappe.DoesNotExistError:
-			frappe.throw(
-				frappe._("Sales Order [{0}] in Opti [{1}] not found").format(
-					self.sales_order,
-					self.opti,
-				)
-			)
-		except Exception as e:
-			frappe.log_error(f"Sales Order Item error: {str(e)}", "Accessory Delivery Package Error")
-			frappe.throw(frappe._("An error occured"))
+	def _mark_so_item_undelivered(self):
+		"""SO Item'ın teslimat durumunu geri al"""
+		frappe.db.set_value(
+			"Opti SO Item",
+			{"parent": self.opti, "sales_order": self.sales_order},
+			"delivered",
+			0
+		)
 
-		return so_item_doc
+	def _update_opti_delivery_status(self):
+		"""Opti teslimat durumunu güncelle - Tüm SO'lar teslim edildiyse Opti'yi işaretle"""
+		# Opti'deki tüm SO itemları teslim edildi mi?
+		undelivered_count = frappe.db.count(
+			"Opti SO Item",
+			{"parent": self.opti, "delivered": 0}
+		)
+		
+		# Tümü teslim edildiyse Opti'yi işaretle
+		if undelivered_count == 0:
+			frappe.db.set_value("Opti", self.opti, "delivered", 1)
+
+	def _update_opti_delivery_status_on_cancel(self):
+		"""İptal durumunda Opti teslimat durumunu güncelle"""
+		# Opti delivered ise sıfırla (bir SO iptal edildi)
+		opti_delivered = frappe.db.get_value("Opti", self.opti, "delivered")
+		if opti_delivered == 1:
+			frappe.db.set_value("Opti", self.opti, "delivered", 0)

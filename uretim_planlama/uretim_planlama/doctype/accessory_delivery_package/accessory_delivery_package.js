@@ -2,142 +2,84 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Accessory Delivery Package", {
-	refresh: function (frm) {
-		frm.set_query("opti", function () {
+	refresh(frm) {
+		// Teslim edilmemiş Opti'leri filtrele
+		frm.set_query("opti", () => ({
+			filters: { delivered: 0 }
+		}));
+
+		// Opti'ye ait Sales Order'ları filtrele
+		frm.set_query("sales_order", () => {
+			if (!frm.doc.opti) return {};
 			return {
-				filters: {
-					delivered: false,
-				},
+				query: "frappe.desk.search.search_link",
+				filters: [
+					["Opti SO Item", "parent", "=", frm.doc.opti],
+					["Opti SO Item", "delivered", "=", 0]
+				]
 			};
 		});
-
-		frm.set_query("sales_order", function () {
-			if (frm.doc.opti) {
-				return {
-					filters: [["name", "in", frm.sales_orders_for_opti || []]],
-				};
-			}
-		});
 	},
 
-	opti: function (frm) {
-		handle_opti_no_change(frm);
-		clear_tables(frm);
-	},
-
-	sales_order: function (frm) {
-		clear_tables(frm);
-		handle_sales_order_change(frm);
-		if (frm.doc.sales_order) {
-			handle_get_materials_button_click(frm);
+	opti(frm) {
+		if (frm.doc.opti) {
+			// Opti değiştiğinde Sales Order'ı temizle
+			frm.set_value("sales_order", null);
+			load_sales_orders_for_opti(frm);
+		} else {
+			clear_form_data(frm);
 		}
 	},
 
-	get_materials: function (frm) {
-		handle_get_materials_button_click(frm);
-	},
+	sales_order(frm) {
+		if (frm.doc.sales_order) {
+			load_sales_order_details(frm);
+		} else {
+			clear_sales_order_data(frm);
+		}
+	}
 });
 
-// |||||||||| HANDLERS ||||||||||
-
-function handle_opti_no_change(frm) {
-	if (frm.doc.sales_order) {
-		frm.set_value("sales_order", "");
-	}
-	if (frm.doc.opti) {
-		frappe.call({
-			method: "uretim_planlama.uretim_planlama.api.get_sales_orders_by_opti",
-			args: { opti: frm.doc.opti },
-			callback: function (r) {
-				if (!r.message) return;
-				frm.sales_orders_for_opti = r.message || [];
-				if (frm.sales_orders_for_opti.length == 1) {
-					frm.set_value("sales_order", frm.sales_orders_for_opti[0]);
-				}
-			},
-		});
-	} else {
-		frm.sales_orders_for_opti = [];
-	}
-}
-
-function handle_sales_order_change(frm) {
-	if (!frm.doc.sales_order) {
-		frm.set_value("dealer", "");
-		frm.set_value("end_customer", "");
-		return;
-	}
-
-	frappe.call({
-		method: "uretim_planlama.uretim_planlama.api.get_sales_order_details",
-		args: { order_no: frm.doc.sales_order },
-		callback: function (r) {
-			if (!r.message) return;
-			const sales_order = r.message;
-			frm.set_value("dealer", sales_order.customer);
-			frm.set_value("end_customer", sales_order.custom_end_customer);
+// Opti için Sales Order listesini yükle
+function load_sales_orders_for_opti(frm) {
+	frappe.db.get_list("Opti SO Item", {
+		filters: {
+			parent: frm.doc.opti,
+			delivered: 0
 		},
+		fields: ["sales_order"],
+		pluck: "sales_order"
+	}).then(orders => {
+		frm.sales_orders_for_opti = orders || [];
+		
+		// Tek sipariş varsa otomatik seç
+		if (orders && orders.length === 1) {
+			frm.set_value("sales_order", orders[0]);
+		}
 	});
 }
 
-function handle_get_materials_button_click(frm) {
-	if (!frm.doc.opti || !frm.doc.sales_order) {
-		frappe.throw(__("Please select Opti No and Sales Order"));
-	}
-
-	frappe.call({
-		method: "uretim_planlama.uretim_planlama.api.get_materials",
-		args: {
-			opti_no: frm.doc.opti,
-			sales_order: frm.doc.sales_order,
-		},
-		callback: function (r) {
-			if (!r.message) return;
-
-			const { materials, ppi_items } = r.message;
-
-			if (ppi_items) {
-				frm.clear_table("assembly_items");
-				ppi_items.forEach((row) => {
-					frm.add_child("assembly_items", {
-						item_code: row.item_code,
-						bom_no: row.bom_no,
-						custom_mtul_per_piece: row.custom_mtul_per_piece,
-						custom_serial: row.custom_serial,
-						custom_color: row.custom_color,
-						custom_workstation: row.custom_workstation,
-						planned_qty: row.planned_qty,
-						stock_uom: row.stock_uom,
-						warehouse: row.warehouse,
-						planned_start_date: row.planned_start_date,
-						pending_qty: row.pending_qty,
-						ordered_qty: row.ordered_qty,
-						produced_qty: row.produced_qty,
-					});
-				});
-				frm.refresh_field("assembly_items");
-			}
-
-			if (materials) {
-				frm.clear_table("item_list");
-				materials.forEach((row) => {
-					frm.add_child("item_list", {
-						item_code: row.item_code,
-						item_name: row.item_name,
-						qty: row.qty,
-						uom: row.uom,
-					});
-				});
-				frm.refresh_field("item_list");
-			}
-		},
+// Sales Order detaylarını yükle
+function load_sales_order_details(frm) {
+	frappe.db.get_value("Sales Order", frm.doc.sales_order, 
+		["customer", "custom_end_customer"]
+	).then(r => {
+		if (r.message) {
+			frm.set_value("dealer", r.message.customer);
+			frm.set_value("end_customer", r.message.custom_end_customer);
+		}
 	});
 }
 
-function clear_tables(frm) {
-	frm.clear_table("item_list");
-	frm.refresh_field("item_list");
+// Form verilerini temizle
+function clear_form_data(frm) {
+	frm.set_value("sales_order", null);
+	clear_sales_order_data(frm);
+	frm.sales_orders_for_opti = [];
+}
 
-	frm.clear_table("assembly_items");
-	frm.refresh_field("assembly_items");
+// Sales Order verilerini temizle
+function clear_sales_order_data(frm) {
+	frm.set_value("dealer", null);
+	frm.set_value("end_customer", null);
 }
