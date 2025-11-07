@@ -4019,12 +4019,12 @@ window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
 
 	modal.show();
 
-	// API çağrısı - production_plan parametresini null yap ki tüm iş emirlerini getirsin
+	// API çağrısı - production_plan gönder ki sadece planlananlar gelsin
 	frappe.call({
 		method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_work_orders_for_sales_order',
 		args: { 
 			sales_order: salesOrderId,
-			production_plan: null  // Tüm iş emirlerini getir
+			production_plan: productionPlan  // Sadece bu plandaki iş emirleri
 		},
 		timeout: CONFIG.MODAL_TIMEOUT, // Optimize edilmiş timeout
 		callback: function(r) {
