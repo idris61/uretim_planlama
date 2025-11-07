@@ -41,19 +41,20 @@ frappe.ui.form.on("Accessory Delivery Package", {
 
 // Opti için Sales Order listesini yükle
 function load_sales_orders_for_opti(frm) {
-	frappe.db.get_list("Opti SO Item", {
-		filters: {
-			parent: frm.doc.opti,
-			delivered: 0
-		},
-		fields: ["sales_order"],
-		pluck: "sales_order"
-	}).then(orders => {
-		frm.sales_orders_for_opti = orders || [];
-		
-		// Tek sipariş varsa otomatik seç
-		if (orders && orders.length === 1) {
-			frm.set_value("sales_order", orders[0]);
+	if (!frm.doc.opti) return;
+	
+	// Backend API'den sales order listesini çek
+	frappe.call({
+		method: "uretim_planlama.uretim_planlama.doctype.accessory_delivery_package.accessory_delivery_package.get_sales_orders_for_opti",
+		args: { opti: frm.doc.opti },
+		callback: (r) => {
+			const orders = r.message || [];
+			frm.sales_orders_for_opti = orders;
+			
+			// Tek sipariş varsa otomatik seç
+			if (orders.length === 1) {
+				frm.set_value("sales_order", orders[0]);
+			}
 		}
 	});
 }
