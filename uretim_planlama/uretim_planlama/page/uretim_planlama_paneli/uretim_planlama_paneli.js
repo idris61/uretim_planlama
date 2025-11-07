@@ -225,8 +225,6 @@ const utils = {
 
     // (removed duplicate older delegate implementation)
 
-    // getStatusBadge utility kaldırıldı - kullanılmıyor
-
     // Row class utility for modern coloring - Optimized
     getRowClass: (pvcCount, camCount, isCompleted = false) => {
         if (isCompleted) return 'completed-row';
@@ -326,22 +324,7 @@ const errorHandler = {
     }
 };
 
-// API Service kaldırıldı - kullanılmıyor
-
-// UI Components - Sadece gerekli olanlar
-const uiComponents = {
-    // Loading state management - Kaldırıldı
-    setLoading: (isLoading) => {
-        // setLoading fonksiyonu kaldırıldı - kontroller alanı artık yok
-    },
-
-    // Update summary cards - Kaldırıldı
-    updateSummary: (data) => {
-        // updateSummary fonksiyonu kaldırıldı - özet kartlar artık kullanılmıyor
-    }
-};
-
-// Status badge utilities - Sadece gerekli olanlar
+// Status badge utilities
 const statusUtils = {
     getSalesOrderStatusBadge: (item) => {
         const status = item.status || item.sales_order_status || 'Unknown';
@@ -368,20 +351,6 @@ const statusUtils = {
 
 // Status utilities'i utils'e ekle
 utils.getSalesOrderStatusBadge = statusUtils.getSalesOrderStatusBadge;
-
-// State management - Sadece gerekli olanlar
-const state = {
-    // Update methods - Sadece kullanılanlar
-    setPlannedData: (data) => {
-        // Bu fonksiyon kullanılmıyor ama referans ediliyor
-        
-    },
-    
-    setUnplannedData: (data) => {
-        // Bu fonksiyon kullanılmıyor ama referans ediliyor
-        
-    }
-};
 
 // Configuration - Performance optimized
 const CONFIG = {
@@ -877,16 +846,6 @@ class UretimPlanlamaPaneli {
 		styleElement.id = 'uretim-planlama-paneli-styles';
 		styleElement.textContent = styles;
 		document.head.appendChild(styleElement);
-	}
-
-	initControls() {
-		// initControls fonksiyonu kaldırıldı - kontroller alanı artık kullanılmıyor
-
-	}
-
-	initSummary() {
-		// initSummary fonksiyonu kaldırıldı - özet kartlar artık kullanılmıyor
-
 	}
 
 	initTables() {
@@ -1810,10 +1769,7 @@ class UretimPlanlamaPaneli {
 			});
 		}
 
-		// Refresh button - Kaldırıldı
-		// refreshBtn event binding kaldırıldı - kontroller alanı artık yok
-
-		// Modal event'leri - tekil delegation yöntemi kullanılacak (bindTableEvents)
+	// Modal event'leri - tekil delegation yöntemi kullanılacak (bindTableEvents)
 
 		// Sıralama event'leri
 		this.bindSortingEvents();
@@ -2916,11 +2872,8 @@ class UretimPlanlamaPaneli {
 	}
 	
 	updateOverviewStats(plannedData, unplannedData) {
-		// Sadece PVC-CAM tablosu için gerekli - 6 kart kaldırıldı
-		// Bu fonksiyon artık boş çünkü üst kartlar kaldırıldı
+		// PVC-CAM tablosu için gerekli özet güncelleme
 	}
-	
-	// generateWeeklyOverview fonksiyonu kaldırıldı - haftalık tablo artık yok
 	
 	renderPvcCamOverview(plannedData, unplannedData) {
 		// PVC hesaplamaları
@@ -3054,12 +3007,10 @@ class UretimPlanlamaPaneli {
 			gunlukOrtalama: gunlukOrtalama,
 			gunSayisi: gunSayisi,
 			bitisTarihi: formatliTarih
-		};
-	}
-	
-	// showOverviewError fonksiyonu kaldırıldı - artık haftalık tablo yok
+	};
+}
 
-	// Legacy summary methods (eski planlanan tablo için)
+// Legacy summary methods (eski planlanan tablo için)
 	generateSummaryData(plannedData) {
 		if (!plannedData || !Array.isArray(plannedData) || plannedData.length === 0) {
 			return [];
@@ -3441,76 +3392,52 @@ class UretimPlanlamaPaneli {
 		const cachedData = this.dataCache.get(cacheKey);
 		if (cachedData && (now - cachedData.timestamp) < CONFIG.CACHE_DURATION) {
 			this.plannedTable.data = cachedData.data;
-			// legacy özet kaldırıldı; doğrudan tabloyu oluştur
 			this.renderPlannedTable();
 			this.updateCompletedToggle();
 			return;
 		}
 		
-		try {
-			this.showLoading();
-			this.lastUpdate = now;
-			
-			// Timeout ile API çağrısı
-			const apiCall = frappe.call({
-				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_production_planning_data',
-				args: { filters: JSON.stringify(filters) },
-				timeout: CONFIG.DATA_LOAD_TIMEOUT,
-				callback: (r) => {
-					this.hideLoading();
-					
-					if (r.exc) {
-						this.showError('Veri yüklenirken hata: ' + r.exc);
-						return;
-					}
-					
-					const data = r.message;
-					
-					if (data.error) {
-						this.showError(data.error);
-						return;
-					}
-					
-					this.plannedTable.data = data.planned || [];
-					
-					// Cache'e kaydet
-					this.dataCache.set(cacheKey, {
-						data: this.plannedTable.data,
-						timestamp: now
-					});
-					
-					// legacy özet kaldırıldı; doğrudan tabloyu oluştur
-					this.renderPlannedTable();
-					this.updateCompletedToggle();
-				},
-				error: (err) => {
-					this.hideLoading();
-					const errorMessage = err.message || err.exc || JSON.stringify(err);
-					this.showError('Bağlantı hatası: ' + errorMessage);
+	try {
+		this.lastUpdate = now;
+		
+		// Timeout ile API çağrısı
+		frappe.call({
+			method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_production_planning_data',
+			args: { filters: JSON.stringify(filters) },
+			timeout: CONFIG.DATA_LOAD_TIMEOUT,
+			callback: (r) => {
+				if (r.exc) {
+					this.showError('Veri yüklenirken hata: ' + r.exc);
+					return;
 				}
-			});
-
-			// Timeout kontrolü
-			// setTimeout(() => {
-			// 	if ($('#loading-spinner').is(':visible')) {
-			// 		this.hideLoading();
-			// 		this.showError('Veri yükleme zaman aşımı. Lütfen tekrar deneyin.');
-			// 	}
-			// }, CONFIG.DATA_LOAD_TIMEOUT + 1000);
-			
-		} catch (error) {
-			this.hideLoading();
-			this.showError('Veriler yüklenirken hata oluştu: ' + error.message);
-		}
+				
+				const data = r.message;
+				
+				if (data.error) {
+					this.showError(data.error);
+					return;
+				}
+				
+				this.plannedTable.data = data.planned || [];
+				
+				// Cache'e kaydet
+				this.dataCache.set(cacheKey, {
+					data: this.plannedTable.data,
+					timestamp: now
+				});
+				
+				this.renderPlannedTable();
+				this.updateCompletedToggle();
+			},
+			error: (err) => {
+				const errorMessage = err.message || err.exc || JSON.stringify(err);
+				this.showError('Bağlantı hatası: ' + errorMessage);
+			}
+		});
+		
+	} catch (error) {
+		this.showError('Veriler yüklenirken hata oluştu: ' + error.message);
 	}
-
-	// Loading state management - Optimized
-	showLoading() {
-		uiComponents.setLoading(true);
-	}
-
-	hideLoading() {
-		uiComponents.setLoading(false);
 	}
 
 	// Helper methods for table rendering
@@ -3898,8 +3825,6 @@ class UretimPlanlamaPaneli {
 		this.bindTableEvents();
 	}
 
-	// Duplicate createOptiRowElement fonksiyonu kaldırıldı - zaten 3657. satırda tanımlı
-
 	bindTableEvents() {
 		// event binding
 		
@@ -3981,15 +3906,11 @@ class UretimPlanlamaPaneli {
 		}, 3);
 	}
 
-	// Performance monitoring kaldırıldı - kullanılmıyor
-
 	// Cache management
 	clearCache() {
 		this.dataCache.clear();
 		modalManager.clearCache();
 		this.lastCacheUpdate = 0;
-		state.setPlannedData([]);
-		state.setUnplannedData([]);
 		this.showSuccess('Cache temizlendi');
 	}
 
@@ -4051,8 +3972,6 @@ class UretimPlanlamaPaneli {
 
 // Global instance - Enhanced with cleanup
 let appInstance = null;
-
-// Global functions kaldırıldı - kullanılmıyor
 
 // Work Orders Modal - Takip sayfasındaki çalışan mantığa göre düzeltildi
 window.showWorkOrdersPaneli = function(salesOrderId, productionPlan = null) {
