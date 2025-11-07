@@ -2358,8 +2358,8 @@ class UretimPlanlamaPaneli {
 		
 		if (!modal) return;
 
-		// Üretim planı bilgisini al
-		const productionPlan = this.getProductionPlanFromOpti(optiNo);
+		// Opti numarasını kullan (backend custom_opti_no ile arama yapıyor)
+		const productionPlan = optiNo;
 
 		// Toplamları hesapla - API field adlarına göre düzelt
 		let totalPvc = 0;
