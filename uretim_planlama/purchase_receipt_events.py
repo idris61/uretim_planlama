@@ -12,8 +12,8 @@ def validate(doc, method=None):
 def on_submit(doc, method=None):
     """Purchase Receipt on_submit event handler for profile items and material request status update"""
     
-    # Material Request statuslerini güncelle (birleştirilmiş MR'lar için)
-    update_material_request_statuses(doc)
+    # Material Request statuslerini güncelle (ERPNext'in kendi işlemleri bittikten SONRA)
+    frappe.db.after_commit.add(lambda: update_material_request_statuses(doc))
     
     for item in doc.items:
         # Profil ürünü kontrolü
@@ -103,7 +103,7 @@ def copy_material_request_references_from_po(doc):
 def update_material_request_statuses(doc):
     """
     Purchase Receipt Item'larındaki Material Request referanslarını bulup
-    MR statuslerini 'Received' olarak günceller
+    SADECE ALINAN item'ların received_qty'sini günceller ve MR statuslerini belirler
     
     Args:
         doc: Purchase Receipt document
@@ -111,10 +111,14 @@ def update_material_request_statuses(doc):
     if not doc.items:
         return
     
-    # MR'leri topla: {mr_name: True}
-    mr_names = set()
+    # MR'leri ve ilgili item bilgilerini topla: {mr_name: {item_code: {"qty": x, "stock_qty": y}}}
+    mr_item_data = {}
     
     for pr_item in doc.items:
+        item_code = pr_item.item_code
+        qty = pr_item.qty or 0
+        stock_qty = pr_item.stock_qty or 0
+        
         # Custom text field'dan MR referanslarını al
         mr_references_str = getattr(pr_item, "custom_material_request_references", "") or ""
         
@@ -123,26 +127,41 @@ def update_material_request_statuses(doc):
             # Virgülle ayrılmış string'i listeye çevir
             mr_list = [x.strip() for x in mr_references_str.split(",") if x.strip()]
             
-            # Her MR'i ekle
+            # Her MR için item bilgisini kaydet
             for mr_name in mr_list:
                 if mr_name:
-                    mr_names.add(mr_name)
+                    if mr_name not in mr_item_data:
+                        mr_item_data[mr_name] = {}
+                    
+                    # Aynı item birden fazla satırda olabilir, topla
+                    if item_code not in mr_item_data[mr_name]:
+                        mr_item_data[mr_name][item_code] = {"qty": 0, "stock_qty": 0}
+                    
+                    mr_item_data[mr_name][item_code]["qty"] += qty
+                    mr_item_data[mr_name][item_code]["stock_qty"] += stock_qty
         
         # Custom field boşsa, standart material_request field'ına bak
         else:
             old_mr = getattr(pr_item, "material_request", None)
             if old_mr:
-                mr_names.add(old_mr)
+                if old_mr not in mr_item_data:
+                    mr_item_data[old_mr] = {}
+                
+                if item_code not in mr_item_data[old_mr]:
+                    mr_item_data[old_mr][item_code] = {"qty": 0, "stock_qty": 0}
+                
+                mr_item_data[old_mr][item_code]["qty"] += qty
+                mr_item_data[old_mr][item_code]["stock_qty"] += stock_qty
     
     # Hiç MR referansı yoksa çık
-    if not mr_names:
+    if not mr_item_data:
         return
     
     # Her MR için status güncelle
     updated_mrs = []
     failed_mrs = []
     
-    for mr_name in mr_names:
+    for mr_name, items_dict in mr_item_data.items():
         try:
             # MR'nin mevcut durumunu kontrol et
             mr_doc = frappe.get_doc("Material Request", mr_name)
@@ -155,36 +174,47 @@ def update_material_request_statuses(doc):
                 # Sadece Purchase tipindeki MR'leri işle
                 continue
             
-            # Tüm items'ların received_qty'sini stock_qty'ye eşitle (100% received)
-            frappe.db.sql("""
-                UPDATE `tabMaterial Request Item`
-                SET received_qty = stock_qty,
-                    ordered_qty = stock_qty
-                WHERE parent = %s
-            """, (mr_name,))
+            # ✅ SADECE PR'daki item'ların received_qty'sini güncelle
+            for item_code, item_data in items_dict.items():
+                stock_qty = item_data["stock_qty"]
+                
+                # Bu item'ın received_qty'sini artır
+                frappe.db.sql("""
+                    UPDATE `tabMaterial Request Item`
+                    SET received_qty = LEAST(received_qty + %(stock_qty)s, stock_qty)
+                    WHERE parent = %(mr_name)s
+                    AND item_code = %(item_code)s
+                """, {"mr_name": mr_name, "item_code": item_code, "stock_qty": stock_qty})
             
             # per_received yüzdesini hesapla ve güncelle
             frappe.db.sql("""
                 UPDATE `tabMaterial Request` mr
-                SET per_received = 100,
-                    per_ordered = 100,
-                    modified = NOW()
+                SET per_received = (
+                    SELECT 
+                        CASE 
+                            WHEN SUM(stock_qty) > 0 
+                            THEN (SUM(received_qty) / SUM(stock_qty)) * 100
+                            ELSE 0
+                        END
+                    FROM `tabMaterial Request Item`
+                    WHERE parent = mr.name
+                ),
+                modified = NOW()
                 WHERE name = %s
-            """, (mr_name,))
-            
-            # MR'yi reload et
-            mr_doc.reload()
-            
-            # Status'ü "Received" yap
-            frappe.db.sql("""
-                UPDATE `tabMaterial Request`
-                SET status = 'Received', modified = NOW()
-                WHERE name = %s AND docstatus = 1
             """, (mr_name,))
             
             frappe.db.commit()
             
-            updated_mrs.append(f"{mr_name} (Received)")
+            # Status ERPNext'in kendi set_status() metoduna bırak
+            mr_doc.reload()
+            
+            try:
+                # ERPNext'in standart status güncelleme mekanizması
+                mr_doc.set_status(update=True)
+            except:
+                pass
+            
+            updated_mrs.append(f"{mr_name}")
             
         except Exception as e:
             # Hata durumunda log'a yaz ama işlemi durdurma
@@ -197,7 +227,7 @@ def update_material_request_statuses(doc):
     # Özet mesajı
     if updated_mrs:
         frappe.msgprint(
-            f"Material Request statusleri güncellendi (Received): {', '.join(updated_mrs)}",
+            f"Material Request statusleri güncellendi: {', '.join(updated_mrs)}",
             indicator="green"
         )
     

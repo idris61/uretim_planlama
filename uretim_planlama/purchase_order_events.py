@@ -71,7 +71,7 @@ def populate_material_request_references(doc):
 def update_material_request_statuses(doc, is_submit=True):
 	"""
 	Purchase Order Item'larındaki Material Request referanslarını bulup
-	MR items'larının ordered_qty'sini ve MR statuslerini günceller
+	SADECE SİPARİŞ EDİLEN item'ların ordered_qty'sini ve MR statuslerini günceller
 	
 	Args:
 		doc: Purchase Order document
@@ -80,7 +80,7 @@ def update_material_request_statuses(doc, is_submit=True):
 	if not doc.items:
 		return
 	
-	# MR'leri ve ilgili item bilgilerini topla: {mr_name: [(item_code, qty, stock_qty), ...]}
+	# MR'leri ve ilgili item bilgilerini topla: {mr_name: {item_code: {"qty": x, "stock_qty": y}}}
 	mr_item_data = {}
 	
 	for po_item in doc.items:
@@ -100,30 +100,33 @@ def update_material_request_statuses(doc, is_submit=True):
 			for mr_name in mr_list:
 				if mr_name:
 					if mr_name not in mr_item_data:
-						mr_item_data[mr_name] = []
-					mr_item_data[mr_name].append({
-						"item_code": item_code,
-						"qty": qty,
-						"stock_qty": stock_qty
-					})
+						mr_item_data[mr_name] = {}
+					
+					# Aynı item birden fazla satırda olabilir, topla
+					if item_code not in mr_item_data[mr_name]:
+						mr_item_data[mr_name][item_code] = {"qty": 0, "stock_qty": 0}
+					
+					mr_item_data[mr_name][item_code]["qty"] += qty
+					mr_item_data[mr_name][item_code]["stock_qty"] += stock_qty
 		
 		# Custom field boşsa, standart material_request field'ına bak
 		else:
 			old_mr = getattr(po_item, "material_request", None)
 			if old_mr:
 				if old_mr not in mr_item_data:
-					mr_item_data[old_mr] = []
-				mr_item_data[old_mr].append({
-					"item_code": item_code,
-					"qty": qty,
-					"stock_qty": stock_qty
-				})
+					mr_item_data[old_mr] = {}
+				
+				if item_code not in mr_item_data[old_mr]:
+					mr_item_data[old_mr][item_code] = {"qty": 0, "stock_qty": 0}
+				
+				mr_item_data[old_mr][item_code]["qty"] += qty
+				mr_item_data[old_mr][item_code]["stock_qty"] += stock_qty
 	
 	# Her MR için ordered_qty ve status güncelle
 	updated_mrs = []
 	failed_mrs = []
 	
-	for mr_name, items_data in mr_item_data.items():
+	for mr_name, items_dict in mr_item_data.items():
 		try:
 			# MR'nin mevcut durumunu kontrol et
 			mr_doc = frappe.get_doc("Material Request", mr_name)
@@ -139,28 +142,31 @@ def update_material_request_statuses(doc, is_submit=True):
 			# Cancel işleminde, eğer MR "Stopped" ise bırak
 			if not is_submit and mr_doc.status == "Stopped":
 				frappe.log_error(
-					f"Material Request {mr_name} 'Stopped' durumunda, 'Pending'e çevrilmedi",
+					f"Material Request {mr_name} 'Stopped' durumunda, işlem yapılmadı",
 					"Purchase Order MR Status Update"
 				)
 				continue
 			
-			# MR Items'ların ordered_qty'sini güncelle
-			# Submit: Tüm MR items'ın ordered_qty'sini stock_qty'ye eşitle (100% ordered)
-			# Cancel: ordered_qty'yi sıfırla
-			if is_submit:
-				# Submit: Tüm MR'yi ordered say
-				frappe.db.sql("""
-					UPDATE `tabMaterial Request Item`
-					SET ordered_qty = stock_qty
-					WHERE parent = %s
-				""", (mr_name,))
-			else:
-				# Cancel: ordered_qty'leri sıfırla
-				frappe.db.sql("""
-					UPDATE `tabMaterial Request Item`
-					SET ordered_qty = 0
-					WHERE parent = %s
-				""", (mr_name,))
+			# ✅ SADECE PO'daki item'ların ordered_qty'sini güncelle
+			for item_code, item_data in items_dict.items():
+				stock_qty = item_data["stock_qty"]
+				
+				if is_submit:
+					# Submit: Bu item'ın ordered_qty'sini artır
+					frappe.db.sql("""
+						UPDATE `tabMaterial Request Item`
+						SET ordered_qty = LEAST(ordered_qty + %(stock_qty)s, stock_qty)
+						WHERE parent = %(mr_name)s
+						AND item_code = %(item_code)s
+					""", {"mr_name": mr_name, "item_code": item_code, "stock_qty": stock_qty})
+				else:
+					# Cancel: Bu item'ın ordered_qty'sini azalt
+					frappe.db.sql("""
+						UPDATE `tabMaterial Request Item`
+						SET ordered_qty = GREATEST(ordered_qty - %(stock_qty)s, 0)
+						WHERE parent = %(mr_name)s
+						AND item_code = %(item_code)s
+					""", {"mr_name": mr_name, "item_code": item_code, "stock_qty": stock_qty})
 			
 			# per_ordered yüzdesini hesapla ve güncelle
 			frappe.db.sql("""
@@ -190,16 +196,7 @@ def update_material_request_statuses(doc, is_submit=True):
 			else:
 				final_status = "Pending"
 			
-			# Önce Material Request'in kendi set_status metodunu çağır
-			# Bu, ERPNext'in status_map'ine göre status belirler
-			try:
-				mr_doc.set_status(update=True)
-			except:
-				pass
-			
-			# Sonra bizim istediğimiz status'ü FORCE et
-			# Çünkü ERPNext'in mekanizması per_ordered < 100 için "Ordered" vermez
-			# Ama biz birleştirilmiş itemlar için tüm MR'leri "Ordered" saymak istiyoruz
+			# Status'ü güncelle
 			frappe.db.sql("""
 				UPDATE `tabMaterial Request`
 				SET status = %s, modified = NOW()
