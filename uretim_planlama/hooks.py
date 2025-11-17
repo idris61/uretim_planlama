@@ -14,7 +14,7 @@ fixtures = [
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
-	# {"dt": "Workflow"},
+	{"dt": "Workflow"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
 	# {"dt": "Item Group"},
 	# {"dt": "Workstation"},
