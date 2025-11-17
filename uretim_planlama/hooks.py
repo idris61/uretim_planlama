@@ -49,6 +49,7 @@ page_js = {
 
 doctype_js = {
 	"Production Plan": [
+		"public/js/production_plan_list.js",
 		"public/js/production_plan_chart.js",
 		"public/js/production_plan_table.js",
 		"public/js/opti_plan_table.js",
@@ -139,7 +140,8 @@ doc_events = {
 	},
 	"Work Order": {
 		"before_validate": "uretim_planlama.custom_hooks.work_order.before_validate.auto_wip_warehouse",
-		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
+		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel",
+		"on_update_after_submit": "uretim_planlama.custom_hooks.work_order.on_update_after_submit.on_update_after_submit"
 	},
 	"Delivery Note": {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
@@ -215,7 +217,6 @@ modules = {
 override_doctype_class = {
 	"Production Plan": "uretim_planlama.manufacturing.doctype.production_plan.production_plan.CustomProductionPlan"
 }
-
 
 scheduler_events = {
 	"daily": [

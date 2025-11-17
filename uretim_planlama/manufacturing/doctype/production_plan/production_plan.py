@@ -11,13 +11,14 @@ except ImportError:
 class CustomProductionPlan(BaseProductionPlan):
     """
     Production Plan'ın status değişikliklerini workflow_state ile senkronize eder.
-    Hook kullanmadan, class override ile çalışır.
+    Work Order durumlarını kontrol ederek otomatik workflow geçişleri yapar.
     """
     
     def set_status(self, close=None, update_bin=False):
         """
         set_status() metodunu override edip, status değişikliklerini 
         workflow_state ile senkronize ediyoruz.
+        Work Order durumlarını kontrol ederek otomatik geçişler yapıyoruz.
         """
         # Önce orijinal metodu çalıştır
         super().set_status(close=close, update_bin=update_bin)
@@ -26,59 +27,87 @@ class CustomProductionPlan(BaseProductionPlan):
         if self.docstatus != 1:
             return
         
+        # Workflow aktif mi kontrol et
+        active_workflow = frappe.get_all(
+            "Workflow",
+            filters={"document_type": "Production Plan", "is_active": 1},
+            fields=["name"],
+            limit=1
+        )
+        if not active_workflow or active_workflow[0].name != "Production Plan – Gerçek Durum":
+            return
+        
         # Status'a göre workflow_state'yi güncelle
         try:
             current_workflow_state = self.workflow_state or ""
             
-            # Status "In Process" olduğunda ve workflow_state "Üretime Hazır" ise
-            # "Devam Ediyor" durumuna geç
-            if self.status == "In Process" and current_workflow_state == "Üretime Hazır":
-                # Bağlı Job Card'lardan biri "Work In Progress" mi kontrol et
-                work_orders = frappe.get_all(
-                    "Work Order",
-                    filters={"production_plan": self.name},
-                    pluck="name"
-                )
-                
-                if work_orders:
-                    has_work_in_progress = frappe.db.exists(
-                        "Job Card",
-                        {
-                            "work_order": ["in", work_orders],
-                            "status": "Work In Progress",
-                            "docstatus": ["<", 2]
-                        }
-                    )
-                    
-                    if has_work_in_progress:
+            # Bağlı Work Order'ları kontrol et
+            work_orders = frappe.get_all(
+                "Work Order",
+                filters={"production_plan": self.name, "docstatus": ["<", 2]},
+                fields=["name", "status", "qty", "produced_qty"],
+            )
+            
+            if not work_orders:
+                # Work Order yoksa işlem yapma
+                return
+            
+            # Work Order durumlarını analiz et (birden fazla work order olabilir)
+            wo_statuses = [wo.status for wo in work_orders]
+            total_wo_count = len(work_orders)
+            completed_count = sum(1 for status in wo_statuses if status == "Completed")
+            in_process_count = sum(1 for status in wo_statuses if status in ["In Process", "In Progress"])
+            cancelled_count = sum(1 for status in wo_statuses if status == "Cancelled")
+            active_wo_count = total_wo_count - cancelled_count  # İptal edilenler hariç
+            
+            # Durum 1: TÜM aktif Work Order'lar tamamlandı → "Tamamlandı"
+            # (İptal edilen work order'lar sayılmaz)
+            if active_wo_count > 0 and completed_count == active_wo_count and self.status == "Completed":
+                if current_workflow_state not in ["Tamamlandı"]:
+                    # Önce "Devam Ediyor" durumuna geç (eğer değilse)
+                    if current_workflow_state == "Üretime Hazır":
                         try:
                             apply_workflow(self, "Üretimi Başlat")
+                            frappe.db.commit()
+                            # Reload doc to get updated workflow_state
+                            self.reload()
+                        except Exception as e:
+                            frappe.log_error(
+                                title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat",
+                                message=str(e)
+                            )
+                    
+                    # Sonra "Tamamlandı" durumuna geç
+                    if self.workflow_state == "Devam Ediyor":
+                        try:
+                            apply_workflow(self, "Üretimi Bitir")
+                            frappe.db.commit()
                             frappe.logger().info(
-                                f"Production Plan {self.name} workflow_state 'Devam Ediyor' olarak güncellendi "
-                                f"(status: In Process, Job Card çalışıyor)"
+                                f"Production Plan {self.name} workflow_state 'Tamamlandı' olarak güncellendi "
+                                f"(Tüm {active_wo_count} aktif Work Order tamamlandı)"
                             )
                         except Exception as e:
-                            # Workflow action bulunamazsa sessiz geç
                             frappe.log_error(
-                                title=f"Production Plan Workflow Update ({self.name})",
+                                title=f"Production Plan Workflow Update ({self.name}) - Üretimi Bitir",
                                 message=str(e)
                             )
             
-            # Status "Completed" olduğunda ve workflow_state "Devam Ediyor" ise
-            # "Tamamlandı" durumuna geç
-            elif self.status == "Completed" and current_workflow_state == "Devam Ediyor":
-                try:
-                    apply_workflow(self, "Üretimi Bitir")
-                    frappe.logger().info(
-                        f"Production Plan {self.name} workflow_state 'Tamamlandı' olarak güncellendi "
-                        f"(status: Completed)"
-                    )
-                except Exception as e:
-                    # Workflow action bulunamazsa sessiz geç
-                    frappe.log_error(
-                        title=f"Production Plan Workflow Update ({self.name})",
-                        message=str(e)
-                    )
+            # Durum 2: En az bir Work Order "In Process" veya bazıları tamamlandı ama hepsi değil → "Devam Ediyor"
+            # (Bazı work order'lar tamamlandı, bazıları devam ediyor veya henüz başlamadı)
+            elif (in_process_count > 0 or (completed_count > 0 and completed_count < active_wo_count)) and self.status == "In Process":
+                if current_workflow_state == "Üretime Hazır":
+                    try:
+                        apply_workflow(self, "Üretimi Başlat")
+                        frappe.db.commit()
+                        frappe.logger().info(
+                            f"Production Plan {self.name} workflow_state 'Devam Ediyor' olarak güncellendi "
+                            f"(Work Order durumu: {in_process_count} devam ediyor, {completed_count}/{active_wo_count} tamamlandı)"
+                        )
+                    except Exception as e:
+                        frappe.log_error(
+                            title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat",
+                            message=str(e)
+                        )
                     
         except Exception as e:
             # Hata durumunda orijinal fonksiyon çalışmaya devam etsin
