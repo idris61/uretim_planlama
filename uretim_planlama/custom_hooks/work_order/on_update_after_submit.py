@@ -13,25 +13,31 @@ def on_update_after_submit(doc, method=None):
 	if not doc.production_plan:
 		return
 	
-	try:
-		# Production Plan'ı yükle
-		production_plan = frappe.get_doc("Production Plan", doc.production_plan)
-		
-		# Sadece submitted Production Plan'lar için işlem yap
-		if production_plan.docstatus != 1:
-			return
-		
-		# set_status metodunu çağır (update_bin=False, close=None)
-		# Bu metod override edilmiş CustomProductionPlan.set_status() metodunu çağıracak
-		# ve Work Order durumlarını kontrol ederek workflow_state'yi güncelleyecek
-		production_plan.set_status(close=None, update_bin=False)
-		production_plan.save(ignore_permissions=True)
-		frappe.db.commit()
-		
-	except Exception as e:
-		# Hata durumunda log kaydet ama işlemi durdurma
-		frappe.log_error(
-			title=f"Work Order Production Plan Status Update Error ({doc.name})",
-			message=str(e)
-		)
+	# after_commit kullanarak asenkron hale getir
+	# Böylece Job Card submit işlemi tamamlandıktan sonra çalışır
+	production_plan_name = doc.production_plan  # Closure için değeri sakla
+	
+	def update_production_plan():
+		try:
+			# Production Plan'ı yükle
+			production_plan = frappe.get_doc("Production Plan", production_plan_name)
+			
+			# Sadece submitted Production Plan'lar için işlem yap
+			if production_plan.docstatus != 1:
+				return
+			
+			# set_status metodunu çağır (update_bin=False, close=None)
+			# Bu metod override edilmiş CustomProductionPlan.set_status() metodunu çağıracak
+			# ve Work Order durumlarını kontrol ederek workflow_state'yi güncelleyecek
+			production_plan.set_status(close=None, update_bin=False)
+			
+		except Exception as e:
+			# Hata durumunda log kaydet ama işlemi durdurma
+			frappe.log_error(
+				title=f"Work Order Production Plan Status Update Error ({doc.name})",
+				message=str(e)
+			)
+	
+	# after_commit ile asenkron çalıştır
+	frappe.db.after_commit.add(update_production_plan)
 

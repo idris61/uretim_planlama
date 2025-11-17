@@ -1,5 +1,5 @@
 import frappe
-from frappe.model.workflow import apply_workflow
+from frappe.model.workflow import apply_workflow, get_transitions
 
 # ozerpanjobcard app'i varsa onun class'ını, yoksa ERPNext'in class'ını kullan
 try:
@@ -60,53 +60,102 @@ class CustomProductionPlan(BaseProductionPlan):
             cancelled_count = sum(1 for status in wo_statuses if status == "Cancelled")
             active_wo_count = total_wo_count - cancelled_count  # İptal edilenler hariç
             
+            # Mevcut durum için geçerli action'ları kontrol et
+            # Eğer workflow_state yoksa veya geçersizse, işlem yapma
+            if not current_workflow_state:
+                return
+            
+            try:
+                available_actions = [t.action for t in get_transitions(self)]
+            except Exception:
+                # get_transitions hata verirse (örneğin workflow_state geçersizse) işlem yapma
+                return
+            
             # Durum 1: TÜM aktif Work Order'lar tamamlandı → "Tamamlandı"
             # (İptal edilen work order'lar sayılmaz)
             if active_wo_count > 0 and completed_count == active_wo_count and self.status == "Completed":
                 if current_workflow_state not in ["Tamamlandı"]:
                     # Önce "Devam Ediyor" durumuna geç (eğer değilse)
                     if current_workflow_state == "Üretime Hazır":
-                        try:
-                            apply_workflow(self, "Üretimi Başlat")
-                            frappe.db.commit()
-                            # Reload doc to get updated workflow_state
-                            self.reload()
-                        except Exception as e:
-                            frappe.log_error(
-                                title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat",
-                                message=str(e)
-                            )
+                        if "Üretimi Başlat" in available_actions:
+                            try:
+                                apply_workflow(self, "Üretimi Başlat")
+                                frappe.db.commit()
+                                # Doc'u yeniden yükle
+                                self.reload()
+                                # workflow_state'yi veritabanından kontrol et
+                                updated_state = frappe.db.get_value("Production Plan", self.name, "workflow_state")
+                                if updated_state != "Devam Ediyor":
+                                    return  # Geçiş başarısız oldu
+                                # Available actions'ı güncelle
+                                try:
+                                    available_actions = [t.action for t in get_transitions(self)]
+                                except Exception:
+                                    return
+                            except Exception as e:
+                                frappe.log_error(
+                                    title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat",
+                                    message=f"Hata: {str(e)}, Mevcut durum: {current_workflow_state}, Mevcut action'lar: {available_actions}"
+                                )
+                                return  # Hata varsa devam etme
+                        else:
+                            # Action mevcut değil, işlem yapma
+                            return
                     
                     # Sonra "Tamamlandı" durumuna geç
-                    if self.workflow_state == "Devam Ediyor":
+                    # workflow_state'yi veritabanından kontrol et
+                    current_state = frappe.db.get_value("Production Plan", self.name, "workflow_state")
+                    if current_state == "Devam Ediyor":
+                        # Doc'u yeniden yükle
+                        self.reload()
+                        # Available actions'ı tekrar kontrol et
                         try:
-                            apply_workflow(self, "Üretimi Bitir")
-                            frappe.db.commit()
-                            frappe.logger().info(
-                                f"Production Plan {self.name} workflow_state 'Tamamlandı' olarak güncellendi "
-                                f"(Tüm {active_wo_count} aktif Work Order tamamlandı)"
-                            )
-                        except Exception as e:
+                            available_actions = [t.action for t in get_transitions(self)]
+                        except Exception:
+                            return
+                        
+                        if "Üretimi Bitir" in available_actions:
+                            try:
+                                apply_workflow(self, "Üretimi Bitir")
+                                frappe.db.commit()
+                                frappe.logger().info(
+                                    f"Production Plan {self.name} workflow_state 'Tamamlandı' olarak güncellendi "
+                                    f"(Tüm {active_wo_count} aktif Work Order tamamlandı)"
+                                )
+                            except Exception as e:
+                                frappe.log_error(
+                                    title=f"Production Plan Workflow Update ({self.name}) - Üretimi Bitir",
+                                    message=f"Hata: {str(e)}, Mevcut durum: {current_state}, Mevcut action'lar: {available_actions}"
+                                )
+                        else:
+                            # Action mevcut değil, log kaydet
                             frappe.log_error(
-                                title=f"Production Plan Workflow Update ({self.name}) - Üretimi Bitir",
-                                message=str(e)
+                                title=f"Production Plan Workflow Update ({self.name}) - Üretimi Bitir Action Bulunamadı",
+                                message=f"Mevcut durum: {current_state}, Mevcut action'lar: {available_actions}"
                             )
             
             # Durum 2: En az bir Work Order "In Process" veya bazıları tamamlandı ama hepsi değil → "Devam Ediyor"
             # (Bazı work order'lar tamamlandı, bazıları devam ediyor veya henüz başlamadı)
             elif (in_process_count > 0 or (completed_count > 0 and completed_count < active_wo_count)) and self.status == "In Process":
                 if current_workflow_state == "Üretime Hazır":
-                    try:
-                        apply_workflow(self, "Üretimi Başlat")
-                        frappe.db.commit()
-                        frappe.logger().info(
-                            f"Production Plan {self.name} workflow_state 'Devam Ediyor' olarak güncellendi "
-                            f"(Work Order durumu: {in_process_count} devam ediyor, {completed_count}/{active_wo_count} tamamlandı)"
-                        )
-                    except Exception as e:
+                    if "Üretimi Başlat" in available_actions:
+                        try:
+                            apply_workflow(self, "Üretimi Başlat")
+                            frappe.db.commit()
+                            frappe.logger().info(
+                                f"Production Plan {self.name} workflow_state 'Devam Ediyor' olarak güncellendi "
+                                f"(Work Order durumu: {in_process_count} devam ediyor, {completed_count}/{active_wo_count} tamamlandı)"
+                            )
+                        except Exception as e:
+                            frappe.log_error(
+                                title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat",
+                                message=f"Hata: {str(e)}, Mevcut durum: {current_workflow_state}, Mevcut action'lar: {available_actions}"
+                            )
+                    else:
+                        # Action mevcut değil, log kaydet
                         frappe.log_error(
-                            title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat",
-                            message=str(e)
+                            title=f"Production Plan Workflow Update ({self.name}) - Üretimi Başlat Action Bulunamadı",
+                            message=f"Mevcut durum: {current_workflow_state}, Mevcut action'lar: {available_actions}"
                         )
                     
         except Exception as e:
