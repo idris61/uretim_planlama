@@ -15,7 +15,6 @@ fixtures = [
 	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Workflow"},
-	# {"dt": "Workflow State"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
 	# {"dt": "Item Group"},
 	# {"dt": "Workstation"},
@@ -138,9 +137,6 @@ doc_events = {
 	"Profile Stock Ledger": {
 		"after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
 	},
-	# "Job Card": {
-	# 	"on_update": "uretim_planlama.sales_order_hooks.raw_materials.release_reservations_on_job_card_complete"
-	# },
 	"Work Order": {
 		"before_validate": "uretim_planlama.custom_hooks.work_order.before_validate.auto_wip_warehouse",
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel"
@@ -211,6 +207,13 @@ modules = {
 		"icon": "octicon octicon-file-directory",
 		"label": "Üretim Planlama",
 	}
+}
+
+# DocType Class Override
+# Production Plan'ın set_status() metodunu override edip
+# status değişikliklerini workflow_state ile senkronize ediyoruz
+override_doctype_class = {
+	"Production Plan": "uretim_planlama.manufacturing.doctype.production_plan.production_plan.CustomProductionPlan"
 }
 
 
