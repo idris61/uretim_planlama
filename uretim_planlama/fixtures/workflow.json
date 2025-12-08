@@ -741,19 +741,6 @@
     "send_email_to_creator": 0,
     "state": "Üretime Hazır",
     "workflow_builder_id": null
-   },
-   {
-    "action": "Planı İptal Et",
-    "allow_self_approval": 0,
-    "allowed": "Üretim Müdürü",
-    "condition": null,
-    "next_state": "İptal Edildi",
-    "parent": "Production Plan – Gerçek Durum",
-    "parentfield": "transitions",
-    "parenttype": "Workflow",
-    "send_email_to_creator": 0,
-    "state": "Yeni Plan",
-    "workflow_builder_id": null
    }
   ],
   "workflow_data": null,

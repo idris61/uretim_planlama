@@ -109,6 +109,7 @@ doctype_js = {
 	],
 	"Profile Entry Item": "uretim_planlama/uretim_planlama/doctype/profile_entry_item/profile_entry_item.js",
 	"Profile Exit Item": "uretim_planlama/uretim_planlama/doctype/profile_exit_item/profile_exit_item.js",
+	"Contract": "uretim_planlama/public/js/contract_custom.js",
 }
 
 # DocType Event Hook'ları (yalnızca aktif kullanılanlar)
@@ -214,8 +215,10 @@ modules = {
 # DocType Class Override
 # Production Plan'ın set_status() metodunu override edip
 # status değişikliklerini workflow_state ile senkronize ediyoruz
+# Contract'ın amendment davranışını önlemek için override ediyoruz
 override_doctype_class = {
-	"Production Plan": "uretim_planlama.manufacturing.doctype.production_plan.production_plan.CustomProductionPlan"
+	"Production Plan": "uretim_planlama.manufacturing.doctype.production_plan.production_plan.CustomProductionPlan",
+	"Contract": "uretim_planlama.crm.doctype.contract.contract.CustomContract"
 }
 
 scheduler_events = {
