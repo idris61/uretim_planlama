@@ -8,112 +8,212 @@ from frappe.utils import flt
 
 @frappe.whitelist()
 def get_profile_stock_panel(profil=None, depo=None, scrap=0):
-	"""Profil stok paneli için veri döner"""
+	"""
+	Profil Stok Paneli verilerini döner.
+
+	İş kuralları:
+	- Depo Bazında Toplam Profil Stoku  -> ERPNext çekirdek stok verisinden (Bin)
+	- Boy Bazında Profil Stok Detayı   -> Profile Stock Ledger (özel belge)
+	- Parça Profil Kayıtları (scrap)   -> Profile Stock Ledger (is_scrap_piece = 1)
+	- Hammadde Rezervleri              -> Rezerved Raw Materials
+	"""
 	try:
-		scrap = int(scrap)
-		
-		# Filtreleri hazırla
-		filters = {"is_scrap_piece": scrap}
-		
-		# Profil filtresi
-		if profil:
-			filters["item_code"] = profil
-		
-		# Depo filtresi (şimdilik kullanılmıyor çünkü profil stok takibinde depo yok)
-		# if depo:
-		#     filters["warehouse"] = depo
-		
-		# Profil stoklarını getir
-		stocks = frappe.get_all(
-			"Profile Stock Ledger",
-			filters=filters,
-			fields=["item_code", "length", "qty", "total_length", "modified"],
-			order_by="item_code, length"
+		scrap = int(scrap or 0)
+
+		# 1) Depo bazında stoklar (çekirdek ERPNext stok verisi)
+		depo_stoklari = _get_depo_bazinda_stoklar(profil=profil, depo=depo)
+
+		# 2) Boy bazında ve scrap profiller (Profile Stock Ledger)
+		boy_bazinda_stok, scrap_profiller, ledger_stats = _get_profile_ledger_stoklar(
+			profil=profil,
+			scrap=scrap,
 		)
-		
-		# Ürün bilgilerini ekle
-		for stock in stocks:
-			item_name = frappe.db.get_value("Item", stock.item_code, "item_name")
-			stock["item_name"] = item_name or stock.item_code
-			stock["last_updated"] = frappe.utils.time_diff(stock.modified, frappe.utils.now())
-		
-		# JavaScript'te beklenen veri yapısını oluştur
-		depo_stoklari = []
-		boy_bazinda_stok = []
-		scrap_profiller = []
-		hammadde_rezervleri = []
-		
-		# Hammadde rezervleri verisini çek
-		try:
-			rezerv_filters = {}
-			if profil:
-				rezerv_filters["item_code"] = profil
-			
-			rezervler = frappe.get_all(
-				"Rezerved Raw Materials",
-				filters=rezerv_filters,
-				fields=["item_code", "quantity", "sales_order", "modified"],
-				order_by="item_code"
-			)
-			
-			for rezerv in rezervler:
-				item_name = frappe.db.get_value("Item", rezerv.item_code, "item_name")
-				hammadde_rezervleri.append({
-					"item_code": rezerv.item_code,
-					"item_name": item_name or rezerv.item_code,
-					"quantity": rezerv.quantity or 0,
-					"sales_order": rezerv.sales_order or ""
-				})
-		except Exception as e:
-			frappe.log_error(f"Hammadde rezervleri çekme hatası: {str(e)}")
-		
-		for stock in stocks:
-			# Depo bazında stok (varsayılan depo)
-			depo_stoklari.append({
-				"depo": "Ana Depo",  # Varsayılan depo
-				"profil": stock.item_code,
-				"profil_adi": stock.item_name,
-				"toplam_stok_mtul": stock.total_length or 0
-			})
-			
-			# Boy bazında stok
-			boy_bazinda_stok.append({
-				"profil": stock.item_code,
-				"profil_adi": stock.item_name,
-				"boy": stock.length or 0,
-				"adet": stock.qty or 0,
-				"mtul": stock.total_length or 0,
-				"rezerv": 0,  # Rezerv bilgisi yok
-				"guncelleme": stock.modified
-			})
-			
-			# Scrap profiller (eğer scrap=1 ise)
-			if scrap:
-				scrap_profiller.append({
-					"profil": stock.item_code,
-					"profil_adi": stock.item_name,
-					"boy": stock.length or 0,
-					"adet": stock.qty or 0,
-					"mtul": stock.total_length or 0,
-					"aciklama": "Hurda profil",
-					"giris_tarihi": stock.modified,
-					"guncelleme": stock.modified
-				})
-		
+
+		# 3) Hammadde rezervleri
+		hammadde_rezervleri = _get_hammadde_rezervleri(profil=profil)
+
 		return {
 			"depo_stoklari": depo_stoklari,
 			"boy_bazinda_stok": boy_bazinda_stok,
 			"scrap_profiller": scrap_profiller,
 			"hammadde_rezervleri": hammadde_rezervleri,
-			"stocks": stocks,  # Orijinal veri de korunuyor
-			"total_items": len(stocks),
-			"total_qty": sum(stock.qty for stock in stocks),
-			"total_length": sum(stock.total_length for stock in stocks)
+			# Genel istatistikler (Profile Stock Ledger bazlı)
+			"total_items": ledger_stats["total_items"],
+			"total_qty": ledger_stats["total_qty"],
+			"total_length": ledger_stats["total_length"],
 		}
-		
+
 	except Exception as e:
 		frappe.log_error(f"get_profile_stock_panel error: {str(e)}", "Profile Stock Panel Error")
 		return {"error": str(e)}
+
+
+def _get_depo_bazinda_stoklar(profil: str | None, depo: str | None):
+	"""
+	ERPNext çekirdek stok verisinden (Bin) depo bazında fiziki stok miktarlarını getirir.
+
+	- Ürün kartındaki Stok Seviyeleri ve Stok Özeti raporundaki dağılımla uyumlu olmalı.
+	- Profil seçilmemişse, depo bazında profil bilgisi gösterilmez (boş döner).
+	"""
+	# Profil seçili değilse bu tabloyu boş bırakıyoruz
+	if not profil:
+		return []
+
+	depo_stoklari = []
+
+	item_name = frappe.db.get_value("Item", profil, "item_name") or profil
+
+	bin_filters = {"item_code": profil}
+	if depo:
+		bin_filters["warehouse"] = depo
+
+	bins = frappe.get_all(
+		"Bin",
+		filters=bin_filters,
+		fields=["warehouse", "actual_qty"],
+		order_by="warehouse",
+	)
+
+	for row in bins:
+		actual_qty = flt(row.actual_qty)
+		if not actual_qty:
+			continue
+
+		depo_stoklari.append(
+			{
+				"depo": row.warehouse,
+				"profil": profil,
+				"profil_adi": item_name,
+				"toplam_stok_mtul": actual_qty,
+			}
+		)
+
+	return depo_stoklari
+
+
+def _get_profile_ledger_stoklar(profil: str | None, scrap: int):
+	"""
+	Profile Stock Ledger'dan boy bazında stok ve scrap verilerini çeker.
+
+	- Boy Bazında Profil Stok Detayı tablosu için temel kaynaktır.
+	- Scrap = 1 iken parça profiller listesi de oluşturulur.
+	"""
+	filters = {"is_scrap_piece": scrap}
+	if profil:
+		filters["item_code"] = profil
+
+	# Performans: Profil seçilmeden tüm kayıtları çekmek çok yavaş olabilir
+	# Bu nedenle limit ekliyoruz. İş kuralı gereği daha fazla kayıt gerekiyorsa
+	# sayfalama veya farklı bir yaklaşım düşünülebilir.
+	limit = 1000 if not profil else None
+
+	stocks = frappe.get_all(
+		"Profile Stock Ledger",
+		filters=filters,
+		fields=["item_code", "length", "qty", "total_length", "modified"],
+		order_by="item_code, length",
+		limit=limit,
+	)
+
+	if not stocks:
+		return [], [], {"total_items": 0, "total_qty": 0, "total_length": 0}
+
+	# Ürün isimlerini tek sorguda al (N+1 sorgu yerine)
+	item_codes = {row.item_code for row in stocks}
+	item_names = {
+		row.item_code: (row.item_name or row.item_code)
+		for row in frappe.get_all(
+			"Item",
+			filters={"item_code": ["in", list(item_codes)]},
+			fields=["item_code", "item_name"],
+		)
+	}
+
+	boy_bazinda_stok = []
+	scrap_profiller = []
+
+	for stock in stocks:
+		item_name = item_names.get(stock.item_code, stock.item_code)
+
+		# Boy bazında stok detayı
+		boy_bazinda_stok.append(
+			{
+				"profil": stock.item_code,
+				"profil_adi": item_name,
+				"boy": stock.length or 0,
+				"adet": stock.qty or 0,
+				"mtul": stock.total_length or 0,
+				"guncelleme": stock.modified,
+			}
+		)
+
+		# Scrap profiller (eğer scrap=1 ise)
+		if scrap:
+			scrap_profiller.append(
+				{
+					"profil": stock.item_code,
+					"profil_adi": item_name,
+					"boy": stock.length or 0,
+					"adet": stock.qty or 0,
+					"mtul": stock.total_length or 0,
+					"aciklama": _("Hurda profil"),
+					"tarih": stock.modified,
+					"guncelleme": stock.modified,
+				}
+			)
+
+	stats = {
+		"total_items": len(stocks),
+		"total_qty": sum(flt(stock.qty) for stock in stocks),
+		"total_length": sum(flt(stock.total_length) for stock in stocks),
+	}
+
+	return boy_bazinda_stok, scrap_profiller, stats
+
+
+def _get_hammadde_rezervleri(profil: str | None):
+	"""Hammadde rezervlerini tek seferde ve performanslı şekilde döner."""
+	rezerv_filters = {}
+	if profil:
+		rezerv_filters["item_code"] = profil
+
+	try:
+		rezervler = frappe.get_all(
+			"Rezerved Raw Materials",
+			filters=rezerv_filters,
+			fields=["item_code", "quantity", "sales_order"],
+			order_by="item_code",
+		)
+	except Exception as e:
+		frappe.log_error(f"Hammadde rezervleri çekme hatası: {str(e)}")
+		return []
+
+	if not rezervler:
+		return []
+
+	item_codes = {row.item_code for row in rezervler}
+	item_names = {
+		row.item_code: (row.item_name or row.item_code)
+		for row in frappe.get_all(
+			"Item",
+			filters={"item_code": ["in", list(item_codes)]},
+			fields=["item_code", "item_name"],
+		)
+	}
+
+	hammadde_rezervleri = []
+	for rezerv in rezervler:
+		item_name = item_names.get(rezerv.item_code, rezerv.item_code)
+		hammadde_rezervleri.append(
+			{
+				"item_code": rezerv.item_code,
+				"item_name": item_name,
+				"quantity": flt(rezerv.quantity),
+				"sales_order": rezerv.sales_order or "",
+			}
+		)
+
+	return hammadde_rezervleri
 
 
 @frappe.whitelist()

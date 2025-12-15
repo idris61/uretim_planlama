@@ -63,6 +63,9 @@
    "label": "End Customer"
   }
  ],
+ "indexes": [
+  "idx_rezerved_rm_item (item_code)"
+ ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],

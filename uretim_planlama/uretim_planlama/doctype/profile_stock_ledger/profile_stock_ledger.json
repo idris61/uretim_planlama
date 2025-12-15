@@ -66,6 +66,10 @@
    "label": "Hurda Parça"
   }
  ],
+ "indexes": [
+  "idx_item_scrap_length (item_code, is_scrap_piece, length)",
+  "idx_profile_ledger_scrap (is_scrap_piece)"
+ ],
  "links": [],
  "modified": "2025-06-27 00:19:54.028796",
  "modified_by": "Administrator",

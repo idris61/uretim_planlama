@@ -102,13 +102,13 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
 
     // Filtrele butonu event
     $(document).on('click', '#filtrele-btn', function() {
-        get_and_render_panel();
+        get_and_render_panel(true);
     });
 
     // Sadece Parça filtresi değiştiğinde tablo görünürlüğünü ayarla
     $(document).on('change', '#scrap-filter', function() {
         toggle_tables();
-        get_and_render_panel();
+        get_and_render_panel(false);
     });
 
     function toggle_tables() {
@@ -126,8 +126,8 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
     fill_filters();
     // Sayfa ilk açıldığında tablo görünürlüğünü ayarla
     toggle_tables();
-    // Sayfa ilk açıldığında veri çek
-    get_and_render_panel();
+    // Sayfa ilk açıldığında genel veriyi çek (profil/depo seçilmemiş olabilir)
+    get_and_render_panel(false);
 
     // Gerekli kütüphaneleri yükle
     frappe.require([
@@ -189,9 +189,39 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         });
     }
 
-    function get_and_render_panel() {
+    function show_loading() {
+        const loading_html = '<div style="text-align:center; padding:12px; color:#666;">Veriler yükleniyor...</div>';
+        // Depo tablosu için loading durumu, profil seçimine göre ayrı yönetilecek
+        $('#profil-boy-tablo').html(loading_html);
+        $('#scrap-profile-tablo').html(loading_html);
+        $('#hammadde-rezervleri-tablo').html(loading_html);
+    }
+
+    function clear_tables(message_html) {
+        $('#erpnext-stok-tablo').html(message_html || '');
+        $('#profil-boy-tablo').html(message_html || '');
+        $('#scrap-profile-tablo').html(message_html || '');
+        $('#hammadde-rezervleri-tablo').html(message_html || '');
+    }
+
+    function get_and_render_panel(is_manual_filter) {
+        const profil = $('#profil-filter').val() || undefined;
+
+        const loading_html = '<div style="text-align:center; padding:12px; color:#666;">Veriler yükleniyor...</div>';
+        const no_profile_html = '<div style="text-align:center; padding:12px; color:#666;">Depo bazında stok için lütfen bir profil seçin.</div>';
+
+        // Depo tablosu: profil varsa loading, yoksa açıklama mesajı
+        if (profil) {
+            $('#erpnext-stok-tablo').html(loading_html);
+        } else {
+            $('#erpnext-stok-tablo').html(no_profile_html);
+        }
+
+        // Diğer tablolar için standart loading
+        show_loading();
+
         const args = {
-            profil: $('#profil-filter').val() || undefined,
+            profil: profil,
             depo: $('#depo-filter').val() || undefined,
             scrap: $('#scrap-filter').is(':checked') ? 1 : undefined
         };
@@ -202,7 +232,9 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                 const data = r.message || {};
                 // Debug log kaldırıldı
                 // Her tabloya özel veri
-                render_erpnext_stok_tablo(data.depo_stoklari || []);
+                if (profil) {
+                    render_erpnext_stok_tablo(data.depo_stoklari || []);
+                }
                 render_boy_bazinda_tablo(data.boy_bazinda_stok || []);
                 render_scrap_profile_tablo(data.scrap_profiller || []);
                 render_hammadde_rezervleri_tablo(data.hammadde_rezervleri || []);
@@ -221,7 +253,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.toplam_stok_mtul) || 0;
         });
-        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-collapse: separate; border-spacing: 0; table-layout: auto; width: 100%;">
             <thead style="background: #e9ecef; color: #2c3e50; font-weight: bold;">
                 <tr>
                     <th class="sticky-col sticky-header">#</th>
@@ -253,7 +285,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.mtul) || 0;
         });
-        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-collapse: separate; border-spacing: 0; table-layout: auto; width: 100%;">
             <thead style="background: #e9ecef; color: #2c3e50; font-weight: bold;">
                 <tr>
                     <th class="sticky-col sticky-header">#</th>
@@ -262,15 +294,12 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                     <th class="sticky-header">Boy</th>
                     <th class="sticky-header">Adet</th>
                     <th class="sticky-header">Toplam (mtül)</th>
-                    <th class="sticky-header">Rezerv</th>
                     <th class="sticky-header">Güncelleme</th>
                 </tr>
             </thead>
             <tbody>`;
         data.forEach((row, i) => {
             let tarih = row.guncelleme ? frappe.datetime.str_to_user(row.guncelleme) : '';
-            let rezervRaw = Number(row.rezerv) || 0;
-            let rezerv = rezervRaw > 0 ? rezervRaw : '';
             if (((Number(row.mtul) || 0) <= 0) && ((Number(row.adet) || 0) <= 0)) { return; }
             tablo += `<tr>
                 <td class="sticky-col">${i+1}</td>
@@ -279,12 +308,11 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
                 <td>${row.boy}</td>
                 <td>${row.adet}</td>
                 <td>${row.mtul}</td>
-                <td>${rezerv}</td>
                 <td>${tarih}</td>
             </tr>`;
         });
         // Genel toplam satırı
-        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td class="sticky-col"></td><td colspan="4" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td colspan="2"></td></tr>`;
+        tablo += `<tr style="font-weight:bold; background:#f5f5f5;"><td class="sticky-col"></td><td colspan="4" style="text-align:right;">Genel Toplam</td><td>${toplam}</td><td></td></tr>`;
         tablo += '</tbody></table></div>';
         $('#profil-boy-tablo').html(tablo);
     }
@@ -294,7 +322,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.mtul) || 0;
         });
-        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-collapse: separate; border-spacing: 0; table-layout: auto; width: 100%;">
             <thead style="background: #e9ecef; color: #2c3e50; font-weight: bold;">
                 <tr>
                     <th class="sticky-col sticky-header">#</th>
@@ -335,7 +363,7 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         data.forEach(row => {
             toplam += Number(row.quantity) || 0;
         });
-        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-radius: 8px; overflow: hidden; border-collapse: separate; table-layout: auto;">
+        let tablo = `<div class="table-responsive"><table class="table table-bordered table-hover table-striped" style="background: #fff; border-collapse: separate; border-spacing: 0; table-layout: auto; width: 100%;">
             <thead style="background: #fffde7; color: #bfa100; font-weight: bold;">
                 <tr>
                     <th class="sticky-col sticky-header">Hammadde Kodu</th>
@@ -368,9 +396,11 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
     if (!$('style#profil-stok-paneli-table-responsive').length) {
         $("<style id='profil-stok-paneli-table-responsive'>"
         + ".table-responsive{overflow-x:auto;overflow-y:auto;width:100%;max-height:350px;position:relative;}"
-        + ".sticky-header{position:sticky;top:0;z-index:10;background:#f8fafc!important;height:38px;min-height:38px;}"
-        + ".sticky-col{position:sticky;left:0;background:#fff!important;z-index:11;box-shadow:2px 0 2px -1px #eee;}"
-        + ".sticky-col.sticky-header{z-index:20;background:#f8fafc!important;}"
+        + ".table-responsive table{position:relative;border-collapse:separate;border-spacing:0;}"
+        + ".table-responsive thead{position:sticky;top:0;z-index:100;background:#e9ecef!important;}"
+        + ".table-responsive thead th{position:sticky;top:0;z-index:101;background:#e9ecef!important;border-bottom:2px solid #dee2e6!important;padding:8px!important;white-space:nowrap;}"
+        + ".sticky-col{position:sticky;left:0;background:#fff!important;z-index:11;box-shadow:2px 0 2px -1px rgba(0,0,0,0.1);}"
+        + ".sticky-col.sticky-header{background:#e9ecef!important;z-index:102;box-shadow:2px 2px 2px -1px rgba(0,0,0,0.1);}"
         + "</style>").appendTo('head');
     }
 }; 
