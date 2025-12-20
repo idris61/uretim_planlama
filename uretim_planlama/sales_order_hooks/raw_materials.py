@@ -1617,7 +1617,14 @@ def test_quantity_comparison():
 
 def remove_reservations_on_work_order_complete(doc, method):
     """
-    İş emri tamamlandığında (stok hareketi oluşmuyorsa), ilgili satış siparişi ve hammaddeler için rezervleri azaltır veya siler.
+    İş emri tamamlandığında, Stock Entry'de kaldırılmamış kalan rezervleri temizler.
+    
+    Stock Entry submit edildiğinde release_reservations_on_stock_entry() sadece Stock Entry'deki
+    miktar kadar rezerv kaldırır. Eğer Stock Entry'de kullanılan miktar < rezerv miktarı veya
+    required_qty ise, kalan rezervler bu fonksiyon tarafından temizlenir.
+    
+    Örnek: Rezerv 100 adet, Stock Entry'de 80 adet kullanıldı → 20 adet rezerv kalır.
+    İş emri tamamlandığında bu 20 adet rezerv bu fonksiyon tarafından kaldırılır.
     """
     if getattr(doc, "status", None) != "Completed":
         return

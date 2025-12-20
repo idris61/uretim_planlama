@@ -105,8 +105,13 @@ def _get_profile_ledger_stoklar(profil: str | None, scrap: int):
 	# Performans: Profil seçilmeden tüm kayıtları çekmek çok yavaş olabilir
 	# Bu nedenle limit ekliyoruz. İş kuralı gereği daha fazla kayıt gerekiyorsa
 	# sayfalama veya farklı bir yaklaşım düşünülebilir.
-	limit = 1000 if not profil else None
+	# Limit'i artırdık ama yine de sınırlı tutuyoruz
+	limit = 5000 if not profil else None
 
+	# Performans optimizasyonu: Sadece qty > 0 olan kayıtları çek
+	# frappe.get_all filters dict'inde list kullanarak operatör belirtiyoruz
+	filters["qty"] = [">", 0]
+	
 	stocks = frappe.get_all(
 		"Profile Stock Ledger",
 		filters=filters,
@@ -114,6 +119,10 @@ def _get_profile_ledger_stoklar(profil: str | None, scrap: int):
 		order_by="item_code, length",
 		limit=limit,
 	)
+	
+	# Python tarafında da filtreleme yap (qty > 0)
+	# Çünkü frappe.get_all'da ["qty", ">", 0] formatı çalışmayabilir
+	stocks = [s for s in stocks if flt(s.qty) > 0]
 
 	if not stocks:
 		return [], [], {"total_items": 0, "total_qty": 0, "total_length": 0}
@@ -176,6 +185,9 @@ def _get_hammadde_rezervleri(profil: str | None):
 	rezerv_filters = {}
 	if profil:
 		rezerv_filters["item_code"] = profil
+	
+	# Sadece quantity > 0 olan kayıtları çek
+	# frappe.get_all'da ["quantity", ">", 0] formatı çalışmayabilir, Python tarafında filtreleyeceğiz
 
 	try:
 		rezervler = frappe.get_all(
@@ -183,7 +195,11 @@ def _get_hammadde_rezervleri(profil: str | None):
 			filters=rezerv_filters,
 			fields=["item_code", "quantity", "sales_order"],
 			order_by="item_code",
+			limit=10000 if not profil else None,  # Profil seçilmeden limit ekle
 		)
+		
+		# Python tarafında quantity > 0 filtrele
+		rezervler = [r for r in rezervler if flt(r.quantity) > 0]
 	except Exception as e:
 		frappe.log_error(f"Hammadde rezervleri çekme hatası: {str(e)}")
 		return []
