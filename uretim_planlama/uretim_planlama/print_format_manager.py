@@ -424,6 +424,110 @@ class PrintFormatManager:
             doc.insert(ignore_permissions=True)
             frappe.db.commit()
             return f"Print format '{print_format_name}' created successfully"
+
+    @staticmethod
+    @frappe.whitelist()
+    def create_purchase_order_print_format():
+        """
+        Purchase Order için sade ve okunabilir özel print format oluşturur.
+        Profil / jaluzi alanlarını da tabloya ekler.
+        """
+        html_content = """
+<div class="print-format">
+    <div class="print-heading">
+        <h2>{{ _("Satınalma Siparişi") }}</h2>
+        <div class="print-heading-details">
+            <div class="row">
+                <div class="col-6">
+                    <div class="print-heading-field">
+                        <label>{{ _("PO No") }}:</label>
+                        <span>{{ doc.name }}</span>
+                    </div>
+                    <div class="print-heading-field">
+                        <label>{{ _("Tedarikçi") }}:</label>
+                        <span>{{ doc.supplier_name or doc.supplier }}</span>
+                    </div>
+                    <div class="print-heading-field">
+                        <label>{{ _("Firma") }}:</label>
+                        <span>{{ doc.company }}</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="print-heading-field">
+                        <label>{{ _("Tarih") }}:</label>
+                        <span>{{ frappe.utils.formatdate(doc.transaction_date) }}</span>
+                    </div>
+                    <div class="print-heading-field">
+                        <label>{{ _("Gerekli Tarih") }}:</label>
+                        <span>{{ frappe.utils.formatdate(doc.schedule_date) if doc.schedule_date else "" }}</span>
+                    </div>
+                    <div class="print-heading-field">
+                        <label>{{ _("Para Birimi") }}:</label>
+                        <span>{{ doc.currency }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="print-table">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Item Code</th>
+                    <th>Required Date</th>
+                    <th>Description</th>
+                    <th>Profile Length (m)</th>
+                    <th>Profile Qty</th>
+                    <th>Jalousie Width (m)</th>
+                    <th>Jalousie Height (m)</th>
+                    <th>Quantity</th>
+                    <th>Target Warehouse</th>
+                    <th>Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in doc.items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.item_code }}</td>
+                    <td>{{ item.schedule_date or doc.schedule_date }}</td>
+                    <td>{{ item.description or item.item_name }}</td>
+                    <td>{{ item.custom_profile_length_m or "" }}</td>
+                    <td>{{ item.custom_profile_length_qty or "" }}</td>
+                    <td>{{ item.custom_jalousie_width or "" }}</td>
+                    <td>{{ item.custom_jalousie_height or "" }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ item.warehouse }}</td>
+                    <td>{{ item.uom }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+        """
+
+        print_format_name = "Purchase Order - Custom"
+
+        # Eski builder tabanlı veya bozulmuş formatı tamamen sil ve baştan oluştur
+        if frappe.db.exists("Print Format", print_format_name):
+            frappe.delete_doc("Print Format", print_format_name, ignore_permissions=True)
+
+        doc = frappe.get_doc({
+            "doctype": "Print Format",
+            "name": print_format_name,
+            "doc_type": "Purchase Order",
+            "print_format_type": "Jinja",
+            "html": html_content,
+            "standard": "No",
+            "print_format_builder": 0,
+            "format_data": None,
+        })
+        doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+        return f"Print format '{print_format_name}' created successfully"
     
     @staticmethod
     @frappe.whitelist()
@@ -551,6 +655,7 @@ def initialize_print_format_settings():
     """Print format ayarlarını başlatır - bench execute ile çağrılabilir"""
     PrintFormatManager.initialize_print_settings()
     PrintFormatManager.create_material_request_print_format()
+    PrintFormatManager.create_purchase_order_print_format()
     return {"status": "success", "message": "Print format settings initialized"}
 
 
