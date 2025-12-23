@@ -21,6 +21,11 @@ from uretim_planlama.uretim_planlama.api.profile_stock_api import (
     get_profile_stock_panel,
 )
 
+# Warehouse stock value report
+from uretim_planlama.uretim_planlama.api.stock_value_report import (
+    get_warehouse_stock_value,
+)
+
 # Cache Utils
 from uretim_planlama.uretim_planlama.api.cache_utils import (
     clear_profile_groups_cache,
@@ -81,6 +86,8 @@ __all__ = [
     "delete_cutting_plans",
     # Profile Stock
     "get_profile_stock_panel",
+    # Warehouse Stock Value
+    "get_warehouse_stock_value",
     # Cache
     "clear_profile_groups_cache",
     "get_cache_info",
