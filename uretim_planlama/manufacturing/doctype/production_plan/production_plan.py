@@ -27,6 +27,51 @@ class CustomProductionPlan(BaseProductionPlan):
         if self.docstatus != 1:
             return
         
+        # ÖNEMLİ: Status'u tekrar kontrol et ve gerekirse güncelle
+        # Çünkü all_items_completed() kontrolü bazen yanlış sonuç verebilir
+        # Work Order'ları kontrol et
+        work_orders = frappe.get_all(
+            "Work Order",
+            filters={"production_plan": self.name, "docstatus": ["<", 2]},
+            fields=["name", "status", "qty", "produced_qty"],
+        )
+        
+        if work_orders:
+            # Work Order durumlarını analiz et
+            wo_statuses = [wo.status for wo in work_orders]
+            cancelled_count = sum(1 for status in wo_statuses if status == "Cancelled")
+            active_wo_count = len(work_orders) - cancelled_count
+            
+            # all_items_completed() mantığını tekrar kontrol et
+            from frappe.utils import flt
+            all_items_produced = all(
+                abs(flt(d.planned_qty) - flt(d.produced_qty)) < 0.000001 
+                for d in self.po_items
+            ) if self.po_items else False
+            
+            # Tüm aktif Work Order'lar tamamlandı mı? (Closed/Stopped hariç)
+            wo_status_for_completion = frappe.get_all(
+                "Work Order",
+                filters={
+                    "production_plan": self.name,
+                    "status": ("not in", ["Closed", "Stopped"]),
+                    "docstatus": ("<", 2),
+                },
+                fields="status",
+                pluck="status",
+            )
+            all_wo_completed = all(s == "Completed" for s in wo_status_for_completion) if wo_status_for_completion else False
+            
+            # Eğer tüm şartlar sağlanıyorsa ama status "Completed" değilse, güncelle
+            if all_items_produced and all_wo_completed and active_wo_count > 0:
+                if self.status != "Completed":
+                    frappe.logger().info(
+                        f"[Production Plan Status Fix] {self.name} - "
+                        f"Status 'Completed' olarak güncelleniyor (tüm şartlar sağlandı)"
+                    )
+                    self.status = "Completed"
+                    self.db_set("status", "Completed", update_modified=False)
+        
         # Workflow aktif mi kontrol et
         active_workflow = frappe.get_all(
             "Workflow",

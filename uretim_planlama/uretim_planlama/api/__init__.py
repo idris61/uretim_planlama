@@ -12,9 +12,11 @@ import frappe
 from uretim_planlama.uretim_planlama.api.production_planning import (
     get_daily_cutting_matrix,
     get_weekly_production_schedule,
+    generate_cutting_plan,
+    delete_cutting_plans,
 )
 
-# Profile Stock API  
+# Profile Stock API
 from uretim_planlama.uretim_planlama.api.profile_stock_api import (
     get_profile_stock_panel,
 )
@@ -63,11 +65,11 @@ def __getattr__(name):
     # Parent api.py'deki metodlar listesi
     # NOT: Bu metodlar artık kullanılmıyor, __getattr__ kaldırılacak
     parent_api_methods = []
-    
+
     if name in parent_api_methods:
         parent_api = _get_parent_api()
         return getattr(parent_api, name)
-    
+
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
@@ -75,6 +77,8 @@ __all__ = [
     # Production Planning
     "get_daily_cutting_matrix",
     "get_weekly_production_schedule",
+    "generate_cutting_plan",
+    "delete_cutting_plans",
     # Profile Stock
     "get_profile_stock_panel",
     # Cache

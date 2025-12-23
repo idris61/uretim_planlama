@@ -54,7 +54,7 @@ def get_daily_cutting_matrix(from_date, to_date):
 		except Exception as e:
 			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
 			return []
-		
+
 		# Önce Cutting Machine Plan tablosundan veri çek
 		result = frappe.db.sql(
 			"""
@@ -71,12 +71,12 @@ def get_daily_cutting_matrix(from_date, to_date):
 			(from_date, to_date),
 			as_dict=True,
 		)
-		
+
 		# Cutting Machine Plan'da veri varsa döndür
 		if result:
 			frappe.logger().info(f"[API] Cutting Machine Plan'dan {len(result)} kayıt getirildi")
 			return result
-		
+
 		# Cutting Machine Plan'da veri yoksa Production Plan'dan çek
 		frappe.logger().info("[API] Cutting Machine Plan boş, Production Plan'dan veri çekiliyor")
 		result = frappe.db.sql(
@@ -98,10 +98,10 @@ def get_daily_cutting_matrix(from_date, to_date):
 			(from_date, to_date),
 			as_dict=True,
 		)
-		
+
 		frappe.logger().info(f"[API] Production Plan'dan {len(result)} kayıt getirildi")
 		return result if result else []
-		
+
 	except Exception as e:
 		frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
 		frappe.logger().error(frappe.get_traceback())
@@ -124,7 +124,7 @@ def get_weekly_production_schedule(
     """Haftalık üretim takvimi verisi döner"""
     try:
         frappe.logger().debug(f"get_weekly_production_schedule çağrıldı - week_start: {week_start}, week_end: {week_end}")
-        
+
         if year and month:
             start_date = getdate(f"{year}-{month}-01")
             last_day = monthrange(int(year), int(month))[1]
@@ -145,7 +145,7 @@ def get_weekly_production_schedule(
         workstations = frappe.get_all(
             "Workstation", filters=workstation_filters, fields=["name", "holiday_list"]
         )
-        
+
         frappe.logger().debug(f"Workstations bulundu: {len(workstations)} adet")
 
         # Çalışma saatlerini toplu çek ve hazırla (N+1 azaltma)
@@ -243,7 +243,7 @@ def get_weekly_production_schedule(
         all_operations = overlapping_ops + [
             op for op in start_range_ops if op["name"] not in {o["name"] for o in overlapping_ops}
         ]
-        
+
         # Tüm work order isimlerini topla
         work_order_names = list(set([op["work_order"] for op in all_operations]))
         # Tüm work order'ları topluca çek
@@ -263,7 +263,7 @@ def get_weekly_production_schedule(
                 ],
             )
         }
-        
+
         # Tüm production plan isimlerini topla
         production_plan_names = list(
             set([wo.production_plan for wo in work_orders.values() if wo.production_plan])
@@ -286,7 +286,7 @@ def get_weekly_production_schedule(
                     fields=["name"],
                 ):
                     production_plans[pp.name] = pp
-        
+
         # Tüm sales order isimlerini topla
         sales_order_names = list(
             set([wo.sales_order for wo in work_orders.values() if wo.sales_order])
@@ -300,7 +300,7 @@ def get_weekly_production_schedule(
                 fields=["name", "customer", "custom_end_customer"],
             ):
                 sales_orders[so.name] = so
-        
+
         # Tüm job card'ları topluca çek
         job_cards = frappe.get_all(
             "Job Card",
@@ -361,13 +361,13 @@ def get_weekly_production_schedule(
             else:
                 for i in range(7):
                     daily_work_minutes[i] = 0
-        
+
             day_schedule = {}
             ops_in_this_week = set()
             total_hours = 0
             total_operations = 0
             daily_summary = {}
-            
+
             for op in ws_ops:
                 ops_in_this_week.add(op["operation"])
                 work_order = work_orders.get(op["work_order"], {})
@@ -379,16 +379,16 @@ def get_weekly_production_schedule(
                     op_status = "Devam Ediyor"
                 elif op["actual_start_time"]:
                     op_status = "Başladı"
-                
+
                 start_dt = get_datetime(op["planned_start_time"]) if op["planned_start_time"] else None
                 end_dt = get_datetime(op["planned_end_time"]) if op["planned_end_time"] else None
                 time_in_mins = int(op.get("time_in_mins") or 0)
                 if time_in_mins == 0 and start_dt and end_dt:
                     time_in_mins = int((end_dt - start_dt).total_seconds() // 60)
-                
+
                 total_hours += time_in_mins / 60
                 total_operations += 1
-                
+
                 if start_dt:
                     weekday_name = day_name_tr[start_dt.strftime("%A")]
                     daily_summary.setdefault(
@@ -396,7 +396,7 @@ def get_weekly_production_schedule(
                     )
                     daily_summary[weekday_name]["planned_minutes"] += time_in_mins
                     daily_summary[weekday_name]["jobs"] += 1
-                
+
                 # İlgili sales order'dan bayi ve müşteri bilgisini çek
                 so = (
                     sales_orders.get(work_order.get("sales_order"))
@@ -407,7 +407,7 @@ def get_weekly_production_schedule(
                 custom_end_customer = (
                     so["custom_end_customer"] if so and so.get("custom_end_customer") else ""
                 )
-                
+
                 day_schedule.setdefault(day_name_tr[start_dt.strftime("%A")], []).append(
                     {
                         "name": job_card["name"] if job_card else "",
@@ -438,7 +438,7 @@ def get_weekly_production_schedule(
                         "op_status": op_status,
                     }
                 )
-        
+
             # Günlük özetler
             daily_info = {}
             for i, day in enumerate(
@@ -454,7 +454,7 @@ def get_weekly_production_schedule(
                     "jobs": jobs,
                     "doluluk": doluluk,
                 }
-        
+
             if day_schedule:
                 schedule.append(
                     {
@@ -483,7 +483,7 @@ def get_weekly_production_schedule(
                 holidays.append(
                     {"date": str(h.holiday_date), "reason": h.description or "Tatil"}
                 )
-        
+
         holiday_map = {h["date"]: h["reason"] for h in holidays}
         days = []
         for d in week_dates:
@@ -501,7 +501,7 @@ def get_weekly_production_schedule(
                     "holidayReason": holiday_map[iso] if is_holiday else "",
                 }
             )
-        
+
         return {
             "workstations": schedule,
             "holidays": holidays,
@@ -509,7 +509,7 @@ def get_weekly_production_schedule(
             "end_date": end_date.strftime("%d-%m-%Y"),
             "days": days,
         }
-        
+
     except Exception as e:
         frappe.logger().error(f"get_weekly_production_schedule hatası: {str(e)}")
         frappe.log_error(f"get_weekly_production_schedule hatası: {str(e)}")
@@ -629,21 +629,21 @@ def get_production_planning_data(filters=None):
 
         # Planlanan üretim planları
         planned_data = get_planned_production_data(filters)
-        
+
         # Planlanmamış satış siparişleri
         unplanned_data = get_unplanned_sales_orders(filters)
-        
+
         # Özet verileri hesapla
         summary = calculate_summary_data(planned_data, unplanned_data)
-        
+
         result = {
             "planned": planned_data,
             "unplanned": unplanned_data,
             "summary": summary
         }
-        
+
         return result
-        
+
     except Exception as e:
         import traceback
         error_msg = f"Üretim planlama verisi getirme hatası: {str(e)}\n{traceback.format_exc()}"
@@ -670,21 +670,21 @@ def get_planned_production_data(filters):
                 "status": ["!=", "Closed"]
             }
         )
-        
+
         planned_data = []
-        
+
         for pp in production_plans:
             # Bu plana ait satış siparişlerini getir
             sales_orders = get_sales_orders_for_production_plan(pp.name)
-            
+
             for so in sales_orders:
                 try:
                     # Hafta hesapla
                     week_number = get_week_number(so.get("transaction_date"))
-                    
+
                     # Acil durumu kontrol et
                     is_urgent = check_urgent_status(so)
-                    
+
                     planned_data.append({
                         "hafta": week_number,
                         "uretim_plani": pp.name,
@@ -705,9 +705,9 @@ def get_planned_production_data(filters):
                 except Exception as e:
                     frappe.logger().error(f"SO işleme hatası: {so.get('name')} - {str(e)}")
                     continue
-        
+
         return planned_data
-        
+
     except Exception as e:
         frappe.logger().error(f"get_planned_production_data hatası: {str(e)}")
         return []
@@ -722,9 +722,9 @@ def get_unplanned_sales_orders(filters):
             fields=["sales_order"],
             filters={"sales_order": ["is", "set"]}
         )
-        
+
         planned_so_names = [item.sales_order for item in planned_so_list if item.sales_order]
-        
+
         # Planlanmamış siparişleri getir
         unplanned_orders = frappe.get_all(
             "Sales Order",
@@ -742,9 +742,9 @@ def get_unplanned_sales_orders(filters):
                 "name": ["not in", planned_so_names] if planned_so_names else []
             }
         )
-        
+
         unplanned_data = []
-        
+
         for so in unplanned_orders:
             try:
                 # Bu siparişin detaylarını getir
@@ -753,12 +753,12 @@ def get_unplanned_sales_orders(filters):
                     fields=["item_code", "qty", "description"],
                     filters={"parent": so.name}
                 )
-                
+
                 for item in so_items:
                     try:
                         week_number = get_week_number(so.get("transaction_date"))
                         is_urgent = check_urgent_status(so)
-                        
+
                         unplanned_data.append({
                             "hafta": week_number,
                             "siparis_no": so.get("name"),
@@ -778,13 +778,13 @@ def get_unplanned_sales_orders(filters):
                     except Exception as e:
                         frappe.logger().error(f"Item işleme hatası: {item.get('item_code')} - {str(e)}")
                         continue
-                        
+
             except Exception as e:
                 frappe.logger().error(f"SO detay hatası: {so.get('name')} - {str(e)}")
                 continue
-        
+
         return unplanned_data
-        
+
     except Exception as e:
         frappe.logger().error(f"get_unplanned_sales_orders hatası: {str(e)}")
         return []
@@ -798,15 +798,15 @@ def get_sales_orders_for_production_plan(production_plan):
             fields=["sales_order", "sales_order_item", "item_code", "planned_qty"],
             filters={"parent": production_plan}
         )
-        
+
         sales_orders = []
-        
+
         for item in so_items:
             if item.sales_order:
                 try:
                     so = frappe.get_doc("Sales Order", item.sales_order)
                     so_item = frappe.get_doc("Sales Order Item", item.sales_order_item) if item.sales_order_item else None
-                    
+
                     sales_orders.append({
                         "name": so.name,
                         "customer": so.customer,
@@ -820,9 +820,9 @@ def get_sales_orders_for_production_plan(production_plan):
                 except Exception as e:
                     frappe.logger().error(f"SO doc hatası: {item.sales_order} - {str(e)}")
                     continue
-        
+
         return sales_orders
-        
+
     except Exception as e:
         frappe.logger().error(f"get_sales_orders_for_production_plan hatası: {str(e)}")
         return []
@@ -832,7 +832,7 @@ def get_week_number(date_str):
     """Tarihten hafta numarasını hesaplar"""
     if not date_str:
         return 0
-    
+
     try:
         date = frappe.utils.getdate(date_str)
         return date.isocalendar()[1]
@@ -845,17 +845,17 @@ def check_urgent_status(sales_order):
     try:
         # Burada acil durumu belirleyen kriterleri ekleyebilirsiniz
         # Örnek: Teslim tarihi yakın, özel not, vs.
-        
+
         # Şimdilik basit bir kontrol
         if sales_order.get("delivery_date"):
             delivery_date = frappe.utils.getdate(sales_order.get("delivery_date"))
             today = frappe.utils.today()
             days_diff = (delivery_date - frappe.utils.getdate(today)).days
-            
+
             return days_diff <= 7  # 7 gün içinde teslim edilecekse acil
-        
+
         return False
-        
+
     except Exception as e:
         frappe.logger().error(f"check_urgent_status hatası: {str(e)}")
         return False
@@ -874,7 +874,7 @@ def get_item_type(item_code):
     """Ürün tipini getirir"""
     if not item_code:
         return ""
-    
+
     try:
         item = frappe.get_doc("Item", item_code)
         return item.get("custom_item_type", "") or item.get("item_group", "")
@@ -886,7 +886,7 @@ def get_item_color(item_code):
     """Ürün rengini getirir"""
     if not item_code:
         return ""
-    
+
     try:
         item = frappe.get_doc("Item", item_code)
         return item.get("custom_color", "") or ""
@@ -905,7 +905,7 @@ def get_turkish_status(status):
         "Stopped": "Durduruldu",
         "Closed": "Kapatıldı"
     }
-    
+
     return status_map.get(status, status)
 
 
@@ -916,7 +916,7 @@ def calculate_summary_data(planned_data, unplanned_data):
         unplanned_count = len(unplanned_data)
         total_count = planned_count + unplanned_count
         urgent_count = len([item for item in planned_data + unplanned_data if item.get("acil")])
-        
+
         return {
             "planlanan": planned_count,
             "planlanmamis": unplanned_count,
@@ -931,3 +931,204 @@ def calculate_summary_data(planned_data, unplanned_data):
             "toplam": 0,
             "acil": 0
         }
+
+
+@frappe.whitelist()
+def generate_cutting_plan(docname):
+	"""
+	Production Plan submit edildiğinde Cutting Machine Plan kayıtları oluşturur
+	"""
+	try:
+		if not docname:
+			return {"success": False, "message": "Production Plan adı gerekli"}
+
+		pp_doc = frappe.get_doc("Production Plan", docname)
+
+		if pp_doc.docstatus != 1:
+			return {"success": False, "message": "Production Plan submit edilmemiş"}
+
+		# Production Plan Item'ları grupla (planning_date ve workstation'a göre)
+		grouped_items = {}
+
+		for item in pp_doc.po_items:
+			if not item.planned_start_date or not item.custom_workstation:
+				continue
+
+			planning_date = frappe.utils.getdate(item.planned_start_date).strftime("%Y-%m-%d")
+			workstation = item.custom_workstation
+			key = f"{planning_date}_{workstation}"
+
+			if key not in grouped_items:
+				grouped_items[key] = {
+					"planning_date": planning_date,
+					"workstation": workstation,
+					"items": [],
+					"total_mtul": 0,
+					"total_quantity": 0
+				}
+
+			mtul_per_piece = item.custom_mtul_per_piece or 0
+			quantity = item.planned_qty or 0
+			total_mtul = mtul_per_piece * quantity
+
+			grouped_items[key]["items"].append({
+				"item_code": item.item_code,
+				"item_name": item.item_name,
+				"item_group": item.item_group,
+				"mtul_per_piece": mtul_per_piece,
+				"quantity": quantity,
+				"total_mtul": total_mtul,
+				"production_plan": docname,
+				"production_plan_item": item.name
+			})
+
+			grouped_items[key]["total_mtul"] += total_mtul
+			grouped_items[key]["total_quantity"] += quantity
+
+		# Her grup için Cutting Machine Plan oluştur
+		created_count = 0
+
+		for key, group_data in grouped_items.items():
+			# Aynı tarih ve workstation için mevcut plan var mı kontrol et
+			existing_plans = frappe.get_all(
+				"Cutting Machine Plan",
+				filters={
+					"planning_date": group_data["planning_date"],
+					"workstation": group_data["workstation"]
+				},
+				fields=["name"],
+				limit=1
+			)
+			existing_plan = existing_plans[0].name if existing_plans else None
+
+			if existing_plan:
+				# Mevcut planı güncelle
+				cutting_plan = frappe.get_doc("Cutting Machine Plan", existing_plan)
+				cutting_plan.total_mtul = group_data["total_mtul"]
+				cutting_plan.total_quantity = group_data["total_quantity"]
+
+				# Plan detaylarını temizle ve yeniden ekle
+				cutting_plan.plan_details = []
+
+				for item_data in group_data["items"]:
+					cutting_plan.append("plan_details", {
+						"item_code": item_data["item_code"],
+						"item_name": item_data["item_name"],
+						"item_group": item_data["item_group"],
+						"mtul_per_piece": item_data["mtul_per_piece"],
+						"quantity": item_data["quantity"],
+						"total_mtul": item_data["total_mtul"],
+						"production_plan": item_data["production_plan"],
+						"production_plan_item": item_data["production_plan_item"]
+					})
+
+				cutting_plan.save(ignore_permissions=True)
+				created_count += 1
+			else:
+				# Yeni plan oluştur
+				cutting_plan = frappe.get_doc({
+					"doctype": "Cutting Machine Plan",
+					"planning_date": group_data["planning_date"],
+					"workstation": group_data["workstation"],
+					"total_mtul": group_data["total_mtul"],
+					"total_quantity": group_data["total_quantity"]
+				})
+
+				for item_data in group_data["items"]:
+					cutting_plan.append("plan_details", {
+						"item_code": item_data["item_code"],
+						"item_name": item_data["item_name"],
+						"item_group": item_data["item_group"],
+						"mtul_per_piece": item_data["mtul_per_piece"],
+						"quantity": item_data["quantity"],
+						"total_mtul": item_data["total_mtul"],
+						"production_plan": item_data["production_plan"],
+						"production_plan_item": item_data["production_plan_item"]
+					})
+
+				cutting_plan.insert(ignore_permissions=True)
+				created_count += 1
+
+		frappe.db.commit()
+
+		return {
+			"success": True,
+			"message": f"{created_count} kesim planı oluşturuldu/güncellendi"
+		}
+
+	except Exception as e:
+		frappe.log_error(
+			title="Cutting Plan Oluşturma Hatası",
+			message=f"Production Plan: {docname}\nHata: {str(e)}\nTraceback: {frappe.get_traceback()}"
+		)
+		frappe.db.rollback()
+		return {"success": False, "message": f"Hata: {str(e)}"}
+
+
+@frappe.whitelist()
+def delete_cutting_plans(docname):
+	"""
+	Production Plan cancel edildiğinde ilgili Cutting Machine Plan kayıtlarını siler
+	"""
+	try:
+		if not docname:
+			return {"success": False, "message": "Production Plan adı gerekli"}
+
+		# Bu Production Plan'a ait Cutting Plan Row'ları bul
+		cutting_plan_rows = frappe.get_all(
+			"Cutting Plan Row",
+			filters={"production_plan": docname},
+			fields=["parent"]
+		)
+
+		if not cutting_plan_rows:
+			return {"success": True, "message": "Silinecek kesim planı bulunamadı"}
+
+		# Parent Cutting Machine Plan'ları topla
+		parent_plans = list(set([row.parent for row in cutting_plan_rows]))
+
+		deleted_count = 0
+
+		for plan_name in parent_plans:
+			try:
+				# Cutting Plan Row'ları sil
+				frappe.db.delete("Cutting Plan Row", {"parent": plan_name, "production_plan": docname})
+
+				# Eğer plan'da başka row yoksa, plan'ı da sil
+				remaining_rows = frappe.db.count("Cutting Plan Row", {"parent": plan_name})
+
+				if remaining_rows == 0:
+					frappe.delete_doc("Cutting Machine Plan", plan_name, ignore_permissions=True, force=True)
+					deleted_count += 1
+				else:
+					# Plan'ı güncelle (total_mtul ve total_quantity'yi yeniden hesapla)
+					cutting_plan = frappe.get_doc("Cutting Machine Plan", plan_name)
+
+					total_mtul = sum([row.total_mtul or 0 for row in cutting_plan.plan_details])
+					total_quantity = sum([row.quantity or 0 for row in cutting_plan.plan_details])
+
+					cutting_plan.total_mtul = total_mtul
+					cutting_plan.total_quantity = total_quantity
+					cutting_plan.save(ignore_permissions=True)
+
+			except Exception as e:
+				frappe.log_error(
+					title="Cutting Plan Silme Hatası",
+					message=f"Plan: {plan_name}\nHata: {str(e)}"
+				)
+				continue
+
+		frappe.db.commit()
+
+		return {
+			"success": True,
+			"message": f"{deleted_count} kesim planı silindi/güncellendi"
+		}
+
+	except Exception as e:
+		frappe.log_error(
+			title="Cutting Plan Silme Hatası",
+			message=f"Production Plan: {docname}\nHata: {str(e)}\nTraceback: {frappe.get_traceback()}"
+		)
+		frappe.db.rollback()
+		return {"success": False, "message": f"Hata: {str(e)}"}
