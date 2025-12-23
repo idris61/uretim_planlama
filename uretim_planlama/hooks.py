@@ -14,6 +14,7 @@ fixtures = [
 	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Workflow"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
 	# {"dt": "Item Group"},
@@ -142,7 +143,10 @@ doc_events = {
 	"Work Order": {
 		"before_validate": "uretim_planlama.custom_hooks.work_order.before_validate.auto_wip_warehouse",
 		"on_cancel": "uretim_planlama.sales_order_hooks.raw_materials.restore_reservations_on_work_order_cancel",
-		"on_update_after_submit": "uretim_planlama.custom_hooks.work_order.on_update_after_submit.on_update_after_submit"
+		"on_update_after_submit": [
+			"uretim_planlama.custom_hooks.work_order.on_update_after_submit.on_update_after_submit",
+			"uretim_planlama.sales_order_hooks.raw_materials.remove_reservations_on_work_order_complete"
+		]
 	},
 	"Delivery Note": {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",

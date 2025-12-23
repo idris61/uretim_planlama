@@ -189,21 +189,21 @@ function showLongTermReserveModal(frm, recommendations) {
                     <strong>${item.item_code}</strong><br>
                     <small class="text-muted">${item.item_name}</small>
                 </td>
-                <td class="text-danger">${item.acik_miktar !== undefined && item.acik_miktar !== null ? Number(item.acik_miktar).toFixed(4) : "0.0000"}</td>
-                <td class="text-secondary">${item.uzun_vadeli_rezerv !== undefined && item.uzun_vadeli_rezerv !== null ? Number(item.uzun_vadeli_rezerv).toFixed(4) : "0.0000"}</td>
-                <td class="text-warning">${item.kullanilan_rezerv !== undefined && item.kullanilan_rezerv !== null ? Number(item.kullanilan_rezerv).toFixed(4) : "0.0000"}</td>
-                <td class="text-success">${item.kullanilabilir_uzun_vadeli !== undefined && item.kullanilabilir_uzun_vadeli !== null ? maxKullanilabilir.toFixed(4) : "0.0000"}</td>
-                <td class="text-info">${item.onerilen_kullanim !== undefined && item.onerilen_kullanim !== null ? Number(item.onerilen_kullanim).toFixed(4) : "0.0000"}</td>
+                <td class="text-danger">${item.acik_miktar !== undefined && item.acik_miktar !== null ? Number(item.acik_miktar).toFixed(5) : "0.00000"}</td>
+                <td class="text-secondary">${item.uzun_vadeli_rezerv !== undefined && item.uzun_vadeli_rezerv !== null ? Number(item.uzun_vadeli_rezerv).toFixed(5) : "0.00000"}</td>
+                <td class="text-warning">${item.kullanilan_rezerv !== undefined && item.kullanilan_rezerv !== null ? Number(item.kullanilan_rezerv).toFixed(5) : "0.00000"}</td>
+                <td class="text-success">${item.kullanilabilir_uzun_vadeli !== undefined && item.kullanilabilir_uzun_vadeli !== null ? maxKullanilabilir.toFixed(5) : "0.00000"}</td>
+                <td class="text-info">${item.onerilen_kullanim !== undefined && item.onerilen_kullanim !== null ? Number(item.onerilen_kullanim).toFixed(5) : "0.00000"}</td>
                 <td>
                     <input type="number" class="form-control form-control-sm"
                            id="qty-${index}"
-                           value="${item.onerilen_kullanim !== undefined && item.onerilen_kullanim !== null ? Math.min(Number(item.onerilen_kullanim), maxKullanilabilir).toFixed(4) : "0.0000"}"
+                           value="${item.onerilen_kullanim !== undefined && item.onerilen_kullanim !== null ? Math.min(Number(item.onerilen_kullanim), maxKullanilabilir).toFixed(5) : "0.00000"}"
                            min="0"
-                           max="${maxKullanilabilir.toFixed(4)}"
-                           step="0.0001"
+                           max="${maxKullanilabilir.toFixed(5)}"
+                           step="0.00001"
                            data-item-code="${item.item_code}"
                            ${isUsed ? "disabled" : ""}>
-                    <div style='font-size:11px;color:#888;'>Maksimum: ${maxKullanilabilir.toFixed(4)}</div>
+                    <div style='font-size:11px;color:#888;'>Maksimum: ${maxKullanilabilir.toFixed(5)}</div>
                     ${isUsed ? `<div style='color:#d32f2f;font-size:12px;'>Bu ürün için zaten uzun vadeli rezerv kullanımı yapılmış.</div>` : ""}
                 </td>
             </tr>`;
@@ -219,11 +219,11 @@ function showLongTermReserveModal(frm, recommendations) {
 			const maxKullanilabilir = Number(item.kullanilabilir_uzun_vadeli);
 			const qtyInput = document.getElementById(`qty-${index}`);
 			if (qtyInput && parseFloat(qtyInput.value) > maxKullanilabilir) {
-				qtyInput.value = maxKullanilabilir.toFixed(4);
+				qtyInput.value = maxKullanilabilir.toFixed(5);
 			}
-			// Inputu 4 basamakta gönder
+			// Inputu 5 basamakta gönder
 			if (qtyInput) {
-				qtyInput.value = Number(qtyInput.value).toFixed(4);
+				qtyInput.value = Number(qtyInput.value).toFixed(5);
 			}
 		});
 		useLongTermReserveFromModal(frm, recommendations);
@@ -236,7 +236,7 @@ function useLongTermReserveFromModal(frm, recommendations) {
 	recommendations.forEach((item, index) => {
 		const qtyInput = document.getElementById(`qty-${index}`);
 		let qty = parseFloat(qtyInput.value) || 0;
-		qty = Number(qty).toFixed(4); // 4 ondalık olarak gönder
+		qty = Number(qty).toFixed(5); // 5 ondalık olarak gönder
 
 		if (qty > 0) {
 			usageData.push({

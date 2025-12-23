@@ -7,11 +7,11 @@
  "docstatus": 0,
  "doctype": "Report",
  "filters": [],
- "idx": 1,
+ "idx": 0,
  "is_standard": "Yes",
  "letter_head": "",
  "letterhead": null,
- "modified": "2025-12-10 09:13:46.381315",
+ "modified": "2025-12-10 10:15:52.118819",
  "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Customer Sales Order Production Details",
@@ -37,10 +37,7 @@
    "role": "Sales Manager"
   },
   {
-   "role": "Bayi (M\u00fc\u015fteri)"
-  },
-  {
-   "role": "Customer"
+   "role": "M\u00fc\u015fteri ( Bayi )"
   }
  ],
  "timeout": 0

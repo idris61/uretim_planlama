@@ -105,10 +105,24 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         get_and_render_panel(true);
     });
 
+    // Debounce fonksiyonu - performans için
+    let debounceTimer = null;
+    function debounce(func, wait) {
+        return function(...args) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    // Debounced render fonksiyonu
+    const debounced_render = debounce(function() {
+        get_and_render_panel(false);
+    }, 500);
+
     // Sadece Parça filtresi değiştiğinde tablo görünürlüğünü ayarla
     $(document).on('change', '#scrap-filter', function() {
         toggle_tables();
-        get_and_render_panel(false);
+        debounced_render();
     });
 
     function toggle_tables() {
@@ -126,12 +140,14 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
     fill_filters();
     // Sayfa ilk açıldığında tablo görünürlüğünü ayarla
     toggle_tables();
-    // Sayfa ilk açıldığında genel veriyi çek (profil/depo seçilmemiş olabilir)
-    get_and_render_panel(false);
+    // Sayfa ilk açıldığında veri çekme - sadece profil seçildiyse çek
+    // İlk yüklemede boş mesaj göster
+    $('#profil-boy-tablo').html('<div style="text-align:center; padding:12px; color:#666;">Lütfen bir profil seçin veya filtrele butonuna tıklayın.</div>');
+    $('#scrap-profile-tablo').html('<div style="text-align:center; padding:12px; color:#666;">Lütfen bir profil seçin veya filtrele butonuna tıklayın.</div>');
+    $('#hammadde-rezervleri-tablo').html('<div style="text-align:center; padding:12px; color:#666;">Lütfen bir profil seçin veya filtrele butonuna tıklayın.</div>');
 
-    // Gerekli kütüphaneleri yükle
+    // Gerekli kütüphaneleri yükle (sadece select2 bu sayfada kullanılıyor)
     frappe.require([
-        '/assets/uretim_planlama/js/chart.bundle.min.js',
         '/assets/uretim_planlama/js/select2.min.js',
         '/assets/uretim_planlama/css/select2.min.css'
     ], function() {
@@ -197,18 +213,36 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         $('#hammadde-rezervleri-tablo').html(loading_html);
     }
 
-    function clear_tables(message_html) {
-        $('#erpnext-stok-tablo').html(message_html || '');
-        $('#profil-boy-tablo').html(message_html || '');
-        $('#scrap-profile-tablo').html(message_html || '');
-        $('#hammadde-rezervleri-tablo').html(message_html || '');
-    }
-
     function get_and_render_panel(is_manual_filter) {
         const profil = $('#profil-filter').val() || undefined;
+        const scrap = $('#scrap-filter').is(':checked');
 
         const loading_html = '<div style="text-align:center; padding:12px; color:#666;">Veriler yükleniyor...</div>';
         const no_profile_html = '<div style="text-align:center; padding:12px; color:#666;">Depo bazında stok için lütfen bir profil seçin.</div>';
+        const no_data_html = '<div style="text-align:center; padding:12px; color:#666;">Lütfen bir profil seçin veya filtrele butonuna tıklayın.</div>';
+
+        // Profil seçilmeden ve manuel filtreleme yapılmadan veri çekme
+        // Hammadde rezervleri her zaman gösterilebilir, diğerleri için kontrol
+        if (!profil && !is_manual_filter && !scrap) {
+            $('#erpnext-stok-tablo').html(no_profile_html);
+            $('#profil-boy-tablo').html(no_data_html);
+            $('#scrap-profile-tablo').html(no_data_html);
+            // Hammadde rezervleri için loading göster ve veri çek
+            $('#hammadde-rezervleri-tablo').html(loading_html);
+            frappe.call({
+                method: 'uretim_planlama.uretim_planlama.api.get_profile_stock_panel',
+                args: { profil: undefined, depo: undefined, scrap: undefined },
+                timeout: 60,
+                callback: function(r) {
+                    const data = r.message || {};
+                    render_hammadde_rezervleri_tablo(data.hammadde_rezervleri || []);
+                },
+                error: function() {
+                    $('#hammadde-rezervleri-tablo').html('<div style="text-align:center; color:red;">Veri alınamadı</div>');
+                }
+            });
+            return;
+        }
 
         // Depo tablosu: profil varsa loading, yoksa açıklama mesajı
         if (profil) {
@@ -223,14 +257,15 @@ frappe.pages['profil_stok_paneli'].on_page_load = function(wrapper) {
         const args = {
             profil: profil,
             depo: $('#depo-filter').val() || undefined,
-            scrap: $('#scrap-filter').is(':checked') ? 1 : undefined
+            scrap: scrap ? 1 : undefined
         };
+        
         frappe.call({
             method: 'uretim_planlama.uretim_planlama.api.get_profile_stock_panel',
             args: args,
+            timeout: 60, // 60 saniye timeout
             callback: function(r) {
                 const data = r.message || {};
-                // Debug log kaldırıldı
                 // Her tabloya özel veri
                 if (profil) {
                     render_erpnext_stok_tablo(data.depo_stoklari || []);
