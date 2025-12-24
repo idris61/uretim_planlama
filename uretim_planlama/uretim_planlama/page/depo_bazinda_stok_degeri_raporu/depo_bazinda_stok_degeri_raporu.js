@@ -350,3 +350,5 @@ frappe.pages["depo_bazinda_stok_degeri_raporu"].on_page_load = function (wrapper
 };
 
 
+
+

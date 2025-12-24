@@ -45,6 +45,13 @@ from uretim_planlama.uretim_planlama.api.import_pre_check import (
     get_import_summary_report,
 )
 
+# Calendar API
+from uretim_planlama.uretim_planlama.api.calendar_api import (
+    get_holidays_for_calendar,
+    get_work_orders_for_calendar,
+    get_work_order_detail,
+)
+
 # Parent api.py metodları için lazy loading
 # NOT: api/__init__.py (bu dosya) ve api.py aynı parent'ta (uretim_planlama.uretim_planlama)
 # Bu yüzden dikkatli import gerekiyor
@@ -98,4 +105,8 @@ __all__ = [
     # Import
     "check_existing_stock_before_import",
     "get_import_summary_report",
+    # Calendar
+    "get_holidays_for_calendar",
+    "get_work_orders_for_calendar",
+    "get_work_order_detail",
 ]

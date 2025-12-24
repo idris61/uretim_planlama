@@ -7,3 +7,5 @@ def get_context(context):
     context.title = _("Depo Bazında Stok Değeri")
 
 
+
+
