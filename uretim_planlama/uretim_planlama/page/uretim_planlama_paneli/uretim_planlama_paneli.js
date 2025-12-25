@@ -1020,28 +1020,63 @@ class UretimPlanlamaPaneli {
 					</div>
 					
 					<div class="table-container">
-						<table class="table table-hover mb-0" style="font-size: 0.8rem;">
-							<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.7rem;">
+						<table class="table table-hover mb-0" style="font-size: 0.75rem;">
+							<thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.65rem;">
 								<tr>
-									<th style="padding: 6px 6px;" data-column="sales_order">Sipariş No</th>
-									<th style="padding: 6px 6px;" data-column="bayi">Bayi</th>
-									<th style="padding: 6px 6px;" data-column="musteri">Müşteri</th>
-									<th style="padding: 6px 6px;" data-column="siparis_tarihi" class="sortable-header">Sipariş Tarihi <i class="fa fa-sort text-white-50 ml-1"></i></th>
-									<th style="padding: 6px 6px;" data-column="bitis_tarihi" class="sortable-header">Teslim Tarihi <i class="fa fa-sort text-white-50 ml-1"></i></th>
-									<th style="padding: 6px 6px;" data-column="siparis_durumu">Durum</th>
-									<th style="padding: 6px 6px;" data-column="pvc_count">PVC</th>
-									<th style="padding: 6px 6px;" data-column="cam_count">Cam</th>
-									<th style="padding: 6px 6px;" data-column="total_mtul">MTÜL/m²</th>
-									<th style="padding: 6px 6px;" data-column="seri">Seri</th>
-									<th style="padding: 6px 6px;" data-column="renk">Renk</th>
-									<th style="padding: 6px 6px; min-width: 200px;" data-column="aciklama">Açıklama</th>
-									<th style="padding: 6px 6px;" data-column="acil">Acil</th>
+									<th style="padding: 5px 5px;" data-column="sales_order">Sipariş No</th>
+									<th style="padding: 5px 5px;" data-column="bayi">Bayi</th>
+									<th style="padding: 5px 5px;" data-column="musteri">Müşteri</th>
+									<th style="padding: 5px 5px;" data-column="siparis_tarihi" class="sortable-header">Sipariş Tarihi <i class="fa fa-sort text-white-50 ml-1"></i></th>
+									<th style="padding: 5px 5px;" data-column="bitis_tarihi" class="sortable-header">Teslim Tarihi <i class="fa fa-sort text-white-50 ml-1"></i></th>
+									<th style="padding: 5px 5px;" data-column="siparis_durumu">Durum</th>
+									<th style="padding: 5px 5px;" data-column="pvc_count">PVC</th>
+									<th style="padding: 5px 5px;" data-column="cam_count">Cam</th>
+									<th style="padding: 5px 5px;" data-column="total_mtul">MTÜL/m²</th>
+									<th style="padding: 5px 5px;" data-column="seri">Seri</th>
+									<th style="padding: 5px 5px;" data-column="renk">Renk</th>
+									<th style="padding: 5px 5px; min-width: 200px;" data-column="aciklama">Açıklama</th>
+									<th style="padding: 5px 5px;" data-column="acil">Acil</th>
 								</tr>
 							</thead>
-							<tbody id="planlanmamis-tbody" style="font-size: 0.8rem;">
+							<tbody id="planlanmamis-tbody" style="font-size: 0.75rem;">
 								<tr><td colspan="13" class="text-center text-muted">Veri yükleniyor...</td></tr>
 							</tbody>
 						</table>
+					</div>
+				</div>
+			</div>
+		`);
+
+		// Planlanmamış Siparişler Özet Raporu
+		const summaryRow = $('<div class="row mb-4"></div>').appendTo(this.page.body);
+		const summaryCol = $('<div class="col-12"></div>').appendTo(summaryRow);
+		
+		summaryCol.append(`
+			<div class="card mb-4">
+				<div class="card-header" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white;">
+					<div class="d-flex justify-content-between align-items-center">
+						<div class="d-flex align-items-center">
+							<div class="mr-3">
+								<i class="fa fa-bar-chart" style="font-size: 1.5rem;"></i>
+							</div>
+							<div>
+								<h5 class="mb-0" style="font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">PLANLANMAMIŞ SİPARİŞLER ÖZET RAPORU</h5>
+								<small class="text-white-50">Seri, Renk ve Tip bazında planlamaya alınmamış miktarların toplamı</small>
+							</div>
+						</div>
+						<div class="d-flex align-items-center">
+							<button class="btn btn-outline-light btn-sm mr-2" id="refresh-summary-btn" title="Raporu Yenile">
+								<i class="fa fa-refresh"></i>
+							</button>
+						</div>
+					</div>
+				</div>
+				
+				<div class="card-body p-0">
+					<div id="unplanned-summary-content" class="p-3">
+						<div class="text-center text-muted">
+							<i class="fa fa-info-circle mr-2"></i>Rapor yükleniyor...
+						</div>
 					</div>
 				</div>
 			</div>
@@ -1755,6 +1790,14 @@ class UretimPlanlamaPaneli {
 			planlananClearBtn.addEventListener('click', () => {
 				this.clearPlanlananFilters();
 				this.loadPlannedData();
+			});
+		}
+
+		// Özet rapor yenile butonu
+		const refreshSummaryBtn = document.getElementById('refresh-summary-btn');
+		if (refreshSummaryBtn) {
+			refreshSummaryBtn.addEventListener('click', () => {
+				this.loadSummaryReport();
 			});
 		}
 
@@ -3133,6 +3176,8 @@ class UretimPlanlamaPaneli {
 			// 1. Önce hızlı verileri yükle (cache'den)
 			const plannedPromise = this.loadPlannedData();
 			const unplannedPromise = this.loadUnplannedData();
+			// Özet raporu da yükle
+			this.loadSummaryReport();
 			
 			// 2. Paralel yükleme ile hızlandır
 			await Promise.allSettled([plannedPromise, unplannedPromise]);
@@ -3316,6 +3361,9 @@ class UretimPlanlamaPaneli {
 				// Overview summary'yi güncelle (cache'li unplanned veri için)
 				this.loadOverviewSummaryData();
 				
+				// Özet raporu da yükle
+				this.loadSummaryReport();
+				
 				this.unplannedTable.isLoading = false;
 				return;
 			}
@@ -3356,6 +3404,9 @@ class UretimPlanlamaPaneli {
 					
 					// Overview summary'yi güncelle (yeni unplanned veri için)
 					this.loadOverviewSummaryData();
+					
+					// Özet raporu da güncelle
+					this.loadSummaryReport();
 				},
 				error: (err) => {
 					this.unplannedTable.isLoading = false;
@@ -3378,6 +3429,140 @@ class UretimPlanlamaPaneli {
 			this.hideTableLoading('unplanned');
 			this.showError('Planlanmamış veriler yüklenirken hata oluştu: ' + error.message);
 		}
+	}
+
+	// Planlanmamış siparişler özet raporu yükle
+	async loadSummaryReport() {
+		try {
+			const filters = this.getPlanlanmamisFilters();
+			const contentDiv = document.getElementById('unplanned-summary-content');
+			if (!contentDiv) return;
+			
+			// Loading göster
+			contentDiv.innerHTML = `
+				<div class="text-center text-muted p-4">
+					<div class="spinner-border text-primary" role="status"></div>
+					<p class="mt-2">Rapor yükleniyor...</p>
+				</div>
+			`;
+			
+			frappe.call({
+				method: 'uretim_planlama.uretim_planlama.page.uretim_planlama_paneli.uretim_planlama_paneli.get_unplanned_summary_report',
+				args: { filters: JSON.stringify(filters) },
+				timeout: CONFIG.FAST_TIMEOUT,
+				callback: (r) => {
+					if (r.exc) {
+						contentDiv.innerHTML = `
+							<div class="alert alert-danger">
+								<i class="fa fa-exclamation-triangle mr-2"></i>Rapor yüklenirken hata: ${r.exc}
+							</div>
+						`;
+						return;
+					}
+					
+					const data = r.message;
+					if (data.error) {
+						contentDiv.innerHTML = `
+							<div class="alert alert-danger">
+								<i class="fa fa-exclamation-triangle mr-2"></i>${data.error}
+							</div>
+						`;
+						return;
+					}
+					
+					this.renderSummaryReport(data);
+				},
+				error: (err) => {
+					contentDiv.innerHTML = `
+						<div class="alert alert-danger">
+							<i class="fa fa-exclamation-triangle mr-2"></i>Bağlantı hatası: ${err.message || err.exc || JSON.stringify(err)}
+						</div>
+					`;
+				}
+			});
+		} catch (error) {
+			const contentDiv = document.getElementById('unplanned-summary-content');
+			if (contentDiv) {
+				contentDiv.innerHTML = `
+					<div class="alert alert-danger">
+						<i class="fa fa-exclamation-triangle mr-2"></i>Rapor yüklenirken hata: ${error.message}
+					</div>
+				`;
+			}
+		}
+	}
+
+	// Özet raporu render et
+	renderSummaryReport(data) {
+		const contentDiv = document.getElementById('unplanned-summary-content');
+		if (!contentDiv || !data) return;
+		
+		const total = data.total_summary || {};
+		const filters = data.filters_applied || {};
+		
+		// Aktif filtreleri formatla
+		const activeFilters = [];
+		if (filters.siparis_no) activeFilters.push({label: 'Sipariş No', value: filters.siparis_no});
+		if (filters.bayi) activeFilters.push({label: 'Bayi', value: filters.bayi});
+		if (filters.musteri) activeFilters.push({label: 'Müşteri', value: filters.musteri});
+		if (filters.seri) activeFilters.push({label: 'Seri', value: filters.seri});
+		if (filters.renk) activeFilters.push({label: 'Renk', value: filters.renk});
+		if (filters.tip) activeFilters.push({label: 'Tip', value: filters.tip});
+		if (filters.acil_durum) activeFilters.push({label: 'Acil Durum', value: filters.acil_durum});
+		if (filters.delivery_from_date) activeFilters.push({label: 'Teslim Başlangıç', value: filters.delivery_from_date});
+		if (filters.delivery_to_date) activeFilters.push({label: 'Teslim Bitiş', value: filters.delivery_to_date});
+		
+		let html = `
+			<!-- Aktif Filtreler -->
+			${activeFilters.length > 0 ? `
+			<div class="row mb-3">
+				<div class="col-12">
+					<div class="alert alert-info mb-0" style="font-size: 0.95rem;">
+						<strong><i class="fa fa-filter mr-2"></i>Aktif Filtreler:</strong>
+						${activeFilters.map(f => `<span class="badge badge-primary ml-2" style="font-size: 0.9rem; padding: 5px 10px;">${f.label}: ${utils.escapeHtml(f.value)}</span>`).join('')}
+					</div>
+				</div>
+			</div>
+			` : ''}
+			
+			<!-- Genel Toplam -->
+			<div class="row">
+				<div class="col-12">
+					<div class="card border-0 shadow-sm">
+						<div class="card-body">
+							<div class="row text-center">
+								<div class="col-md-3">
+									<div class="p-3 bg-danger text-white rounded">
+										<h2 class="mb-1" style="font-size: 2.5rem; font-weight: bold;">${utils.formatNumber(total.pvc_qty || 0)}</h2>
+										<div style="font-size: 1rem; font-weight: 500;">PVC (Adet)</div>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<div class="p-3 bg-info text-white rounded">
+										<h2 class="mb-1" style="font-size: 2.5rem; font-weight: bold;">${utils.formatNumber(total.cam_qty || 0)}</h2>
+										<div style="font-size: 1rem; font-weight: 500;">Cam (Adet)</div>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<div class="p-3 bg-success text-white rounded">
+										<h2 class="mb-1" style="font-size: 2.5rem; font-weight: bold;">${utils.formatNumber(total.total_mtul || 0)}</h2>
+										<div style="font-size: 1rem; font-weight: 500;">MTÜL/m²</div>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<div class="p-3 bg-warning text-dark rounded">
+										<h2 class="mb-1" style="font-size: 2.5rem; font-weight: bold;">${total.order_count || 0}</h2>
+										<div style="font-size: 1rem; font-weight: 500;">Sipariş Sayısı</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		`;
+		
+		contentDiv.innerHTML = html;
 	}
 
 	// Legacy method for backward compatibility
@@ -3507,19 +3692,20 @@ class UretimPlanlamaPaneli {
 			return;
 		}
 
-		// İlk 5 veri logları kaldırıldı
-
-		// Tüm onaylanmış siparişleri göster
-		let filteredData = this.unplannedTable.data;
+		// TÜM onaylanmış ve planlaması yapılmamış siparişleri göster - KISITLAMA YOK
+		// Tüm veriler zaten backend'den filtrelenmiş olarak geliyor (docstatus=1 ve unplanned_qty>0)
+		const allUnplannedData = this.unplannedTable.data || [];
 		
-		// Performans için DocumentFragment kullan
+		// Performans optimizasyonu: DocumentFragment kullan - tüm verileri render et
 		const fragment = document.createDocumentFragment();
 		
-		filteredData.forEach((item, index) => {
-			const row = this.createUnplannedRowElement(item);
+		// Tüm verileri render et - kısıtlama yok, tüm onaylanmış ve planlaması yapılmamış siparişler
+		for (let i = 0; i < allUnplannedData.length; i++) {
+			const row = this.createUnplannedRowElement(allUnplannedData[i]);
 			fragment.appendChild(row);
-		});
+		}
 		
+		// Tek seferde DOM'a ekle (performans için)
 		tbody.innerHTML = '';
 		tbody.appendChild(fragment);
 		// Event binding sadece bindEvents()'da yapılıyor - duplicate önlemek için
@@ -3580,44 +3766,44 @@ class UretimPlanlamaPaneli {
 		row.dataset.id = item.sales_order || 'unknown';
 
 		row.innerHTML = `
-			<td title="${utils.escapeHtml(item.sales_order || '-')}">
+			<td title="${utils.escapeHtml(item.sales_order || '-')}" style="font-size: 0.75rem;">
 				<span class="font-weight-bold text-primary">${utils.escapeHtml(item.sales_order || '-')}</span>
 			</td>
-			<td title="${utils.escapeHtml(bayiText)}">
+			<td title="${utils.escapeHtml(bayiText)}" style="font-size: 0.75rem;">
 				<span class="text-truncate">${utils.escapeHtml(truncatedBayi)}</span>
 			</td>
-			<td title="${utils.escapeHtml(musteriText)}">
+			<td title="${utils.escapeHtml(musteriText)}" style="font-size: 0.75rem;">
 				<span class="text-truncate">${utils.escapeHtml(truncatedMusteri)}</span>
 			</td>
-			<td class="text-center">
-				<span class="badge badge-warning">${utils.formatDate(item.siparis_tarihi)}</span>
+			<td class="text-center" style="font-size: 0.75rem;">
+				<span class="badge badge-warning" style="font-size: 0.7rem;">${utils.formatDate(item.siparis_tarihi)}</span>
 			</td>
-			<td class="text-center">
-				<span class="badge badge-danger">${utils.formatDate(item.bitis_tarihi)}</span>
+			<td class="text-center" style="font-size: 0.75rem;">
+				<span class="badge badge-danger" style="font-size: 0.7rem;">${utils.formatDate(item.bitis_tarihi)}</span>
 			</td>
-			<td class="text-center">
-				<span class="badge" style="background-color: ${statusBadge.bg}; color: ${statusBadge.color};">${statusBadge.label}</span>
+			<td class="text-center" style="font-size: 0.75rem;">
+				<span class="badge" style="background-color: ${statusBadge.bg}; color: ${statusBadge.color}; font-size: 0.7rem;">${statusBadge.label}</span>
 			</td>
-			<td class="text-center">
-				<span class="badge badge-danger">${utils.escapeHtml(item.pvc_count || '0')}</span>
+			<td class="text-center" style="font-size: 0.75rem;">
+				<span class="badge badge-danger" style="font-size: 0.7rem;">${utils.escapeHtml(item.pvc_count || '0')}</span>
 			</td>
-			<td class="text-center">
-				<span class="badge badge-primary">${utils.escapeHtml(item.cam_count || '0')}</span>
+			<td class="text-center" style="font-size: 0.75rem;">
+				<span class="badge badge-primary" style="font-size: 0.7rem;">${utils.escapeHtml(item.cam_count || '0')}</span>
 			</td>
-			<td class="text-center">
-				<span class="badge badge-success">${utils.escapeHtml(item.total_mtul ? item.total_mtul.toFixed(2) : '0.00')}</span>
+			<td class="text-center" style="font-size: 0.75rem;">
+				<span class="badge badge-success" style="font-size: 0.7rem;">${utils.escapeHtml(item.total_mtul ? item.total_mtul.toFixed(2) : '0.00')}</span>
 			</td>
-			<td class="text-center" title="${utils.escapeHtml(seriText)}">
-				<span class="badge badge-info">${utils.escapeHtml(truncatedSeri)}</span>
+			<td class="text-center" title="${utils.escapeHtml(seriText)}" style="font-size: 0.75rem;">
+				<span class="badge badge-info" style="font-size: 0.7rem;">${utils.escapeHtml(truncatedSeri)}</span>
 			</td>
-			<td class="text-center" title="${utils.escapeHtml(renkText)}">
-				<span class="badge badge-warning">${utils.escapeHtml(truncatedRenk)}</span>
+			<td class="text-center" title="${utils.escapeHtml(renkText)}" style="font-size: 0.75rem;">
+				<span class="badge badge-warning" style="font-size: 0.7rem;">${utils.escapeHtml(truncatedRenk)}</span>
 			</td>
-			<td title="${utils.escapeHtml(aciklamaText)}" style="min-width: 200px;">
+			<td title="${utils.escapeHtml(aciklamaText)}" style="min-width: 200px; font-size: 0.75rem;">
 				<span class="text-truncate">${utils.escapeHtml(truncatedAciklama)}</span>
 			</td>
-			<td class="text-center">
-				${isUrgent ? '<span class="badge badge-danger"><i class="fa fa-exclamation-triangle"></i> ACİL</span>' : '<span class="badge badge-secondary">-</span>'}
+			<td class="text-center" style="font-size: 0.75rem;">
+				${isUrgent ? '<span class="badge badge-danger" style="font-size: 0.7rem;"><i class="fa fa-exclamation-triangle"></i> ACİL</span>' : '<span class="badge badge-secondary" style="font-size: 0.7rem;">-</span>'}
 			</td>
 		`;
 		
