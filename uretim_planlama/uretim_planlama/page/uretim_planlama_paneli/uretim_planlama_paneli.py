@@ -301,8 +301,6 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
         
         # Planlanmamış siparişler için optimize edilmiş sorgu - TÜM VERİLER
         
-        # Optimize edilmiş planlanmamış siparişler sorgusu
-        # Onaylanmış (docstatus=1) ve planlaması yapılmamış tüm siparişler
         unplanned_query = """
             SELECT 
                 so.name as sales_order,
@@ -326,13 +324,11 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 so.docstatus as belge_durumu,
                 COALESCE(so.custom_mly_list_uploaded, 0) as mly_dosyasi_var,
                 CASE 
-                    WHEN i.item_group = 'PVC' OR i.custom_stok_türü = 'PVC' 
-                    THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                    WHEN i.item_group = 'PVC' THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
                     ELSE 0 
                 END as pvc_qty,
                 CASE 
-                    WHEN i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar'
-                    THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                    WHEN i.item_group = 'Camlar' THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
                     ELSE 0 
                 END as cam_qty,
                 CASE 
@@ -367,6 +363,7 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
                 AND (i2.custom_serial != i3.custom_serial OR i2.custom_color != i3.custom_color)
             ) kismi_check ON kismi_check.sales_order = so.name
             WHERE so.docstatus = 1
+            AND i.item_group IS NOT NULL
             AND (i.item_group IN ('PVC', 'Camlar') OR i.custom_stok_türü IN ('PVC', 'Camlar'))
             AND (soi.qty - COALESCE(planned_qty.planned_qty, 0)) > 0
         """
@@ -1465,8 +1462,7 @@ def get_unplanned_data(filters=None) -> Dict[str, Any]:
 @frappe.whitelist()
 def get_unplanned_summary_report(filters=None) -> Dict[str, Any]:
     """
-    Planlanmamış siparişler için özet rapor - Seri, Renk, PVC/Cam bazında toplam miktarlar
-    Üretim planlamacının yeni siparişlere teslim tarihi verebilmesi için kullanılır
+    Planlanmamış siparişler için özet rapor döndürür.
     """
     try:
         # JavaScript'ten gelen string filters'ı parse et
@@ -1483,98 +1479,39 @@ def get_unplanned_summary_report(filters=None) -> Dict[str, Any]:
         
         # Cache kontrolü
         cache_key = f"upp:unplanned_summary:{hash(str(filters))}"
-        cached = _cache_get(cache_key, ttl_seconds=300)  # 5 dakika cache
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
         if cached:
             return cached
-        
+
         # Planlanmamış verileri getir
         planned, unplanned = get_optimized_data_v2(filters)
         
-        # Gruplama yapıları
-        summary_by_seri = {}
-        summary_by_renk = {}
-        summary_by_seri_renk = {}
-        summary_by_tip = {"PVC": {"pvc_qty": 0, "cam_qty": 0, "total_mtul": 0}, 
-                          "Cam": {"pvc_qty": 0, "cam_qty": 0, "total_mtul": 0}}
-        total_summary = {"pvc_qty": 0, "cam_qty": 0, "total_mtul": 0, "order_count": 0}
+        # Özet istatistikleri hesapla
+        total_orders = len(unplanned)
+        total_pvc = sum(float(item.get('pvc_count', 0) or 0) for item in unplanned)
+        total_cam = sum(float(item.get('cam_count', 0) or 0) for item in unplanned)
+        total_mtul = sum(float(item.get('total_mtul', 0) or 0) for item in unplanned)
         
-        # Her planlanmamış sipariş için toplamları hesapla
-        for item in unplanned:
-            seri = item.get('seri', '') or '-'
-            renk = item.get('renk', '') or '-'
-            pvc_qty = float(item.get('pvc_count', 0) or 0)
-            cam_qty = float(item.get('cam_count', 0) or 0)
-            total_mtul = float(item.get('total_mtul', 0) or 0)
-            
-            # Seri bazında toplam
-            if seri not in summary_by_seri:
-                summary_by_seri[seri] = {"pvc_qty": 0, "cam_qty": 0, "total_mtul": 0, "order_count": 0}
-            summary_by_seri[seri]["pvc_qty"] += pvc_qty
-            summary_by_seri[seri]["cam_qty"] += cam_qty
-            summary_by_seri[seri]["total_mtul"] += total_mtul
-            summary_by_seri[seri]["order_count"] += 1
-            
-            # Renk bazında toplam
-            if renk not in summary_by_renk:
-                summary_by_renk[renk] = {"pvc_qty": 0, "cam_qty": 0, "total_mtul": 0, "order_count": 0}
-            summary_by_renk[renk]["pvc_qty"] += pvc_qty
-            summary_by_renk[renk]["cam_qty"] += cam_qty
-            summary_by_renk[renk]["total_mtul"] += total_mtul
-            summary_by_renk[renk]["order_count"] += 1
-            
-            # Seri + Renk kombinasyonu bazında toplam
-            seri_renk_key = f"{seri}_{renk}"
-            if seri_renk_key not in summary_by_seri_renk:
-                summary_by_seri_renk[seri_renk_key] = {
-                    "seri": seri, 
-                    "renk": renk,
-                    "pvc_qty": 0, 
-                    "cam_qty": 0, 
-                    "total_mtul": 0, 
-                    "order_count": 0
-                }
-            summary_by_seri_renk[seri_renk_key]["pvc_qty"] += pvc_qty
-            summary_by_seri_renk[seri_renk_key]["cam_qty"] += cam_qty
-            summary_by_seri_renk[seri_renk_key]["total_mtul"] += total_mtul
-            summary_by_seri_renk[seri_renk_key]["order_count"] += 1
-            
-            # Tip bazında toplam (PVC/Cam)
-            if pvc_qty > 0:
-                summary_by_tip["PVC"]["pvc_qty"] += pvc_qty
-                summary_by_tip["PVC"]["total_mtul"] += total_mtul
-            if cam_qty > 0:
-                summary_by_tip["Cam"]["cam_qty"] += cam_qty
-                summary_by_tip["Cam"]["total_mtul"] += total_mtul
-            
-            # Genel toplam
-            total_summary["pvc_qty"] += pvc_qty
-            total_summary["cam_qty"] += cam_qty
-            total_summary["total_mtul"] += total_mtul
-            total_summary["order_count"] += 1
+        # Acil durum sayısı
+        acil_count = sum(1 for item in unplanned if item.get('acil', False))
         
-        # Listelere çevir ve sırala
-        seri_list = [{"seri": k, **v} for k, v in sorted(summary_by_seri.items(), 
-                                                         key=lambda x: x[1]["total_mtul"], 
-                                                         reverse=True)]
-        renk_list = [{"renk": k, **v} for k, v in sorted(summary_by_renk.items(), 
-                                                          key=lambda x: x[1]["total_mtul"], 
-                                                          reverse=True)]
-        seri_renk_list = sorted(summary_by_seri_renk.values(), 
-                               key=lambda x: x["total_mtul"], 
-                               reverse=True)
+        # Kısmi planlama sayısı
+        kismi_planlama_count = sum(1 for item in unplanned if item.get('kismi_planlama', 0))
         
         result = {
-            "summary_by_seri": seri_list,
-            "summary_by_renk": renk_list,
-            "summary_by_seri_renk": seri_renk_list,
-            "summary_by_tip": summary_by_tip,
-            "total_summary": total_summary,
+            "total_summary": {
+                "order_count": total_orders,
+                "pvc_qty": total_pvc,
+                "cam_qty": total_cam,
+                "total_mtul": total_mtul,
+                "acil_count": acil_count,
+                "kismi_planlama_count": kismi_planlama_count
+            },
             "filters_applied": filters
         }
         
         # Cache'e kaydet
-        _cache_set(cache_key, result, ttl_seconds=300)
-        
+        _cache_set(cache_key, result)
         return result
         
     except Exception as e:

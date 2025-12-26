@@ -395,14 +395,27 @@ function loadRawMaterialsTable(frm) {
                     text-align: left;
                 }
                 .custom-raw-material-table .stok-pozitif-box {
-                    background: #219653;
-                    color: #fff;
+                    background: #219653 !important;
+                    color: #fff !important;
                     border-radius: 6px;
                     padding: 2px 12px;
                     display: inline-block;
                     font-weight: bold;
+                    z-index: 10;
+                    position: relative;
                 }
-                .custom-raw-material-table .stok-negatif { color: #d32f2f; }
+                .custom-raw-material-table .stok-negatif { 
+                    color: #d32f2f !important;
+                }
+                .custom-raw-material-table .table-danger .stok-pozitif-box {
+                    background: #219653 !important;
+                    color: #fff !important;
+                    z-index: 10;
+                    position: relative;
+                }
+                .custom-raw-material-table .table-danger td {
+                    background-color: #f8d7da !important;
+                }
                 .custom-raw-material-table .rezerv-mavi { color: #1976d2; }
                 .custom-raw-material-table .kullanilan-rezerv-turuncu { color: #ff9800; }
                 .custom-raw-material-table .acik-miktar { background: #d32f2f; color: #fff; border-radius: 6px; padding: 2px 10px; display: inline-block; }
@@ -560,12 +573,17 @@ function loadRawMaterialsTable(frm) {
 					malzemeTalepCell =
 						row.malzeme_talep_details &&
 						row.malzeme_talep_details.length > 0
-							? `<a href="#" class="malzeme-talep-detail-link" data-item='${row.raw_material}' style="color:#1976d2;font-weight:bold;text-decoration:underline;">${row.malzeme_talep_details.reduce((a, b) => a + parseFloat(b.qty || 0), 0)}</a>`
+							? `<a href="#" class="malzeme-talep-detail-link" data-item='${row.raw_material}' style="color:#1976d2;font-weight:bold;text-decoration:underline;">${(row.malzeme_talep_details.reduce((a, b) => a + parseFloat(b.pending_qty || b.qty || 0), 0)).toFixed(2)}</a>`
 							: "-";
 					siparisEdilenCell =
 						row.siparis_edilen_details &&
 						row.siparis_edilen_details.length > 0
-							? `<a href="#" class="siparis-edilen-detail-link" data-item='${row.raw_material}' style="color:#1976d2;font-weight:bold;text-decoration:underline;">${row.siparis_edilen_details.reduce((a, b) => a + parseFloat(b.qty || 0), 0)}</a>`
+							? `<a href="#" class="siparis-edilen-detail-link" data-item='${row.raw_material}' style="color:#1976d2;font-weight:bold;text-decoration:underline;">${(row.siparis_edilen_details.reduce((a, b) => {
+								// Sadece teslim alınmamış miktarı topla
+								const qty = parseFloat(b.qty || 0);
+								const received = parseFloat(b.received_qty || 0);
+								return a + Math.max(0, qty - received);
+							}, 0)).toFixed(2)}</a>`
 							: "-";
 					beklenenTeslimCell = row.beklenen_teslim_tarihi
 						? row.beklenen_teslim_tarihi
@@ -617,7 +635,6 @@ function loadRawMaterialsTable(frm) {
 				if (showEksikTalepBtn) {
 					html += `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
                         <button class="btn btn-primary" id="btn-create-mr-for-shortages">Bu Siparişe Ait Eksikler İçin Satınalma Talebi Oluştur</button>
-                        <button class="btn btn-danger" id="btn-create-mr-for-all-shortages">Tüm Siparişlere Ait Eksikler İçin Satınalma Talebi Oluştur</button>
                     </div>`;
 				}
 				html += "</div>";
@@ -656,44 +673,6 @@ function loadRawMaterialsTable(frm) {
 									}
 								},
 							});
-						};
-					}
-					// Yeni: Tüm siparişler için eksik talep butonu
-					const btnAll = document.getElementById(
-						"btn-create-mr-for-all-shortages"
-					);
-					if (btnAll) {
-						btnAll.onclick = function () {
-							frappe.confirm(
-								"Tüm açık siparişler için eksik hammaddelerden toplu satınalma talebi oluşturulacak. Emin misiniz?",
-								function () {
-									frappe.call({
-										method: "uretim_planlama.sales_order_hooks.raw_materials.create_material_request_for_all_shortages",
-										freeze: true,
-										callback: function (res) {
-											if (res.message && res.message.success) {
-												let message =
-													res.message.message ||
-													"Tüm siparişlere ait eksikler için satınalma talebi oluşturuldu.";
-												frappe.show_alert({
-													message: `${message} <a href='/app/material-request/${res.message.mr_name}' target='_blank'>${res.message.mr_name}</a>`,
-													indicator: "red",
-												});
-												loadRawMaterialsTable(frm);
-											} else {
-												frappe.show_alert({
-													message:
-														res.message &&
-														res.message.message
-															? res.message.message
-															: "Talep oluşturulamadı.",
-													indicator: "orange",
-												});
-											}
-										},
-									});
-								}
-							);
 						};
 					}
 				}
@@ -788,7 +767,9 @@ function loadRawMaterialsTable(frm) {
 										row.malzeme_talep_details,
 										[
 											__("Belge No"),
+											__("Satış Siparişi"),
 											__("Miktar"),
+											__("Sipariş Edilen"),
 											__("Tarih"),
 										],
 										"material-request",
@@ -894,6 +875,10 @@ function enrichDetailsWithEndCustomer(details) {
 }
 
 const colMap = {
+	[__("Satış Siparişi")]: ["sales_order", "parent_sales_order"],
+	[__("Sales Order")]: ["sales_order", "parent_sales_order"],
+	[__("Sipariş Edilen")]: ["ordered_qty", "ordered"],
+	[__("Ordered")]: ["ordered_qty", "ordered"],
 	"Satış Siparişi": ["sales_order", "parent"],
 	Müşteri: ["customer"],
 	"Nihayi Müşteri": ["custom_end_customer"],
@@ -913,6 +898,8 @@ const colMap = {
 	"Usage Date": ["usage_date"],
 	"Used Qty": ["used_qty"],
 	"Sales Order": ["sales_order", "parent"],
+	"Sipariş Edilen": ["ordered_qty", "ordered"],
+	"Ordered": ["ordered_qty", "ordered"],
 };
 
 function showDetailsModal(title, details, columns, type) {

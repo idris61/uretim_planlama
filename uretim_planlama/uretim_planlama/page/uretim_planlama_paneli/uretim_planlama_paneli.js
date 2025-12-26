@@ -3695,7 +3695,7 @@ class UretimPlanlamaPaneli {
 		// TÜM onaylanmış ve planlaması yapılmamış siparişleri göster - KISITLAMA YOK
 		// Tüm veriler zaten backend'den filtrelenmiş olarak geliyor (docstatus=1 ve unplanned_qty>0)
 		const allUnplannedData = this.unplannedTable.data || [];
-		
+
 		// Performans optimizasyonu: DocumentFragment kullan - tüm verileri render et
 		const fragment = document.createDocumentFragment();
 		

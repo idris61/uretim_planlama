@@ -356,10 +356,17 @@ def get_sales_order_raw_materials(sales_order):
 				"total_reserved_details": total_reserved_details,
 			}
 		# Miktarları topla (BOM miktarı * satış siparişi miktarı) → her hammadde için gerçek toplam ihtiyaç
+		# ÖNEMLİ: BOM Item'da qty UOM cinsinden, stock_qty stok birimi cinsinden. Stok hesaplamaları için stock_qty kullanılmalı
 		for item, rm in item_pairs:
-			# item.qty: satış siparişi kalemi miktarı
-			# rm.qty: BOM'da tanımlı hammadde miktarı (1 adet ürün için)
-			ihtiyac_miktar = get_real_qty(rm.qty * item.qty, precision=5)
+			# item.qty: satış siparişi kalemi miktarı (UOM cinsinden)
+			# item.stock_qty: satış siparişi kalemi miktarı (stok birimi cinsinden)
+			# rm.qty: BOM'da tanımlı hammadde miktarı (UOM cinsinden, 1 adet ürün için)
+			# rm.stock_qty: BOM'da tanımlı hammadde miktarı (stok birimi cinsinden, 1 adet ürün için)
+			# Stok hesaplamaları stok birimi cinsinden yapıldığı için stock_qty kullanılmalı
+			# stock_qty yoksa veya 0 ise qty kullan (fallback)
+			rm_stock_qty = get_real_qty(rm.stock_qty if hasattr(rm, 'stock_qty') and rm.stock_qty and rm.stock_qty > 0 else rm.qty)
+			item_stock_qty = get_real_qty(item.stock_qty if hasattr(item, 'stock_qty') and item.stock_qty and item.stock_qty > 0 else item.qty)
+			ihtiyac_miktar = get_real_qty(rm_stock_qty * item_stock_qty, precision=5)
 			raw_materials[item_code]["qty"] += ihtiyac_miktar
 			raw_materials[item_code]["so_items"].add(item.item_code)
 
@@ -370,51 +377,81 @@ def get_sales_order_raw_materials(sales_order):
 		toplam_rezerv = get_real_qty(
 			data["total_reserved_qty"] or 0
 		)  # sistemdeki tüm rezervlerin toplamı
+		
+		# Mevcut malzeme talepleri (karşılanmamış - sipariş edilmemiş kısım) - TÜM siparişler için
+		# ÖNEMLİ: ordered_qty stock_qty cinsinden tutulur, bu yüzden stock_qty ile karşılaştırmalıyız
+		pending_mr_qty = frappe.db.sql("""
+            SELECT SUM(GREATEST(0, COALESCE(mri.stock_qty, mri.qty) - COALESCE(mri.ordered_qty, 0))) as pending_qty
+            FROM `tabMaterial Request Item` mri
+            INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
+            WHERE mri.item_code = %s
+              AND mr.material_request_type = 'Purchase'
+              AND mr.docstatus IN (0, 1)
+              AND mr.status NOT IN ('Cancelled', 'Received')
+        """, (data["raw_material"],), as_dict=True)
+		pending_mr_qty = get_real_qty(pending_mr_qty[0]['pending_qty'] if pending_mr_qty and pending_mr_qty[0]['pending_qty'] else 0)
+		
+		# Satınalma siparişleri (teslim alınmamış kısım) - TÜM siparişler için
+		pending_po_qty = frappe.db.sql("""
+            SELECT SUM(GREATEST(0, poi.qty - COALESCE(poi.received_qty, 0))) as pending_qty
+            FROM `tabPurchase Order Item` poi
+            INNER JOIN `tabPurchase Order` po ON poi.parent = po.name
+            WHERE poi.item_code = %s
+              AND po.docstatus IN (0, 1)
+              AND po.status NOT IN ('Cancelled', 'Completed')
+        """, (data["raw_material"],), as_dict=True)
+		pending_po_qty = get_real_qty(pending_po_qty[0]['pending_qty'] if pending_po_qty and pending_po_qty[0]['pending_qty'] else 0)
+		
 		if is_long_term_child and parent_sales_order:
 			acik_miktar = get_real_qty(data["qty"] or 0)
 			kullanilabilir_stok = 0
 		else:
 			kullanilabilir_stok = toplam_stok - toplam_rezerv
-			acik_miktar = max(get_real_qty(data["qty"] or 0) - kullanilabilir_stok, 0)
+			# DÜZELTME: Açık miktar hesaplamasında mevcut talepleri ve satınalma siparişlerini dikkate al
+			# Bu, create_material_request_for_shortages ile aynı mantık
+			acik_miktar = max(
+				get_real_qty(data["qty"] or 0) - kullanilabilir_stok - pending_mr_qty - pending_po_qty, 
+				0
+			)
+		
+		# TÜM siparişler için malzeme talepleri - Bu hammadde için olan tüm talepler gösterilsin
+		# Bu sipariş için olanlar da dahil, diğer siparişler için olanlar da dahil
 		mr_items = frappe.db.sql(
 			"""
-            SELECT mri.parent, mri.qty, mr.transaction_date
+            SELECT 
+                mri.parent, 
+                mri.qty,
+                mri.stock_qty,
+                mri.ordered_qty, 
+                mri.sales_order,
+                mr.transaction_date, 
+                mr.status
             FROM `tabMaterial Request Item` mri
             INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
             WHERE mri.item_code = %s
-              AND mri.sales_order = %s
               AND mr.material_request_type = 'Purchase'
               AND mr.docstatus IN (0, 1)
-              AND mr.status IN ('Draft', 'Pending', 'Partially Ordered', 'Partially Received', 'Ordered')
+              AND mr.status NOT IN ('Cancelled', 'Received')
+            ORDER BY mr.transaction_date DESC, mri.sales_order
             """,
-			(data["raw_material"], sales_order),
+			(data["raw_material"],),
 			as_dict=True,
 		)
-		# Sadece karşılanmamış (tamamlanmamış) talepleri göster
+		# Sadece karşılanmamış (teslim alınmamış) talepleri göster
+		# Tamamen sipariş edilip teslim alınmış olanlar tablodan kalkmalı
 		filtered_mr_items = []
 		for d in mr_items:
-			received_qty_po = frappe.db.sql(
-				"""
-                SELECT SUM(received_qty)
-                FROM `tabPurchase Order Item`
-                WHERE material_request = %s
-                  AND material_request_item = %s
-                  AND item_code = %s
-                """,
-				(d["parent"], d.get("name", d["parent"]), data["raw_material"])
-			)[0][0] or 0
-			received_qty_pr = frappe.db.sql(
-				"""
-                SELECT SUM(received_qty)
-                FROM `tabPurchase Receipt Item`
-                WHERE material_request = %s
-                  AND material_request_item = %s
-                  AND item_code = %s
-                """,
-				(d["parent"], d.get("name", d["parent"]), data["raw_material"])
-			)[0][0] or 0
-			received_qty = max(get_real_qty(received_qty_po), get_real_qty(received_qty_pr))
-			if get_real_qty(d["qty"]) - received_qty > 0:
+			# Karşılanmamış miktar = stock_qty - ordered_qty (sipariş edilmemiş kısım)
+			# ÖNEMLİ: ordered_qty stock_qty cinsinden tutulur
+			ordered_qty = get_real_qty(d.get("ordered_qty") or 0)
+			total_qty = get_real_qty(d.get("stock_qty") or d.get("qty") or 0)
+			pending_qty = total_qty - ordered_qty
+			
+			# Sadece karşılanmamış miktarı olan talepleri göster (pending_qty > 0)
+			if pending_qty > 0.001:  # Küçük farkları da dikkate al
+				d["pending_qty"] = pending_qty
+				d["ordered_qty"] = ordered_qty
+				d["qty"] = total_qty  # Toplam miktar (stock_qty) bilgisi de saklanır
 				filtered_mr_items.append(d)
 		mr_items = filtered_mr_items
 		# Detayları normalize et
@@ -1187,7 +1224,11 @@ def handle_child_sales_order_reserves(doc, method):
 		bom_doc = frappe.get_doc("BOM", bom)
 		for rm in bom_doc.items:
 			hammadde_code = str(rm.item_code).strip()
-			ihtiyac = get_real_qty(rm.qty * item.qty)
+			# ÖNEMLİ: BOM Item'da qty UOM cinsinden, stock_qty stok birimi cinsinden. Stok hesaplamaları için stock_qty kullanılmalı
+			# stock_qty yoksa veya 0 ise qty kullan (fallback)
+			rm_stock_qty = get_real_qty(rm.stock_qty if hasattr(rm, 'stock_qty') and rm.stock_qty and rm.stock_qty > 0 else rm.qty)
+			item_stock_qty = get_real_qty(item.stock_qty if hasattr(item, 'stock_qty') and item.stock_qty and item.stock_qty > 0 else item.qty)
+			ihtiyac = get_real_qty(rm_stock_qty * item_stock_qty)
 			toplam_ihtiyac[hammadde_code] = toplam_ihtiyac.get(hammadde_code, 0) + ihtiyac
 	# 2. Her hammadde için parent rezervde yeterli miktar var mı kontrol et
 	for hammadde_code, ihtiyac_raw in toplam_ihtiyac.items():
@@ -1268,23 +1309,6 @@ def create_material_request_for_shortages(sales_order):
         
         company = so_doc.company
 
-        # Mevcut açık Material Request kontrolü - tek sorgu
-        existing_mr = frappe.db.sql("""
-            SELECT mr.name
-            FROM `tabMaterial Request` mr
-            INNER JOIN `tabMaterial Request Item` mri ON mri.parent = mr.name
-            WHERE mri.sales_order = %s
-              AND mr.material_request_type = 'Purchase'
-              AND mr.docstatus IN (0, 1)
-            LIMIT 1
-        """, (sales_order,))
-        
-        if existing_mr:
-            return {
-                "success": False,
-                "message": "Bu satış siparişi için zaten bir malzeme talebi var. Lütfen mevcut talebi kullanın.",
-            }
-
         # Sales Order'da item var mı kontrol et
         if not so_doc.items:
             return {
@@ -1292,12 +1316,14 @@ def create_material_request_for_shortages(sales_order):
                 "message": f"Satış siparişi '{sales_order}' içinde hiç ürün yok."
             }
 
-        # OPTIMIZE: Direkt SQL ile hammadde eksiklerini hesapla
+        # DÜZELTME: Mevcut malzeme talepleri ve satınalma siparişlerini dikkate alarak doğru açık miktar hesapla
         shortage_data = frappe.db.sql("""
-            WITH raw_material_needs AS (
+            WITH so_needs AS (
+                -- Bu sipariş için hammadde ihtiyacı
+                -- ÖNEMLİ: BOM Item'da qty UOM cinsinden, stock_qty stok birimi cinsinden. Stok hesaplamaları için stock_qty kullanılmalı
                 SELECT 
                     bi.item_code as raw_material,
-                    SUM(bi.qty * soi.qty) as total_needed
+                    SUM(COALESCE(bi.stock_qty, bi.qty) * COALESCE(soi.stock_qty, soi.qty)) as so_needed
                 FROM `tabSales Order Item` soi
                 INNER JOIN `tabBOM` b ON b.item = soi.item_code 
                     AND b.is_active = 1 AND b.is_default = 1
@@ -1307,34 +1333,87 @@ def create_material_request_for_shortages(sales_order):
                 WHERE soi.parent = %s
                 GROUP BY bi.item_code
             ),
-            stock_and_reserve AS (
+            so_reserves AS (
+                -- Bu sipariş için rezerv (eğer sipariş onaylanmışsa)
                 SELECT 
-                    rmn.raw_material,
-                    rmn.total_needed,
-                    COALESCE(SUM(bin.actual_qty), 0) as total_stock,
-                    COALESCE(reserved.total_reserved, 0) as total_reserved
-                FROM raw_material_needs rmn
-                LEFT JOIN `tabBin` bin ON bin.item_code = rmn.raw_material
-                LEFT JOIN (
-                    SELECT item_code, SUM(quantity) as total_reserved
+                    item_code,
+                    SUM(quantity) as so_reserved
                     FROM `tabRezerved Raw Materials`
+                WHERE sales_order = %s
                     GROUP BY item_code
-                ) reserved ON reserved.item_code = rmn.raw_material
-                GROUP BY rmn.raw_material, rmn.total_needed, reserved.total_reserved
+            ),
+            total_reserves AS (
+                -- Tüm siparişler için toplam rezerv
+                SELECT 
+                    item_code,
+                    SUM(quantity) as total_reserved
+                FROM `tabRezerved Raw Materials`
+                GROUP BY item_code
+            ),
+            stock_info AS (
+                -- Stok bilgileri
+                SELECT 
+                    item_code,
+                    SUM(actual_qty) as total_stock
+                FROM `tabBin`
+                GROUP BY item_code
+            ),
+			existing_mr AS (
+				-- Mevcut malzeme talepleri (karşılanmamış - sipariş edilmemiş kısım)
+				-- ÖNEMLİ: ordered_qty stock_qty cinsinden tutulur, bu yüzden stock_qty ile karşılaştırmalıyız
+				SELECT 
+					mri.item_code,
+					SUM(GREATEST(0, COALESCE(mri.stock_qty, mri.qty) - COALESCE(mri.ordered_qty, 0))) as pending_mr_qty
+				FROM `tabMaterial Request Item` mri
+				INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
+				WHERE mr.material_request_type = 'Purchase'
+					AND mr.docstatus IN (0, 1)
+					AND mr.status NOT IN ('Cancelled', 'Received')
+				GROUP BY mri.item_code
+			),
+            existing_po AS (
+                -- Satınalma siparişleri (teslim alınmamış kısım)
+                SELECT 
+                    poi.item_code,
+                    SUM(GREATEST(0, poi.qty - COALESCE(poi.received_qty, 0))) as pending_po_qty
+                FROM `tabPurchase Order Item` poi
+                INNER JOIN `tabPurchase Order` po ON poi.parent = po.name
+                WHERE po.docstatus IN (0, 1)
+                  AND po.status NOT IN ('Cancelled', 'Completed')
+                GROUP BY poi.item_code
             )
             SELECT 
-                raw_material,
-                total_needed,
-                total_stock,
-                total_reserved,
-                CASE 
-                    WHEN total_needed > (total_stock - total_reserved) 
-                    THEN total_needed - (total_stock - total_reserved)
-                    ELSE 0 
-                END as shortage
-            FROM stock_and_reserve
-            WHERE total_needed > (total_stock - total_reserved)
-        """, (sales_order,), as_dict=True)
+                sn.raw_material,
+                sn.so_needed as total_needed,
+                COALESCE(si.total_stock, 0) as total_stock,
+                COALESCE(tr.total_reserved, 0) as total_reserved,
+                COALESCE(sr.so_reserved, 0) as so_reserved,
+                COALESCE(em.pending_mr_qty, 0) as pending_mr_qty,
+                COALESCE(ep.pending_po_qty, 0) as pending_po_qty,
+                -- Kullanılabilir stok = Fiziki stok - Tüm rezervler
+                COALESCE(si.total_stock, 0) - COALESCE(tr.total_reserved, 0) as available_stock,
+                -- Açık miktar = Sipariş ihtiyacı - Kullanılabilir stok - Mevcut talepler - Satınalma siparişleri
+                -- Bu sipariş için mevcut talepler açık miktar hesaplamasında dikkate alınır
+                -- Ama yeni talep oluştururken sadece eksik kısım için talep oluşturulur
+                GREATEST(0, 
+                    sn.so_needed - 
+                    (COALESCE(si.total_stock, 0) - COALESCE(tr.total_reserved, 0)) - 
+                    COALESCE(em.pending_mr_qty, 0) - 
+                    COALESCE(ep.pending_po_qty, 0)
+                ) as shortage
+            FROM so_needs sn
+            LEFT JOIN so_reserves sr ON sr.item_code = sn.raw_material
+            LEFT JOIN total_reserves tr ON tr.item_code = sn.raw_material
+            LEFT JOIN stock_info si ON si.item_code = sn.raw_material
+            LEFT JOIN existing_mr em ON em.item_code = sn.raw_material
+            LEFT JOIN existing_po ep ON ep.item_code = sn.raw_material
+            WHERE GREATEST(0, 
+                sn.so_needed - 
+                (COALESCE(si.total_stock, 0) - COALESCE(tr.total_reserved, 0)) - 
+                COALESCE(em.pending_mr_qty, 0) - 
+                COALESCE(ep.pending_po_qty, 0)
+            ) > 0
+        """, (sales_order, sales_order), as_dict=True)
 
         if not shortage_data:
             # BOM tanımlı mı kontrol et
@@ -1359,29 +1438,15 @@ def create_material_request_for_shortages(sales_order):
                     "message": f"Satış siparişi '{sales_order}' için eksik hammadde yok.",
                 }
 
-        # Mevcut açık talepleri toplu kontrol et
-        existing_items = set()
-        if shortage_data:
-            item_codes = [row['raw_material'] for row in shortage_data]
-            existing_requests = frappe.db.sql("""
-                SELECT DISTINCT mri.item_code
-                FROM `tabMaterial Request Item` mri
-                INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
-                WHERE mri.item_code IN %s
-                  AND mri.sales_order = %s
-                  AND mr.material_request_type = 'Purchase'
-                  AND mr.docstatus != 2
-            """, (tuple(item_codes), sales_order))
-            existing_items = set(row[0] for row in existing_requests)
-
         # Consolidated shortage items - aynı üründen birden fazla satır olmamalı
+        # NOT: Mevcut talepler zaten açık miktar hesaplamasında dikkate alındı
+        # Eğer shortage > 0 ise, demek ki mevcut talep yetersiz ve yeni talep oluşturulmalı
         consolidated_items = {}
         for row in shortage_data:
             item_code = row['raw_material']
-            if item_code in existing_items:
-                continue  # Zaten açık talep var
-            
             shortage_qty = get_real_qty(row['shortage'])
+            
+            # Shortage zaten gerçek eksik miktarı gösteriyor (mevcut talepler dikkate alınmış)
             if shortage_qty > 0:
                 if item_code in consolidated_items:
                     consolidated_items[item_code] += shortage_qty
@@ -1391,7 +1456,7 @@ def create_material_request_for_shortages(sales_order):
         if not consolidated_items:
             return {
                 "success": False,
-                "message": "Bu siparişe ait eksik hammadde için zaten açık bir talep var veya eksik yok.",
+                "message": "Bu siparişe ait eksik hammadde yok veya mevcut talepler yeterli.",
             }
 
         # Material Request oluştur
@@ -1455,70 +1520,108 @@ def create_material_request_for_all_shortages():
     Aynı üründen birden fazla satır oluşturmaz, toplam miktarı birleştirir.
     """
     try:
-        # ULTRA OPTIMIZE: Tek SQL sorgusu ile tüm eksikleri hesapla
-        shortage_data = frappe.db.sql("""
-            WITH all_raw_material_needs AS (
+        # SATIŞ SİPARİŞİ MANTIĞI: Tüm onaylı siparişler için BOM'dan toplam ihtiyaç hesapla
+        # Satış siparişi formunda: qty = bu sipariş için BOM'dan hesaplanan ihtiyaç
+        # Burada: total_needed = tüm onaylı siparişler için BOM'dan hesaplanan toplam ihtiyaç
+        item_rows = frappe.db.sql("""
+            SELECT DISTINCT 
+                bi.item_code,
+                i.item_name,
+                i.stock_uom
+            FROM `tabSales Order` so
+            INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name
+            INNER JOIN `tabBOM` b ON b.item = soi.item_code 
+                AND b.is_active = 1 AND b.is_default = 1
+            INNER JOIN `tabBOM Item` bi ON bi.parent = b.name
+            INNER JOIN `tabItem` i ON i.item_code = bi.item_code
+            WHERE so.docstatus = 1  -- Sadece onaylı siparişler
+                AND i.is_stock_item = 1 
+                AND i.is_purchase_item = 1
+                AND LOWER(COALESCE(i.item_group, '')) != 'camlar'  -- Cam hammaddeleri hariç
+        """, as_dict=True)
+        
+        shortage_data = []
+        for item_row in item_rows:
+            item_code = item_row['item_code']
+            
+            # SATIŞ SİPARİŞİ MANTIĞI: BOM'dan toplam ihtiyaç hesapla (tüm onaylı siparişler için)
+            # ÖNEMLİ: BOM Item'da qty UOM cinsinden, stock_qty stok birimi cinsinden. Stok hesaplamaları için stock_qty kullanılmalı
+            total_needed_rows = frappe.db.sql("""
                 SELECT 
-                    bi.item_code as raw_material,
-                    SUM(bi.qty * soi.qty) as total_needed,
-                    MAX(i_parent.item_group) as parent_item_group,
-                    MAX(i_raw.item_group) as raw_item_group
+                    SUM(COALESCE(bi.stock_qty, bi.qty) * COALESCE(soi.stock_qty, soi.qty)) as total_needed
                 FROM `tabSales Order` so
                 INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name
                 INNER JOIN `tabBOM` b ON b.item = soi.item_code 
                     AND b.is_active = 1 AND b.is_default = 1
                 INNER JOIN `tabBOM Item` bi ON bi.parent = b.name
-                INNER JOIN `tabItem` i_raw ON i_raw.item_code = bi.item_code 
-                    AND i_raw.is_stock_item = 1 AND i_raw.is_purchase_item = 1
-                LEFT JOIN `tabItem` i_parent ON i_parent.item_code = soi.item_code
-                WHERE so.docstatus IN (0, 1)
-                GROUP BY bi.item_code
-            ),
-            filtered_needs AS (
-                SELECT 
-                    raw_material,
-                    total_needed
-                FROM all_raw_material_needs
-                WHERE 
-                    -- Cam hammaddeleri hariç tut
-                    LOWER(COALESCE(raw_item_group, '')) != 'camlar'
-                    -- Cam ürünlerinin hammaddeleri dahil, diğer ürünlerin hammaddeleri de dahil
-                    AND (
-                        LOWER(COALESCE(parent_item_group, '')) = 'camlar' 
-                        OR LOWER(COALESCE(parent_item_group, '')) != 'camlar'
-                    )
-            ),
-            stock_and_reserve AS (
-                SELECT 
-                    fn.raw_material,
-                    fn.total_needed,
-                    COALESCE(SUM(bin.actual_qty), 0) as total_stock,
-                    COALESCE(reserved.total_reserved, 0) as total_reserved
-                FROM filtered_needs fn
-                LEFT JOIN `tabBin` bin ON bin.item_code = fn.raw_material
-                LEFT JOIN (
-                    SELECT item_code, SUM(quantity) as total_reserved
-                    FROM `tabRezerved Raw Materials`
-                    GROUP BY item_code
-                ) reserved ON reserved.item_code = fn.raw_material
-                GROUP BY fn.raw_material, fn.total_needed, reserved.total_reserved
-            ),
-            shortages AS (
-                SELECT 
-                    raw_material,
-                    total_needed,
-                    total_stock,
-                    total_reserved,
-                    GREATEST(0, total_needed - GREATEST(0, total_stock - total_reserved)) as shortage
-                FROM stock_and_reserve
-            )
-            SELECT 
-                raw_material,
-                shortage
-            FROM shortages
-            WHERE shortage > 0
-            ORDER BY shortage DESC
-        """, as_dict=True)
+                WHERE bi.item_code = %s
+                    AND so.docstatus = 1  -- Sadece onaylı siparişler
+            """, (item_code,), as_dict=True)
+            total_needed = get_real_qty(total_needed_rows[0]['total_needed'] if total_needed_rows and total_needed_rows[0]['total_needed'] else 0)
+            
+            # Toplam rezerv (sadece onaylı siparişler için) - sistemdeki tüm rezervlerin toplamı
+            total_reserved_rows = frappe.db.sql("""
+                SELECT SUM(rrm.quantity) as total_reserved
+                FROM `tabRezerved Raw Materials` rrm
+                INNER JOIN `tabSales Order` so ON so.name = rrm.sales_order
+                WHERE rrm.item_code = %s AND so.docstatus = 1
+            """, (item_code,), as_dict=True)
+            total_reserved = get_real_qty(total_reserved_rows[0]['total_reserved'] if total_reserved_rows and total_reserved_rows[0]['total_reserved'] else 0)
+            
+            # Toplam stok
+            total_stock_rows = frappe.db.sql("""
+                SELECT SUM(actual_qty) as total_stock
+                FROM `tabBin`
+                WHERE item_code = %s
+            """, (item_code,), as_dict=True)
+            total_stock = get_real_qty(total_stock_rows[0]['total_stock'] if total_stock_rows and total_stock_rows[0]['total_stock'] else 0)
+            
+            # Mevcut malzeme talepleri (karşılanmamış - sipariş edilmemiş kısım) - TÜM siparişler için
+            pending_mr_rows = frappe.db.sql("""
+                SELECT SUM(GREATEST(0, COALESCE(mri.stock_qty, mri.qty) - COALESCE(mri.ordered_qty, 0))) as pending_qty
+                FROM `tabMaterial Request Item` mri
+                INNER JOIN `tabMaterial Request` mr ON mri.parent = mr.name
+                WHERE mri.item_code = %s
+                    AND mr.material_request_type = 'Purchase'
+                    AND mr.docstatus IN (0, 1)
+                    AND mr.status NOT IN ('Cancelled', 'Received')
+            """, (item_code,), as_dict=True)
+            pending_mr_qty = get_real_qty(pending_mr_rows[0]['pending_qty'] if pending_mr_rows and pending_mr_rows[0]['pending_qty'] else 0)
+            
+            # Satınalma siparişleri (teslim alınmamış kısım) - TÜM siparişler için
+            pending_po_rows = frappe.db.sql("""
+                SELECT SUM(GREATEST(0, poi.qty - COALESCE(poi.received_qty, 0))) as pending_qty
+                FROM `tabPurchase Order Item` poi
+                INNER JOIN `tabPurchase Order` po ON poi.parent = po.name
+                WHERE poi.item_code = %s
+                    AND po.docstatus IN (0, 1)
+                    AND po.status NOT IN ('Cancelled', 'Completed')
+            """, (item_code,), as_dict=True)
+            pending_po_qty = get_real_qty(pending_po_rows[0]['pending_qty'] if pending_po_rows and pending_po_rows[0]['pending_qty'] else 0)
+            
+            # SATIŞ SİPARİŞİ MANTIĞI: kullanilabilir_stok = toplam_stok - toplam_rezerv
+            available_stock = total_stock - total_reserved
+            
+            # SATIŞ SİPARİŞİ MANTIĞI: acik_miktar = max(qty - kullanilabilir_stok - pending_mr_qty - pending_po_qty, 0)
+            # Satış siparişinde: qty = bu sipariş için BOM'dan hesaplanan ihtiyaç (total_reserved ile eşit)
+            # Rapor sayfası ve burada: qty yerine total_reserved kullanılır (tüm onaylı siparişler için toplam rezerv)
+            # DOĞRU FORMÜL: Açık miktar = Rezerv edilen miktar - Mevcut stok - Mevcut talep - Satınalma siparişi
+            shortage = max(0, total_reserved - total_stock - pending_mr_qty - pending_po_qty)
+            
+            if shortage > 0.0001:
+                shortage_data.append({
+                    'raw_material': item_code,
+                    'total_needed': total_needed,  # BOM'dan hesaplanan toplam ihtiyaç
+                    'total_stock': total_stock,
+                    'total_reserved': total_reserved,
+                    'pending_mr_qty': pending_mr_qty,
+                    'pending_po_qty': pending_po_qty,
+                    'available_stock': available_stock,
+                    'shortage': shortage
+                })
+        
+        # Sıralama
+        shortage_data.sort(key=lambda x: get_real_qty(x.get('shortage', 0)), reverse=True)
 
         if not shortage_data:
             return {

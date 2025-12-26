@@ -24,3 +24,10 @@ frappe.query_reports["Depo Bazında Stok Değeri"] = {
 
 
 
+
+
+
+
+
+
+
