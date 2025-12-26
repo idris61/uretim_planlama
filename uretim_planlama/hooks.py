@@ -10,12 +10,12 @@ app_license = "MIT"
 
 # Fixtures (isteğe bağlı özelleştirilebilir)
 fixtures = [
-	{"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Workflow"},
+	# {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
+	{"dt": "Quality Label Items"},
 	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
 	# {"dt": "Item Group"},
 	# {"dt": "Workstation"},
@@ -136,7 +136,7 @@ doc_events = {
 		"before_save": "uretim_planlama.uretim_planlama.utils.before_save",
 		"validate": "uretim_planlama.uretim_planlama.utils.validate"
 	},
-	
+
 	"Profile Stock Ledger": {
 		"after_import": "uretim_planlama.uretim_planlama.doctype.profile_stock_ledger.profile_stock_ledger.after_import"
 	},
@@ -244,4 +244,3 @@ scheduler_events = {
 		]
 	}
 }
-

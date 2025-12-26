@@ -1,0 +1,272 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "n37coetbub",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KALİTE KONTROL"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 09:02:17.761127",
+  "name": "mrj03cjqu1",
+  "parent": "HR-EMP-00117",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KÖŞE TEMİZLEME SCHTEC"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 08:32:26.059784",
+  "name": "n94jft57bn",
+  "parent": "HR-EMP-00118",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KÖŞE TEMİZLEME KABAN"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-17 17:50:37.978456",
+  "name": "nk073dc6at",
+  "parent": "HR-EMP-00119",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KÖŞE TEMİZLEME KABAN"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:52:05.071374",
+  "name": "o9e5291foa",
+  "parent": "HR-EMP-00120",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KALİTE KONTROL"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-09 16:20:06.907057",
+  "name": "orv242ddcv",
+  "parent": "HR-EMP-00121",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Kaban CNC FA-1030"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-16 09:21:11.389390",
+  "name": "hraefmi0ab",
+  "parent": "HR-EMP-00122",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": null
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gpnug8chp",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Cam Kalite Kontrol ve Etiket"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "n37kq2huj3",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Kaban CNC FA-1030"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-17 17:50:37.978456",
+  "name": "83c1vse08u",
+  "parent": "HR-EMP-00119",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": null
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:52:05.071374",
+  "name": "o9e204b8vi",
+  "parent": "HR-EMP-00120",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "ÇITA KESİM 1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-09 16:20:06.907057",
+  "name": "hqhai3aft1",
+  "parent": "HR-EMP-00121",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Murat NR242"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gp7athrd9",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KALİTE KONTROL"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "n37a5r77h6",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Murat NR242"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gpur0hqks",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KANAT BAĞLAMA 1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "n37odpdiqv",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "PROFİL TEMİN"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gp7kelmcc",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KANAT HAZIRLIK 1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "n37p5qi2k7",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "SAC KESİM"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gpc452q9c",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Kaban CNC FA-1030"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "7kjvlk90lq",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "ÇITA KESİM 1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gpelc7voa",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "Murat NR242"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "7kjqoem0v6",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "KÖŞE TEMİZLEME KABAN"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gpncrk1ug",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "ORTAKAYIT BAĞLAMA 1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-08 16:17:15.453170",
+  "name": "7kjm9b5kkg",
+  "parent": "HR-EMP-00116",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": null
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gp542fub6",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "PROFİL TEMİN"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gp7idotvq",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "SAC KESİM"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Employee Workstations",
+  "modified": "2025-12-23 16:44:31.964766",
+  "name": "7gp53ahg4b",
+  "parent": "HR-EMP-00124",
+  "parentfield": "custom_workstations",
+  "parenttype": "Employee",
+  "workstation": "ÇITA KESİM 1"
+ }
+]

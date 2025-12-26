@@ -1,0 +1,54 @@
+{
+ "charts": [
+  {
+   "chart_name": "Seri Baz\u0131nda G\u00fcnl\u00fck \u00dcretilen PVC",
+   "label": "Seri Baz\u0131nda G\u00fcnl\u00fck \u00dcretim (PVC)"
+  },
+  {
+   "chart_name": "Operation Status",
+   "label": "Operasyon Durumlar\u0131"
+  },
+  {
+   "chart_name": "Monthly Produced Items",
+   "label": "Ayl\u0131k \u00dcretim"
+  },
+  {
+   "chart_name": "Seri Baz\u0131nda G\u00fcnl\u00fck Cam",
+   "label": "Seri Baz\u0131nda G\u00fcnl\u00fck \u00dcretilen Cam Adedi"
+  },
+  {
+   "chart_name": "Employee-Poz",
+   "label": "\u00c7al\u0131\u015fan G\u00fcnl\u00fck Poz"
+  }
+ ],
+ "content": "[{\"id\":\"N4QAVMW_P0\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Y\u00f6netim</span>\",\"col\":12}},{\"id\":\"Lx1JiLUXLy\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Baz\u0131nda G\u00fcnl\u00fck \u00dcretim (PVC)\",\"col\":6}},{\"id\":\"HdQbXrkglh\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Baz\u0131nda G\u00fcnl\u00fck \u00dcretilen Cam Adedi\",\"col\":6}},{\"id\":\"rcnYuakIoM\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"vYDN9mHYSd\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Operasyon Durumlar\u0131\",\"col\":12}},{\"id\":\"BHS0soaSfp\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Ayl\u0131k \u00dcretim\",\"col\":12}},{\"id\":\"R8WJJoP94f\",\"type\":\"chart\",\"data\":{\"chart_name\":\"\u00c7al\u0131\u015fan G\u00fcnl\u00fck Poz\",\"col\":12}}]",
+ "creation": "2025-10-06 22:07:16.904659",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "color-review-points",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Y\u00f6netim",
+ "links": [],
+ "modified": "2025-12-26 15:26:40.703939",
+ "modified_by": "idris.gemici61@gmail.com",
+ "module": "Uretim Planlama",
+ "name": "Y\u00f6netim",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Y\u00f6netim"
+  }
+ ],
+ "sequence_id": 2.0,
+ "shortcuts": [],
+ "title": "Y\u00f6netim"
+}

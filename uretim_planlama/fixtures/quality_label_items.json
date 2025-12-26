@@ -1,0 +1,427 @@
+[
+ {
+  "acoustic_performance": "30(-1;-5)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "COMFORT SLİDE",
+  "dangerous_goods": "NPD",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  sürme sabit bölmeli hazır pencere",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "12480"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "NPD",
+  "max": 999999,
+  "min": 0,
+  "modified": "2025-12-26 14:48:24.423096",
+  "name": "COMFORT SLİDE-0-999999",
+  "performance_declaration_number": "W05",
+  "serial": null,
+  "sizes": "2200 X 2100",
+  "thermal_conductivity": "1,4",
+  "water_permeability": "8A",
+  "wind_load_resistance": "C4 / B4"
+ },
+ {
+  "acoustic_performance": "30(-1;-5)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "DORADO 76",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan çift açılımlı sabit bölmeli hazır pencere",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10300"
+   },
+   {
+    "frame_code": "10302"
+   },
+   {
+    "frame_code": "10320"
+   },
+   {
+    "frame_code": "10310"
+   }
+  ],
+  "labor_forces": "Sınıf 2",
+  "load_carrying_capacity": "NPD",
+  "max": 999999,
+  "min": 0,
+  "modified": "2025-12-26 14:48:13.184994",
+  "name": "DORADO 76-0-999999",
+  "performance_declaration_number": "W02",
+  "serial": null,
+  "sizes": "1490 X 2300",
+  "thermal_conductivity": "1",
+  "water_permeability": "E1050",
+  "wind_load_resistance": "C3 / B4"
+ },
+ {
+  "acoustic_performance": "32(-1;-4)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "HS-76",
+  "dangerous_goods": "NPD",
+  "description": "İki kanat hareketli sürme kapı",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "12420"
+   }
+  ],
+  "labor_forces": "NPD",
+  "load_carrying_capacity": "NPD",
+  "max": 999999,
+  "min": 0,
+  "modified": "2025-12-26 14:48:03.462619",
+  "name": "HS 76-0-999999",
+  "performance_declaration_number": "W06",
+  "serial": null,
+  "sizes": "2800 X 2200",
+  "thermal_conductivity": "1,2",
+  "water_permeability": "4A",
+  "wind_load_resistance": "C2 / B3"
+ },
+ {
+  "acoustic_performance": "NPD",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "LOTUS",
+  "dangerous_goods": "İçermez",
+  "description": "Çift kanat sürme doğrama",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10260"
+   },
+   {
+    "frame_code": "10262"
+   }
+  ],
+  "labor_forces": "Sınıf 2",
+  "load_carrying_capacity": "Uygun",
+  "max": 999998,
+  "min": 0,
+  "modified": "2025-12-26 14:47:54.420459",
+  "name": "LOTUS-0-999998",
+  "performance_declaration_number": "W04",
+  "serial": null,
+  "sizes": "2000 X 2200",
+  "thermal_conductivity": "1,6",
+  "water_permeability": "5A",
+  "wind_load_resistance": "C1 / B1"
+ },
+ {
+  "acoustic_performance": "NPD",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "LOTUS",
+  "dangerous_goods": "İçermez",
+  "description": "Sabit sürme doğrama",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10261"
+   },
+   {
+    "frame_code": "10263"
+   }
+  ],
+  "labor_forces": "Sınıf 2",
+  "load_carrying_capacity": "Uygun",
+  "max": 999999,
+  "min": 0,
+  "modified": "2025-12-26 14:47:54.390219",
+  "name": "LOTUS-0-999999",
+  "performance_declaration_number": "W04",
+  "serial": null,
+  "sizes": "2000 X 2200",
+  "thermal_conductivity": "1,6",
+  "water_permeability": "4A",
+  "wind_load_resistance": "C1 / B1"
+ },
+ {
+  "acoustic_performance": "31(-1;-5)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "REVOTECH",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  Sabit cam alt tabanlı içe açılır iki eksenli pencere",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10200"
+   },
+   {
+    "frame_code": "10202"
+   },
+   {
+    "frame_code": "10220"
+   }
+  ],
+  "labor_forces": "NPD",
+  "load_carrying_capacity": "Uygun",
+  "max": 5450,
+  "min": 0,
+  "modified": "2025-12-26 14:47:34.501106",
+  "name": "REVOTECH-0-5450",
+  "performance_declaration_number": "W03",
+  "serial": null,
+  "sizes": "1495 X 2300",
+  "thermal_conductivity": "0,9",
+  "water_permeability": "E900",
+  "wind_load_resistance": "C3 / B4"
+ },
+ {
+  "acoustic_performance": "32(-1;-5)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "REVOTECH",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  içeri çift açılımlıtek kanat kapı",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10200"
+   },
+   {
+    "frame_code": "10202"
+   },
+   {
+    "frame_code": "10220"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "Uygun",
+  "max": 7145,
+  "min": 5451,
+  "modified": "2025-12-26 14:47:34.488199",
+  "name": "REVOTECH-5451-7145",
+  "performance_declaration_number": "W03",
+  "serial": null,
+  "sizes": "1250 X 2100",
+  "thermal_conductivity": "0,9",
+  "water_permeability": "E1650",
+  "wind_load_resistance": "C3 / B4"
+ },
+ {
+  "acoustic_performance": "32(-1;-5)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "REVOTECH",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan içeri bir çift açılımlı bir tek açılımlıiki kanat pencere kapı",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10200"
+   },
+   {
+    "frame_code": "10202"
+   },
+   {
+    "frame_code": "10220"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "Uygun",
+  "max": 7995,
+  "min": 7146,
+  "modified": "2025-12-26 14:47:34.473345",
+  "name": "REVOTECH-7146-7995",
+  "performance_declaration_number": "W03",
+  "serial": null,
+  "sizes": "900 X 2200",
+  "thermal_conductivity": "0,9",
+  "water_permeability": "E1800",
+  "wind_load_resistance": "C5 / B5"
+ },
+ {
+  "acoustic_performance": "30(-1;-5)d B",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "REVOTECH",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  içeri çek sür tek kanat,sabit yan bölmeli kapı sürme",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10200"
+   },
+   {
+    "frame_code": "10202"
+   },
+   {
+    "frame_code": "10220"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "Uygun",
+  "max": 999999,
+  "min": 7996,
+  "modified": "2025-12-26 14:47:34.334405",
+  "name": "REVOTECH-7996-999999",
+  "performance_declaration_number": "W03",
+  "serial": null,
+  "sizes": "2000 X 2200",
+  "thermal_conductivity": "0,9",
+  "water_permeability": "E1800",
+  "wind_load_resistance": "C2 / B2"
+ },
+ {
+  "acoustic_performance": "NPD",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "SAFİR 76",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  Sabit alt parçalı tek kanatlı  çift açılımlı pencere",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10304"
+   },
+   {
+    "frame_code": "10305"
+   },
+   {
+    "frame_code": "10309"
+   },
+   {
+    "frame_code": "10324"
+   },
+   {
+    "frame_code": "10314"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "Uygun",
+  "max": 5450,
+  "min": 0,
+  "modified": "2025-12-26 14:47:07.882588",
+  "name": "SAFİR 76-0-5450",
+  "performance_declaration_number": "W01",
+  "serial": null,
+  "sizes": "1490 X 2300",
+  "thermal_conductivity": "1.2",
+  "water_permeability": "E1050",
+  "wind_load_resistance": "C3 / B4"
+ },
+ {
+  "acoustic_performance": "NPD",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "SAFİR 76",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda  kullanımı tasarlanan  çift kanatlı pencere kapı",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10304"
+   },
+   {
+    "frame_code": "10305"
+   },
+   {
+    "frame_code": "10309"
+   },
+   {
+    "frame_code": "10324"
+   },
+   {
+    "frame_code": "10314"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "Uygun",
+  "max": 7145,
+  "min": 5451,
+  "modified": "2025-12-26 14:47:07.865007",
+  "name": "SAFİR 76-5451-7145",
+  "performance_declaration_number": "W01",
+  "serial": null,
+  "sizes": "1250 X 2100",
+  "thermal_conductivity": "1.2",
+  "water_permeability": "E1050",
+  "wind_load_resistance": "C3 / B4"
+ },
+ {
+  "acoustic_performance": "NPD",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "SAFİR 76",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan tek kanatlı çift açılımlı pencere-kapı",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10304"
+   },
+   {
+    "frame_code": "10305"
+   },
+   {
+    "frame_code": "10309"
+   },
+   {
+    "frame_code": "10324"
+   },
+   {
+    "frame_code": "10314"
+   }
+  ],
+  "labor_forces": "Sınıf 1",
+  "load_carrying_capacity": "Uygun",
+  "max": 7995,
+  "min": 7146,
+  "modified": "2025-12-26 14:47:07.822805",
+  "name": "SAFİR 76-7146-7995",
+  "performance_declaration_number": "W01",
+  "serial": null,
+  "sizes": "900 X 2200",
+  "thermal_conductivity": "1.2",
+  "water_permeability": "E1200",
+  "wind_load_resistance": "C5 / B5"
+ },
+ {
+  "acoustic_performance": "NPD",
+  "air_permeability": "Sınıf 4",
+  "custom_serial": "SAFİR 76",
+  "dangerous_goods": "İçermez",
+  "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı  tasarlanan  sabit yan parçalı tek kanatlı çekmeli ve sürgülü kapı",
+  "docstatus": 0,
+  "doctype": "Quality Label Items",
+  "frame_codes": [
+   {
+    "frame_code": "10304"
+   },
+   {
+    "frame_code": "10305"
+   },
+   {
+    "frame_code": "10309"
+   },
+   {
+    "frame_code": "10324"
+   },
+   {
+    "frame_code": "10314"
+   }
+  ],
+  "labor_forces": "Sınıf 0",
+  "load_carrying_capacity": "Uygun",
+  "max": 999999,
+  "min": 7996,
+  "modified": "2025-12-26 14:47:07.803600",
+  "name": "SAFİR 76-7996-999999",
+  "performance_declaration_number": "W01",
+  "serial": null,
+  "sizes": "2000 X 2200",
+  "thermal_conductivity": "1.2",
+  "water_permeability": "E1200",
+  "wind_load_resistance": "C1 / B1"
+ }
+]

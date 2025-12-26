@@ -1,7 +1,33 @@
 // Hammadde Eksikleri Takip Sayfası
 // Satınalma personeli için tüm siparişlere ait hammadde eksiklerini gösterir
 
+// Socket.io hatalarını console'da gösterme - bu sayfa için gerekli değil
+(function() {
+	const originalError = console.error;
+	console.error = function(...args) {
+		// Socket.io bağlantı hatalarını filtrele
+		const message = args.join(' ');
+		if (message.includes('socket.io') ||
+			message.includes('ERR_CONNECTION_TIMED_OUT') ||
+			message.includes('Error connecting to socket.io')) {
+			return; // Bu hataları gösterme
+		}
+		originalError.apply(console, args);
+	};
+})();
+
 frappe.pages['hammadde-eksikleri-takip-sayfasi'].on_page_load = function(wrapper) {
+	// Socket.io hatalarını görmezden gel - bu sayfa için gerekli değil
+	if (window.io && window.io.socket) {
+		try {
+			window.io.socket.on('error', function() {
+				// Socket.io hatalarını sessizce görmezden gel
+			});
+		} catch(e) {
+			// Ignore
+		}
+	}
+
 	let page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: 'Hammadde Eksikleri Takip Sayfası',
@@ -25,30 +51,34 @@ class HammaddeEksikleriRaporu {
 
 	make() {
 		let me = this;
-		
+
 		this.container = $('<div class="hammadde-eksikleri-takip-sayfasi"></div>').appendTo(this.page.main);
 		this.summaryContainer = $('<div class="row mb-3" id="summary-cards"></div>').appendTo(this.container);
 		this.filterContainer = $('<div class="mb-3" id="filter-container"></div>').appendTo(this.container);
-		this.tableContainer = $('<div class="table-responsive" id="table-container" style="max-height: calc(100vh - 350px); overflow-y: auto;"></div>').appendTo(this.container);
+		this.tableContainer = $('<div class="table-responsive" id="table-container" style="max-height: calc(100vh - 350px); overflow-y: auto; overflow-x: auto; position: relative;"></div>').appendTo(this.container);
 		this.profileContainer = $('<div class="mt-4" id="profile-container"></div>').appendTo(this.container);
 		this.profileFilterContainer = $('<div class="mb-3" id="profile-filter-container"></div>').appendTo(this.profileContainer);
-		
+
 		this.setupFilters();
-		
+
 		$('#btn-refresh').on('click', function() {
 			me.loadData();
 		});
-		
+
 		$('#btn-create-mr-for-all').on('click', function() {
 			me.createMaterialRequestForAll();
 		});
-		
+
+		// Ana verileri yükle - profil verilerini lazy load yap
 		this.loadData();
+
+		// Profil verilerini sadece kullanıcı aşağı kaydırdığında yükle
+		this.setupLazyLoadProfile();
 	}
 
 	setupFilters() {
 		let me = this;
-		
+
 		let filterHtml = `
 			<div class="card border-0 shadow-sm">
 				<div class="card-body p-3">
@@ -82,20 +112,20 @@ class HammaddeEksikleriRaporu {
 				</div>
 			</div>
 		`;
-		
+
 		this.filterContainer.html(filterHtml);
-		
+
 		$('#filter-item-code, #filter-item-name').on('keyup', function() {
 			clearTimeout(me.filterTimeout);
 			me.filterTimeout = setTimeout(function() {
 				me.applyFilters();
 			}, 300);
 		});
-		
+
 		$('#filter-item-group').on('change', function() {
 			me.applyFilters();
 		});
-		
+
 		this.loadItemGroups();
 	}
 
@@ -134,29 +164,60 @@ class HammaddeEksikleriRaporu {
 
 	loadData() {
 		let me = this;
-		
+
 		if (this.loadingRequest) {
-			return;
+			// Eğer zaten bir istek varsa, önceki isteği iptal et
+			if (this.loadingRequest.xhr && this.loadingRequest.xhr.abort) {
+				this.loadingRequest.xhr.abort();
+			}
 		}
-		
+
 		this.showLoading();
-		
+
+		// Loading timeout - eğer 30 saniye içinde yanıt gelmezse kullanıcıyı bilgilendir
+		let loadingTimeout = setTimeout(function() {
+			if (me.loadingRequest) {
+				me.tableContainer.html(`
+					<div class="alert alert-warning" role="alert">
+						<i class="fa fa-clock-o"></i> Veriler yükleniyor, lütfen bekleyin... (Bu işlem biraz zaman alabilir)
+					</div>
+				`);
+			}
+		}, 30000);
+
 		this.loadingRequest = frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.hammadde_eksikleri_takip_sayfasi.hammadde_eksikleri_takip_sayfasi.get_all_shortages_report',
 			args: {
 				filters: me.filters
 			},
+			timeout: 60000, // 60 saniye timeout (sorgu optimize edildi, daha hızlı)
 			callback: function(r) {
+				clearTimeout(loadingTimeout);
 				me.loadingRequest = null;
 				if (r.message && r.message.success) {
 					me.renderReport(r.message);
 				} else {
-					me.showError(r.message?.error || 'Veri yüklenirken hata oluştu');
+					let errorMsg = r.message?.error || 'Veri yüklenirken hata oluştu';
+					if (errorMsg.includes('timeout') || errorMsg.includes('Timeout') || errorMsg.includes('max_statement_time') || errorMsg.includes('interrupted')) {
+						errorMsg = 'Sorgu çok uzun sürdü. Lütfen filtreleri daraltıp tekrar deneyin veya sistem yöneticisine başvurun.';
+					}
+					me.showError(errorMsg);
 				}
 			},
 			error: function(err) {
+				clearTimeout(loadingTimeout);
 				me.loadingRequest = null;
-				me.showError('Sunucu hatası: ' + (err.message || 'Bilinmeyen hata'));
+				if (err.status !== 0) { // Abort edilmediyse hata göster
+					let errorMsg = err.message || 'Bilinmeyen hata';
+					if (err.status === 0 || errorMsg.includes('aborted')) {
+						// İstek iptal edildi
+						return;
+					}
+					if (errorMsg.includes('ERR_CONNECTION_TIMED_OUT') || errorMsg.includes('timeout') || errorMsg.includes('max_statement_time')) {
+						errorMsg = 'Sorgu çok uzun sürdü. Lütfen filtreleri daraltıp tekrar deneyin veya sistem yöneticisine başvurun.';
+					}
+					me.showError('Sunucu hatası: ' + errorMsg);
+				}
 			}
 		});
 	}
@@ -176,18 +237,33 @@ class HammaddeEksikleriRaporu {
 	showError(message) {
 		this.tableContainer.html(`
 			<div class="alert alert-danger" role="alert">
-				<i class="fa fa-exclamation-triangle"></i> ${message}
+				<i class="fa fa-exclamation-triangle"></i> <strong>Hata:</strong> ${message}
+				<div class="mt-2">
+					<button class="btn btn-sm btn-primary" onclick="location.reload()">
+						<i class="fa fa-refresh"></i> Sayfayı Yenile
+					</button>
+					<button class="btn btn-sm btn-secondary ml-2" id="btn-retry-load">
+						<i class="fa fa-repeat"></i> Tekrar Dene
+					</button>
+				</div>
 			</div>
 		`);
 		this.summaryContainer.html('');
+
+		// Retry butonu
+		let me = this;
+		$('#btn-retry-load').off('click').on('click', function() {
+			me.loadData();
+		});
 	}
 
 	renderReport(data) {
 		this.renderSummary(data.summary);
 		this.renderTable(data.data);
-		
-		this.profileDataLoaded = false;
-		this.setupProfileFilters();
+
+		// Profil verilerini lazy load yap - sadece kullanıcı görüntülemek istediğinde yükle
+		// this.profileDataLoaded = false;
+		// this.setupProfileFilters();
 	}
 
 	renderSummary(summary) {
@@ -208,27 +284,29 @@ class HammaddeEksikleriRaporu {
 
 	renderTable(data) {
 		let me = this;
-		
+
 		if (!data || data.length === 0) {
 			this.tableContainer.html(`
 				<div class="alert alert-info" role="alert">
-					<i class="fa fa-info-circle"></i> Eksik hammadde bulunmamaktadır.
+					<i class="fa fa-info-circle"></i>
+					Filtrelere uygun hammadde bulunamadı.
+					<br><small class="text-muted">Not: Sadece siparişlerde kullanılan, rezervi olan veya eksik miktarı bulunan hammaddeler gösterilir.</small>
 				</div>
 			`);
 			return;
 		}
 
 		let html = `
-			<table class="table table-bordered table-hover table-sm" style="font-size: 0.85rem;">
-				<thead style="background-color: #dc3545; color: white; position: sticky; top: 0; z-index: 100;">
-					<tr>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; position: sticky; top: 0; background-color: #dc3545;">Hammadde Kodu</th>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; position: sticky; top: 0; background-color: #dc3545;">Hammadde Adı</th>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; position: sticky; top: 0; background-color: #dc3545;">Fiziki Stok</th>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; position: sticky; top: 0; background-color: #dc3545;">Toplam Rezerv</th>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; position: sticky; top: 0; background-color: #dc3545;">Mevcut Talep</th>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; position: sticky; top: 0; background-color: #dc3545;">Satınalma Siparişi</th>
-						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; background-color: #c82333; position: sticky; top: 0;">Açık Miktar</th>
+			<table class="table table-bordered table-hover table-sm" style="font-size: 0.85rem; border-collapse: separate; border-spacing: 0; width: 100%;">
+				<thead style="position: sticky; top: 0; z-index: 1020;">
+					<tr style="background-color: #dc3545;">
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; background-color: #dc3545; color: white; border-bottom: 2px solid #c82333; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Hammadde Kodu</th>
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; background-color: #dc3545; color: white; border-bottom: 2px solid #c82333; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Hammadde Adı</th>
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; background-color: #dc3545; color: white; border-bottom: 2px solid #c82333; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Fiziki Stok</th>
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; background-color: #dc3545; color: white; border-bottom: 2px solid #c82333; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Toplam Rezerv</th>
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; background-color: #dc3545; color: white; border-bottom: 2px solid #c82333; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Mevcut Talep</th>
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; background-color: #dc3545; color: white; border-bottom: 2px solid #c82333; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Satınalma Siparişi</th>
+						<th style="padding: 10px; font-size: 0.8rem; font-weight: bold; text-align: right; background-color: #c82333; color: white; border-bottom: 2px solid #a01e2a; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);">Açık Miktar</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -237,7 +315,7 @@ class HammaddeEksikleriRaporu {
 		data.forEach((row, index) => {
 			let shortage = row.shortage || 0;
 			let shortageClass = shortage > 0 ? 'text-danger font-weight-bold' : 'text-success';
-			
+
 			html += `
 				<tr style="background-color: ${index % 2 === 0 ? '#f9f9f9' : 'white'};">
 					<td style="padding: 8px;">
@@ -246,24 +324,24 @@ class HammaddeEksikleriRaporu {
 						</a>
 					</td>
 					<td style="padding: 8px; font-weight: bold;">${row.item_name || '-'}</td>
-					<td style="padding: 8px; text-align: right; background-color: #d4edda; cursor: pointer; font-weight: bold; color: #1976d2; text-decoration: underline;" 
-						class="warehouse-stock-link" 
+					<td style="padding: 8px; text-align: right; background-color: #d4edda; cursor: pointer; font-weight: bold; color: #1976d2; text-decoration: underline;"
+						class="warehouse-stock-link"
 						data-item-code="${row.item_code}"
 						data-item-name="${row.item_name || row.item_code}">
 						${this.formatNumber(row.total_stock || 0)}
 					</td>
-					<td style="padding: 8px; text-align: right; background-color: #e2e3e5; cursor: pointer; font-weight: bold;" 
-						class="reserve-detail-link text-primary" 
+					<td style="padding: 8px; text-align: right; background-color: #e2e3e5; cursor: pointer; font-weight: bold;"
+						class="reserve-detail-link text-primary"
 						data-item-code="${row.item_code}">
 						${this.formatNumber(row.total_reserved || 0)}
 					</td>
-					<td style="padding: 8px; text-align: right; cursor: pointer; font-weight: bold; color: #1976d2; text-decoration: underline;" 
-						class="mr-detail-link" 
+					<td style="padding: 8px; text-align: right; cursor: pointer; font-weight: bold; color: #1976d2; text-decoration: underline;"
+						class="mr-detail-link"
 						data-item-code="${row.item_code}">
 						${this.formatNumber(row.pending_mr_qty || 0)}
 					</td>
-					<td style="padding: 8px; text-align: right; cursor: pointer; font-weight: bold; color: #1976d2; text-decoration: underline;" 
-						class="po-detail-link" 
+					<td style="padding: 8px; text-align: right; cursor: pointer; font-weight: bold; color: #1976d2; text-decoration: underline;"
+						class="po-detail-link"
 						data-item-code="${row.item_code}">
 						${this.formatNumber(row.pending_po_qty || 0)}
 					</td>
@@ -283,23 +361,23 @@ class HammaddeEksikleriRaporu {
 
 	attachEventHandlers() {
 		let me = this;
-		
+
 		$('.warehouse-stock-link').on('click', function() {
 			let itemCode = $(this).data('item-code');
 			let itemName = $(this).data('item-name');
 			me.showWarehouseStockModal(itemCode, itemName);
 		});
-		
+
 		$('.reserve-detail-link').on('click', function() {
 			let itemCode = $(this).data('item-code');
 			me.showReserveDetails(itemCode);
 		});
-		
+
 		$('.mr-detail-link').on('click', function() {
 			let itemCode = $(this).data('item-code');
 			me.showMaterialRequestDetails(itemCode);
 		});
-		
+
 		$('.po-detail-link').on('click', function() {
 			let itemCode = $(this).data('item-code');
 			me.showPurchaseOrderDetails(itemCode);
@@ -308,7 +386,7 @@ class HammaddeEksikleriRaporu {
 
 	showReserveDetails(itemCode) {
 		let me = this;
-		
+
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.hammadde_eksikleri_takip_sayfasi.hammadde_eksikleri_takip_sayfasi.get_reserve_details',
 			args: { item_code: itemCode },
@@ -333,7 +411,7 @@ class HammaddeEksikleriRaporu {
 
 	showMaterialRequestDetails(itemCode) {
 		let me = this;
-		
+
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.hammadde_eksikleri_takip_sayfasi.hammadde_eksikleri_takip_sayfasi.get_material_request_details',
 			args: { item_code: itemCode },
@@ -358,7 +436,7 @@ class HammaddeEksikleriRaporu {
 
 	showPurchaseOrderDetails(itemCode) {
 		let me = this;
-		
+
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.hammadde_eksikleri_takip_sayfasi.hammadde_eksikleri_takip_sayfasi.get_purchase_order_details',
 			args: { item_code: itemCode },
@@ -384,7 +462,7 @@ class HammaddeEksikleriRaporu {
 
 	showWarehouseStockModal(itemCode, itemName) {
 		let me = this;
-		
+
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.hammadde_eksikleri_takip_sayfasi.hammadde_eksikleri_takip_sayfasi.get_warehouse_stock_details',
 			args: { item_code: itemCode },
@@ -509,22 +587,22 @@ class HammaddeEksikleriRaporu {
 		if (value === null || value === undefined) return '0,' + '0'.repeat(decimals);
 		let num = parseFloat(value);
 		if (isNaN(num)) return '0,' + '0'.repeat(decimals);
-		
+
 		if (num > 0 && num < 0.01) {
 			decimals = Math.max(decimals, 4);
 		}
-		
+
 		let formatted = num.toFixed(decimals);
 		let parts = formatted.split('.');
 		let integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 		let decimalPart = parts[1] || '';
-		
+
 		return integerPart + (decimalPart ? ',' + decimalPart : '');
 	}
 
 	createMaterialRequestForAll() {
 		let me = this;
-		
+
 		frappe.confirm(
 			'Tüm siparişlere ait eksikler için satınalma talebi oluşturulacak. Devam etmek istiyor musunuz?',
 			function() {
@@ -538,11 +616,11 @@ class HammaddeEksikleriRaporu {
 								message: r.message.message,
 								indicator: 'green'
 							}, 5);
-							
+
 							setTimeout(function() {
 								me.loadData();
 							}, 1000);
-							
+
 							if (r.message.mr_name) {
 								setTimeout(function() {
 									frappe.set_route('Form', 'Material Request', r.message.mr_name);
@@ -569,7 +647,7 @@ class HammaddeEksikleriRaporu {
 
 	loadProfileLengthData() {
 		let me = this;
-		
+
 		let profileFilters = {};
 		if ($('#profile-filter-item-code').length) {
 			profileFilters.profile_item_code = $('#profile-filter-item-code').val() || null;
@@ -580,11 +658,11 @@ class HammaddeEksikleriRaporu {
 		if ($('#profile-filter-length').length) {
 			profileFilters.profile_length = $('#profile-filter-length').val() || null;
 		}
-		
+
 		Object.keys(profileFilters).forEach(key => {
 			if (!profileFilters[key]) delete profileFilters[key];
 		});
-		
+
 		frappe.call({
 			method: 'uretim_planlama.uretim_planlama.page.hammadde_eksikleri_takip_sayfasi.hammadde_eksikleri_takip_sayfasi.get_profile_length_shortages',
 			args: {
@@ -615,7 +693,7 @@ class HammaddeEksikleriRaporu {
 
 	renderProfileLengthTable(data) {
 		let me = this;
-		
+
 		if (!data || data.length === 0) {
 			if (!this.profileContainer.find('#profile-table-container').length) {
 				this.profileContainer.append('<div id="profile-table-container"></div>');
@@ -685,7 +763,7 @@ class HammaddeEksikleriRaporu {
 			this.profileContainer.append('<div id="profile-table-container"></div>');
 		}
 		this.profileContainer.find('#profile-table-container').html(html);
-		
+
 		$('#profile-header').off('click').on('click', function() {
 			$('#profile-body').slideToggle();
 			let icon = $(this).find('i');
@@ -695,11 +773,11 @@ class HammaddeEksikleriRaporu {
 
 	setupProfileFilters() {
 		let me = this;
-		
+
 		if (this.profileFilterContainer.html()) {
 			return;
 		}
-		
+
 		let filterHtml = `
 			<div class="card border-0 shadow-sm">
 				<div class="card-body p-3">
@@ -730,9 +808,9 @@ class HammaddeEksikleriRaporu {
 				</div>
 			</div>
 		`;
-		
+
 		this.profileFilterContainer.html(filterHtml);
-		
+
 		frappe.call({
 			method: 'frappe.client.get_list',
 			args: {
@@ -753,21 +831,48 @@ class HammaddeEksikleriRaporu {
 				}
 			}
 		});
-		
+
 		$('#profile-filter-item-code, #profile-filter-length').on('keyup', function() {
 			clearTimeout(me.profileFilterTimeout);
 			me.profileFilterTimeout = setTimeout(function() {
 				me.loadProfileLengthData();
 			}, 300);
 		});
-		
+
 		$('#profile-filter-item-group').on('change', function() {
 			me.loadProfileLengthData();
 		});
-		
+
 		$('#profile-btn-refresh').on('click', function() {
 			me.loadProfileLengthData();
 		});
+	}
+
+	setupLazyLoadProfile() {
+		let me = this;
+
+		// Profil bölümüne bir buton ekle - kullanıcı tıklayınca yükle
+		if (!this.profileContainer.find('#profile-load-trigger').length) {
+			let triggerHtml = `
+				<div class="card border-info mt-3" id="profile-load-trigger">
+					<div class="card-body text-center p-4" style="cursor: pointer;">
+						<h6 class="mb-2">
+							<i class="fa fa-info-circle"></i> Profil Boy Bazında Stok Durumu
+						</h6>
+						<p class="text-muted mb-0" style="font-size: 0.9rem;">
+							Profil stok verilerini görüntülemek için tıklayın
+						</p>
+					</div>
+				</div>
+			`;
+			this.profileContainer.append(triggerHtml);
+
+			$('#profile-load-trigger').on('click', function() {
+				$(this).remove();
+				me.profileDataLoaded = false;
+				me.setupProfileFilters();
+			});
+		}
 	}
 
 	refresh() {

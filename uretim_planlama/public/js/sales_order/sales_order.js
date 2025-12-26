@@ -404,7 +404,7 @@ function loadRawMaterialsTable(frm) {
                     z-index: 10;
                     position: relative;
                 }
-                .custom-raw-material-table .stok-negatif { 
+                .custom-raw-material-table .stok-negatif {
                     color: #d32f2f !important;
                 }
                 .custom-raw-material-table .table-danger .stok-pozitif-box {
@@ -445,23 +445,31 @@ function loadRawMaterialsTable(frm) {
                 .custom-raw-material-table-wrapper {
                     max-height: 700px;
                     overflow: auto;
+                    overflow-x: auto;
                     border-radius: 10px;
                     border: 1px solid #e3e3e3;
                     margin-bottom: 0;
+                    position: relative;
                 }
                 .custom-raw-material-table {
                     width: 100%;
                     border-collapse: separate;
                     border-spacing: 0;
                 }
+                .custom-raw-material-table thead {
+                    position: sticky;
+                    top: 0;
+                    z-index: 1020;
+                }
                 .custom-raw-material-table thead th {
                     position: sticky;
                     top: 0;
-                    z-index: 2;
-                    background: #f8f9fa;
+                    z-index: 1020;
+                    background: #f8f9fa !important;
                     color: #222;
                     border-bottom: 2px solid #e3e3e3;
                     text-align: center;
+                    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
                 }
                 </style>`;
 				html += `<div class="custom-raw-material-table-wrapper">
