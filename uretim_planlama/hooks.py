@@ -10,23 +10,22 @@ app_license = "MIT"
 
 # Fixtures (isteğe bağlı özelleştirilebilir)
 fixtures = [
-	# {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
-	# {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
-	# {"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
+	# Uretim Planlama modülüne ait özelleştirmeler
 	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Number Card", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Custom HTML Block"},
 	{"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Workspace", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Quality Label Items"},
-	# {"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
-	# {"dt": "Item Group"},
-	# {"dt": "Workstation"},
-	# {"dt": "Operation"},
-	# {"dt": "UOM"},
-	# {"dt": "Cam"},
-	# {"dt": "Profile Type"},
-	# {"dt": "Cam Recipe"},
+	# Not: Diğer modüllerdeki (Stock, Manufacturing vb.) özelleştirmeler
+	# genellikle veritabanında tutulur ve ERPNext güncellemelerinde korunur.
+	# Bu modüllerdeki özelleştirmeleri fixture olarak eklemek için
+	# export_customizations.sh script'ini kullanarak export edip
+	# fixture klasörüne kopyalayabilirsiniz.
+	# Custom Field ve Property Setter'lar (çok fazla olduğu için yorum satırında)
+	# {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Client Script", "filters": [["module", "=", "Uretim Planlama"]]},
 ]
 
 # Uygulama içi JS/CSS dosyaları
