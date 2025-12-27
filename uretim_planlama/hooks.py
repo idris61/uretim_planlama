@@ -9,14 +9,16 @@ app_email = "idris.gemici61@gmail.com"
 app_license = "MIT"
 
 # Fixtures (isteğe bağlı özelleştirilebilir)
+# NOT: Fixture'lar kapatıldı - migrate sırasında otomatik export edilmesin diye
+# İhtiyaç olduğunda manuel olarak export edilebilir
 fixtures = [
 	# Uretim Planlama modülüne ait özelleştirmeler
-	{"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Number Card", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Custom HTML Block"},
-	{"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Workspace", "filters": [["module", "=", "Uretim Planlama"]]},
-	{"dt": "Quality Label Items"},
+	# {"dt": "Dashboard Chart", "filters": [["module", "=", "Uretim Planlama"]]},  # Workspace'lerdeki grafikler için gerekli
+	# {"dt": "Number Card", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Custom HTML Block"},
+	# {"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Workspace", "filters": [["module", "=", "Uretim Planlama"]]},
+	# {"dt": "Quality Label Items"},
 	# Tüm özelleştirilmiş workspace'ler, chart'lar ve card'lar (Stock, Manufacturing vb. dahil)
 	# Not: Bu fixture'lar tüm modüllerdeki özelleştirmeleri içerir
 	# Export edilen dosyalar: workspaces.json, dashboard_charts.json, number_cards.json
