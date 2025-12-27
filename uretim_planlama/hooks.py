@@ -17,11 +17,11 @@ fixtures = [
 	{"dt": "Report", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Workspace", "filters": [["module", "=", "Uretim Planlama"]]},
 	{"dt": "Quality Label Items"},
-	# Not: Diğer modüllerdeki (Stock, Manufacturing vb.) özelleştirmeler
-	# genellikle veritabanında tutulur ve ERPNext güncellemelerinde korunur.
-	# Bu modüllerdeki özelleştirmeleri fixture olarak eklemek için
-	# export_customizations.sh script'ini kullanarak export edip
-	# fixture klasörüne kopyalayabilirsiniz.
+	# Tüm özelleştirilmiş workspace'ler, chart'lar ve card'lar (Stock, Manufacturing vb. dahil)
+	# Not: Bu fixture'lar tüm modüllerdeki özelleştirmeleri içerir
+	# Export edilen dosyalar: workspaces.json, dashboard_charts.json, number_cards.json
+	# Custom Field ve Property Setter'lar da export edildi (custom_fields.json, property_setters.json)
+	# Ancak bunlar çok fazla olduğu için fixture olarak eklenmedi
 	# Custom Field ve Property Setter'lar (çok fazla olduğu için yorum satırında)
 	# {"dt": "Custom Field", "filters": [["module", "=", "Uretim Planlama"]]},
 	# {"dt": "Property Setter", "filters": [["module", "=", "Uretim Planlama"]]},
