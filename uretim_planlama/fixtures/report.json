@@ -1,97 +1,1701 @@
 [
-  {
-    "add_total_row": 1,
-    "add_translate_data": 0,
-    "apply_user_permissions": 0,
-    "creation": "2025-01-08 00:00:00.000000",
-    "disabled": 0,
-    "docstatus": 0,
-    "doctype": "Report",
-    "filters": [],
-    "idx": 0,
-    "is_standard": "Yes",
-    "letter_head": "",
-    "letterhead": null,
-    "modified": "2025-12-15 22:23:06.543133",
-    "modified_by": "Administrator",
-    "module": "Uretim Planlama",
-    "name": "CRM Çalışma Raporu",
-    "owner": "Administrator",
-    "prepared_report": 0,
-    "ref_doctype": "Lead",
-    "report_name": "CRM Çalışma Raporu",
-    "report_type": "Script Report",
-    "roles": [
-      {
-        "parent": "CRM Çalışma Raporu",
-        "parentfield": "roles",
-        "parenttype": "Report",
-        "role": "Sales User"
-      },
-      {
-        "parent": "CRM Çalışma Raporu",
-        "parentfield": "roles",
-        "parenttype": "Report",
-        "role": "Sales Manager"
-      },
-      {
-        "parent": "CRM Çalışma Raporu",
-        "parentfield": "roles",
-        "parenttype": "Report",
-        "role": "System Manager"
-      }
-    ],
-    "timeout": 0
-  },
-  {
-    "add_total_row": 0,
-    "add_translate_data": 0,
-    "apply_user_permissions": 0,
-    "creation": "2025-12-23 00:00:00.000000",
-    "disabled": 0,
-    "docstatus": 0,
-    "doctype": "Report",
-    "filters": [
-      {
-        "fieldname": "item_code",
-        "fieldtype": "Link",
-        "label": "Ürün Kodu",
-        "mandatory": 0,
-        "options": "Item",
-        "wildcard_filter": 0
-      },
-      {
-        "fieldname": "item_group",
-        "fieldtype": "Link",
-        "label": "Ürün Grubu",
-        "mandatory": 0,
-        "options": "Item Group",
-        "wildcard_filter": 0
-      },
-      {
-        "fieldname": "warehouse",
-        "fieldtype": "Link",
-        "label": "Depo",
-        "mandatory": 0,
-        "options": "Warehouse",
-        "wildcard_filter": 0
-      }
-    ],
-    "idx": 0,
-    "is_standard": "Yes",
-    "letter_head": "",
-    "letterhead": null,
-    "modified": "2025-12-23 00:00:00.000000",
-    "modified_by": "Administrator",
-    "module": "Uretim Planlama",
-    "name": "Depo Bazında Stok Değeri",
-    "owner": "Administrator",
-    "prepared_report": 0,
-    "ref_doctype": "Item",
-    "report_name": "Depo Bazında Stok Değeri",
-    "report_type": "Script Report",
-    "roles": [],
-    "timeout": 0
-  }
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-15 22:23:06.543133",
+  "module": "Uretim Planlama",
+  "name": "CRM Çalışma Raporu",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Lead",
+  "reference_report": null,
+  "report_name": "CRM Çalışma Raporu",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "CRM Çalışma Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "CRM Çalışma Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "CRM Çalışma Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"İş İstasyonu Doluluk Oranı-2\"] = {\r\n    filters: [\r\n        {\r\n            fieldname: \"from_date\",\r\n            label: \"Başlangıç Tarihi\",\r\n            fieldtype: \"Date\",\r\n            default: frappe.datetime.add_days(frappe.datetime.get_today(), -7),\r\n            reqd: 1\r\n        },\r\n        {\r\n            fieldname: \"to_date\",\r\n            label: \"Bitiş Tarihi\",\r\n            fieldtype: \"Date\",\r\n            default: frappe.datetime.get_today(),\r\n            reqd: 1\r\n        },\r\n        {\r\n            fieldname: \"workstation\",\r\n            label: \"İş İstasyonu\",\r\n            fieldtype: \"Link\",\r\n            options: \"Workstation\",\r\n            reqd: 1\r\n        }\r\n    ]\r\n};\r\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.917103",
+  "module": "Uretim Planlama",
+  "name": "İş İstasyonu Doluluk Oranı-2",
+  "prepared_report": 0,
+  "query": "SELECT\r\n    DATE(woo.planned_start_time) AS \"Tarih:Date:100\",\r\n    ROUND(SUM(woo.time_in_mins) / 60.0, 2) AS \"Planlanan Süre (saat):Float:130\",\r\n    ROUND(9.0, 2) AS \"Kapasite (saat):Float:100\",\r\n    ROUND(\r\n        (SUM(woo.time_in_mins) / 60.0) / 9.0 * 100.0,\r\n        2\r\n    ) AS \"Doluluk Oranı (%%):Percent:120\"\r\nFROM\r\n    `tabWork Order Operation` woo\r\nWHERE\r\n    woo.planned_start_time IS NOT NULL\r\n    AND DATE(woo.planned_start_time) BETWEEN %(from_date)s AND %(to_date)s\r\n    AND woo.workstation = %(workstation)s\r\nGROUP BY\r\n    DATE(woo.planned_start_time)\r\nORDER BY\r\n    DATE(woo.planned_start_time) ASC;\r\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "İş İstasyonu Doluluk Oranı-2",
+  "report_script": "",
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "İş İstasyonu Doluluk Oranı-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "İş İstasyonu Doluluk Oranı-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "İş İstasyonu Doluluk Oranı-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Satış Sipariş Raporu Sayılar\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"customer\",\n            \"label\": \"Müşteri\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Customer\",\n            \"reqd\": 0\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_months(frappe.datetime.get_today(), -1),\n            \"reqd\": 1\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today(),\n            \"reqd\": 1\n        }\n    ]\n};\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.876204",
+  "module": "Uretim Planlama",
+  "name": "Satış Sipariş Raporu Sayılar",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Satış Sipariş Raporu Sayılar",
+  "report_script": "columns = [\n    {\"label\": _(\"Müşteri\"), \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 180},\n    {\"label\": _(\"Durum\"), \"fieldname\": \"workflow_state\", \"fieldtype\": \"Data\", \"width\": 180},\n    {\"label\": _(\"Adet\"), \"fieldname\": \"count\", \"fieldtype\": \"Int\", \"width\": 100},\n]\n\nfilters = filters or {}\ncustomer = filters.get(\"customer\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = []\nif customer:\n    conditions.append(f\"customer = '{customer}'\")\nif from_date:\n    conditions.append(f\"transaction_date >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"transaction_date <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\" if conditions else \"\"\n\nquery = f\"\"\"\n    SELECT\n        customer,\n        workflow_state,\n        COUNT(*) AS count\n    FROM `tabSales Order`\n    {where_clause}\n    GROUP BY customer, workflow_state\n    ORDER BY customer, count DESC\n\"\"\"\n\nresults = frappe.db.sql(query, as_dict=True)\n\nif not results:\n    results = [{\n        \"customer\": customer or \"Tümü\",\n        \"workflow_state\": \"Kayıt Yok\",\n        \"count\": 0\n    }]\n\ndata = columns, results\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Satış Sipariş Raporu Sayılar",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Satış Siparişleri Müşteri Bomları\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"customer\",\n            \"label\": \"Müşteri\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Customer\",\n            \"reqd\": 1\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_months(frappe.datetime.get_today(), -1),\n            \"reqd\": 1\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today(),\n            \"reqd\": 1\n        }\n    ]\n};\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.892195",
+  "module": "Uretim Planlama",
+  "name": "Satış Siparişleri Müşteri Bomları",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Satış Siparişleri Müşteri Bomları",
+  "report_script": "columns = [\n    {\"label\": _(\"Müşteri\"), \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 180},\n    {\"label\": _(\"Tarih\"), \"fieldname\": \"transaction_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": _(\"Sipariş No\"), \"fieldname\": \"sales_order\", \"fieldtype\": \"Link\", \"options\": \"Sales Order\", \"width\": 140},\n    {\"label\": _(\"Ürün Kodu\"), \"fieldname\": \"item_code\", \"fieldtype\": \"Link\", \"options\": \"Item\", \"width\": 130},\n    {\"label\": _(\"Ürün Adı\"), \"fieldname\": \"item_name\", \"fieldtype\": \"Data\", \"width\": 180},\n    {\"label\": _(\"Adet\"), \"fieldname\": \"qty\", \"fieldtype\": \"Float\", \"width\": 80},\n    {\"label\": _(\"Birim Fiyat\"), \"fieldname\": \"rate\", \"fieldtype\": \"Currency\", \"width\": 100},\n    {\"label\": _(\"Tutar\"), \"fieldname\": \"amount\", \"fieldtype\": \"Currency\", \"width\": 100},\n]\n\nfilters = filters or {}\ncustomer = filters.get(\"customer\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = [f\"so.customer = '{customer}'\"]\nif from_date:\n    conditions.append(f\"so.transaction_date >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"so.transaction_date <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\"\n\nquery = f\"\"\"\n    SELECT\n        so.customer,\n        so.transaction_date,\n        so.name AS sales_order,\n        soi.item_code,\n        soi.item_name,\n        soi.qty,\n        soi.rate,\n        soi.amount\n    FROM `tabSales Order` so\n    INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name\n    {where_clause}\n    ORDER BY so.transaction_date DESC, so.name\n\"\"\"\n\nresults = frappe.db.sql(query, as_dict=True)\n\nif not results:\n    results = [{\n        \"customer\": customer,\n        \"transaction_date\": None,\n        \"sales_order\": \"Yok\",\n        \"item_code\": \"-\",\n        \"item_name\": \"Kayıt Bulunamadı\",\n        \"qty\": 0,\n        \"rate\": 0,\n        \"amount\": 0\n    }]\n\ndata = columns, results\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Satış Siparişleri Müşteri Bomları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 1,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Üretim Personel Raporu\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"customer\",\n            \"label\": \"Müşteri\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Customer\",\n            \"reqd\": 0\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_days(frappe.datetime.get_today(), -7)\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today()\n        }\n    ]\n}\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.728171",
+  "module": "Uretim Planlama",
+  "name": "Üretim Personel Raporu",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Üretim Personel Raporu",
+  "report_script": "# Kolonlar\ncolumns = [\n    {\"label\": \"Sales Order\", \"fieldname\": \"sales_order\", \"fieldtype\": \"Link\", \"options\": \"Sales Order\", \"width\": 150},\n    {\"label\": \"Müşteri\", \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 150},\n    {\"label\": \"Nihai Müşteri\", \"fieldname\": \"custom_end_customer\", \"fieldtype\": \"Data\", \"width\": 150},\n    {\"label\": \"Sipariş Tarihi\", \"fieldname\": \"transaction_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": \"Teslim Tarihi\", \"fieldname\": \"delivery_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": \"Ürün Kodu\", \"fieldname\": \"item_code\", \"fieldtype\": \"Link\", \"options\": \"Item\", \"width\": 150},\n    {\"label\": \"Sipariş Miktarı\", \"fieldname\": \"qty\", \"fieldtype\": \"Float\", \"width\": 100},\n    {\"label\": \"BOM Adı\", \"fieldname\": \"bom_name\", \"fieldtype\": \"Link\", \"options\": \"BOM\", \"width\": 160},\n    {\"label\": \"Job Card\", \"fieldname\": \"job_card_name\", \"fieldtype\": \"Link\", \"options\": \"Job Card\", \"width\": 150},\n    {\"label\": \"Operasyon\", \"fieldname\": \"operation\", \"fieldtype\": \"Data\", \"width\": 120},\n    {\"label\": \"Planlanan Başlangıç\", \"fieldname\": \"expected_start_date\", \"fieldtype\": \"Datetime\", \"width\": 160},\n    {\"label\": \"Planlanan Bitiş\", \"fieldname\": \"expected_end_date\", \"fieldtype\": \"Datetime\", \"width\": 160},\n    {\"label\": \"Gerçek Başlangıç\", \"fieldname\": \"actual_start_date\", \"fieldtype\": \"Datetime\", \"width\": 160},\n    {\"label\": \"Gerçek Bitiş\", \"fieldname\": \"actual_end_date\", \"fieldtype\": \"Datetime\", \"width\": 160},\n    {\"label\": \"Job Card Miktar\", \"fieldname\": \"for_quantity\", \"fieldtype\": \"Float\", \"width\": 120},\n    {\"label\": \"Tamamlanan Miktar\", \"fieldname\": \"total_completed_qty\", \"fieldtype\": \"Float\", \"width\": 150},\n    {\"label\": \"Zaman Log - Çalışan\", \"fieldname\": \"employee_name\", \"fieldtype\": \"Data\", \"width\": 150},\n    {\"label\": \"Zaman Log - Tamamlanan\", \"fieldname\": \"log_completed_qty\", \"fieldtype\": \"Float\", \"width\": 150},\n    {\"label\": \"Başlangıç Saati\", \"fieldname\": \"from_time\", \"fieldtype\": \"Datetime\", \"width\": 160},\n    {\"label\": \"Bitiş Saati\", \"fieldname\": \"to_time\", \"fieldtype\": \"Datetime\", \"width\": 160},\n    {\"label\": \"Toplam Dakika\", \"fieldname\": \"time_in_mins\", \"fieldtype\": \"Float\", \"width\": 120},\n]\n\n# Filtreler\nfilters = filters or {}\ncustomer = filters.get(\"customer\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = []\nif customer:\n    conditions.append(f\"so.customer = '{customer}'\")\nif from_date:\n    conditions.append(f\"so.transaction_date >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"so.transaction_date <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\" if conditions else \"\"\n\n# Ana Sales Order + Items sorgusu\nquery = f\"\"\"\n    SELECT\n        so.name AS sales_order,\n        so.customer,\n        so.custom_end_customer,\n        so.transaction_date,\n        so.delivery_date,\n        soi.item_code,\n        soi.qty\n    FROM `tabSales Order` so\n    INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name\n    {where_clause}\n    ORDER BY so.transaction_date DESC, so.name\n\"\"\"\n\nsales_order_items = frappe.db.sql(query, as_dict=True)\n\nfinal_data = []\n\nfor row in sales_order_items:\n    # 1️⃣ BOM bul\n    bom = frappe.db.sql(\"\"\"\n        SELECT name FROM `tabBOM` \n        WHERE item = %s \n        ORDER BY modified DESC \n        LIMIT 1\n    \"\"\", row[\"item_code\"], as_dict=True)\n    bom_name = bom[0][\"name\"] if bom else None\n\n    if not bom_name:\n        # BOM yoksa boş satır ekle\n        final_data.append({\n            **row,\n            \"bom_name\": \"-\",\n            \"job_card_name\": \"-\",\n            \"operation\": \"-\",\n            \"expected_start_date\": None,\n            \"expected_end_date\": None,\n            \"actual_start_date\": None,\n            \"actual_end_date\": None,\n            \"for_quantity\": 0,\n            \"total_completed_qty\": 0,\n            \"employee\": \"-\",\n            \"log_completed_qty\": 0,\n            \"from_time\": None,\n            \"to_time\": None,\n            \"time_in_mins\": 0\n        })\n        continue\n\n    # 2️⃣ Job Card bilgileri\n    job_cards = frappe.db.sql(\"\"\"\n        SELECT name, for_quantity, total_completed_qty, operation, \n               expected_start_date, expected_end_date, \n               actual_start_date, actual_end_date\n        FROM `tabJob Card`\n        WHERE bom_no = %s\n    \"\"\", bom_name, as_dict=True)\n\n    if not job_cards:\n        final_data.append({\n            **row,\n            \"bom_name\": bom_name,\n            \"job_card_name\": \"-\",\n            \"operation\": \"-\",\n            \"expected_start_date\": None,\n            \"expected_end_date\": None,\n            \"actual_start_date\": None,\n            \"actual_end_date\": None,\n            \"for_quantity\": 0,\n            \"total_completed_qty\": 0,\n            \"employee\": \"-\",\n            \"log_completed_qty\": 0,\n            \"from_time\": None,\n            \"to_time\": None,\n            \"time_in_mins\": 0\n        })\n        continue\n\n    # 3️⃣ Time Log bilgilerini Job Card bazında ekle\n    for jc in job_cards:\n        time_logs = frappe.db.sql(\"\"\"\n            SELECT tl.employee, e.employee_name, tl.completed_qty, tl.from_time, tl.to_time, tl.time_in_mins\n            FROM `tabJob Card Time Log` tl\n            LEFT JOIN `tabEmployee` e ON tl.employee = e.name\n            WHERE tl.parent = %s\n        \"\"\", jc[\"name\"], as_dict=True)\n\n\n        if not time_logs:\n            final_data.append({**row, **jc,\n                               \"bom_name\": bom_name,\n                               \"employee\": \"-\",\n                               \"log_completed_qty\": 0,\n                               \"from_time\": None,\n                               \"to_time\": None,\n                               \"time_in_mins\": 0})\n        else:\n            for tl in time_logs:\n                final_data.append({\n                    **row,\n                    \"bom_name\": bom_name,\n                    \"job_card_name\": jc[\"name\"],\n                    \"operation\": jc[\"operation\"],\n                    \"expected_start_date\": jc[\"expected_start_date\"],\n                    \"expected_end_date\": jc[\"expected_end_date\"],\n                    \"actual_start_date\": jc[\"actual_start_date\"],\n                    \"actual_end_date\": jc[\"actual_end_date\"],\n                    \"for_quantity\": jc[\"for_quantity\"],\n                    \"total_completed_qty\": jc[\"total_completed_qty\"],\n                    \"employee_name\": tl[\"employee_name\"],\n                    \"log_completed_qty\": tl[\"completed_qty\"],\n                    \"from_time\": tl[\"from_time\"],\n                    \"to_time\": tl[\"to_time\"],\n                    \"time_in_mins\": tl[\"time_in_mins\"]\n                })\n\n# Veri döndür\ndata = columns, final_data\n\n\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Üretim Personel Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Üretim Raporu Detaylı\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"customer\",\n            \"label\": \"Müşteri\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Customer\",\n            \"reqd\": 0\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_days(frappe.datetime.get_today(), -7)\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today()\n        }\n    ]\n}\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.711196",
+  "module": "Uretim Planlama",
+  "name": "Üretim Raporu Detaylı",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Üretim Raporu Detaylı",
+  "report_script": "# Kolonlar\ncolumns = [\n    {\"label\": \"Sales Order\", \"fieldname\": \"sales_order\", \"fieldtype\": \"Link\", \"options\": \"Sales Order\", \"width\": 120},\n    {\"label\": \"Müşteri\", \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 150},\n    {\"label\": \"Nihai Müşteri\", \"fieldname\": \"custom_end_customer\", \"fieldtype\": \"Data\", \"width\": 150},\n    {\"label\": \"Sipariş Tarihi\", \"fieldname\": \"transaction_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": \"Teslim Tarihi\", \"fieldname\": \"delivery_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": \"Ürün Kodu\", \"fieldname\": \"item_code\", \"fieldtype\": \"Link\", \"options\": \"Item\", \"width\": 150},\n    {\"label\": \"Sipariş Miktarı\", \"fieldname\": \"qty\", \"fieldtype\": \"Float\", \"width\": 100},\n    {\"label\": \"BOM Adı\", \"fieldname\": \"bom_name\", \"fieldtype\": \"Link\", \"options\": \"BOM\", \"width\": 160},\n    {\"label\": \"Job Card\", \"fieldname\": \"job_card_name\", \"fieldtype\": \"Link\", \"options\": \"Job Card\", \"width\": 150},\n    {\"label\": \"Operasyon\", \"fieldname\": \"operation\", \"fieldtype\": \"Data\", \"width\": 120},\n    {\"label\": \"Planlanan Başlangıç\", \"fieldname\": \"expected_start_date\", \"fieldtype\": \"Datetime\", \"width\": 200},\n    {\"label\": \"Planlanan Bitiş\", \"fieldname\": \"expected_end_date\", \"fieldtype\": \"Datetime\", \"width\": 200},\n    {\"label\": \"Gerçek Başlangıç\", \"fieldname\": \"actual_start_date\", \"fieldtype\": \"Datetime\", \"width\": 200},\n    {\"label\": \"Gerçek Bitiş\", \"fieldname\": \"actual_end_date\", \"fieldtype\": \"Datetime\", \"width\": 200},\n    {\"label\": \"Job Card Miktar\", \"fieldname\": \"for_quantity\", \"fieldtype\": \"Float\", \"width\": 120},\n    {\"label\": \"Tamamlanan Miktar\", \"fieldname\": \"total_completed_qty\", \"fieldtype\": \"Float\", \"width\": 150},\n    {\"label\": \"Çalışan\", \"fieldname\": \"employee_name\", \"fieldtype\": \"Data\", \"width\": 150},\n    {\"label\": \"Tamamlanan\", \"fieldname\": \"log_completed_qty\", \"fieldtype\": \"Float\", \"width\": 150},\n    {\"label\": \"Başlangıç Saati\", \"fieldname\": \"from_time\", \"fieldtype\": \"Datetime\", \"width\": 200},\n    {\"label\": \"Bitiş Saati\", \"fieldname\": \"to_time\", \"fieldtype\": \"Datetime\", \"width\": 200},\n    {\"label\": \"Toplam Dakika\", \"fieldname\": \"time_in_mins\", \"fieldtype\": \"Float\", \"width\": 120},\n]\n\n# Filtreler\nfilters = filters or {}\ncustomer = filters.get(\"customer\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = [\"so.docstatus = 1\"]  # ✅ Sadece Onaylı Sales Order\nif customer:\n    conditions.append(f\"so.customer = '{customer}'\")\nif from_date:\n    conditions.append(f\"so.transaction_date >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"so.transaction_date <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\" if conditions else \"\"\n\n# Ana Sales Order + Items sorgusu\nquery = f\"\"\"\n    SELECT\n        so.name AS sales_order,\n        so.customer,\n        so.custom_end_customer,\n        so.transaction_date,\n        so.delivery_date,\n        soi.item_code,\n        soi.qty\n    FROM `tabSales Order` so\n    INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name\n    {where_clause}\n    ORDER BY so.transaction_date DESC, so.name\n\"\"\"\n\nsales_order_items = frappe.db.sql(query, as_dict=True)\n\nfinal_data = []\n\nfor row in sales_order_items:\n    # 1️⃣ BOM bul\n    bom = frappe.db.sql(\"\"\"\n        SELECT name FROM `tabBOM` \n        WHERE item = %s \n        ORDER BY modified DESC \n        LIMIT 1\n    \"\"\", row[\"item_code\"], as_dict=True)\n    bom_name = bom[0][\"name\"] if bom else None\n\n    if not bom_name:\n        final_data.append({\n            **row,\n            \"bom_name\": \"-\",\n            \"job_card_name\": \"-\",\n            \"operation\": \"-\",\n            \"expected_start_date\": None,\n            \"expected_end_date\": None,\n            \"actual_start_date\": None,\n            \"actual_end_date\": None,\n            \"for_quantity\": 0,\n            \"total_completed_qty\": 0,\n            \"employee_name\": \"-\",\n            \"log_completed_qty\": 0,\n            \"from_time\": None,\n            \"to_time\": None,\n            \"time_in_mins\": 0\n        })\n        continue\n\n    # 2️⃣ Job Card bilgileri (Draft olmayanlar)\n    job_cards = frappe.db.sql(\"\"\"\n        SELECT name, for_quantity, total_completed_qty, operation, \n               expected_start_date, expected_end_date, \n               actual_start_date, actual_end_date\n        FROM `tabJob Card`\n        WHERE bom_no = %s AND docstatus != 0\n    \"\"\", bom_name, as_dict=True)\n\n    if not job_cards:\n        final_data.append({\n            **row,\n            \"bom_name\": bom_name,\n            \"job_card_name\": \"-\",\n            \"operation\": \"-\",\n            \"expected_start_date\": None,\n            \"expected_end_date\": None,\n            \"actual_start_date\": None,\n            \"actual_end_date\": None,\n            \"for_quantity\": 0,\n            \"total_completed_qty\": 0,\n            \"employee_name\": \"-\",\n            \"log_completed_qty\": 0,\n            \"from_time\": None,\n            \"to_time\": None,\n            \"time_in_mins\": 0\n        })\n        continue\n\n    # 3️⃣ Time Log bilgilerini Job Card bazında ekle\n    for jc in job_cards:\n        time_logs = frappe.db.sql(\"\"\"\n            SELECT tl.employee, e.employee_name, tl.completed_qty, tl.from_time, tl.to_time, tl.time_in_mins\n            FROM `tabJob Card Time Log` tl\n            LEFT JOIN `tabEmployee` e ON tl.employee = e.name\n            WHERE tl.parent = %s\n        \"\"\", jc[\"name\"], as_dict=True)\n\n        if not time_logs:\n            final_data.append({**row, **jc,\n                               \"bom_name\": bom_name,\n                               \"employee_name\": \"-\",\n                               \"log_completed_qty\": 0,\n                               \"from_time\": None,\n                               \"to_time\": None,\n                               \"time_in_mins\": 0})\n        else:\n            for tl in time_logs:\n                final_data.append({\n                    **row,\n                    \"bom_name\": bom_name,\n                    \"job_card_name\": jc[\"name\"],\n                    \"operation\": jc[\"operation\"],\n                    \"expected_start_date\": jc[\"expected_start_date\"],\n                    \"expected_end_date\": jc[\"expected_end_date\"],\n                    \"actual_start_date\": jc[\"actual_start_date\"],\n                    \"actual_end_date\": jc[\"actual_end_date\"],\n                    \"for_quantity\": jc[\"for_quantity\"],\n                    \"total_completed_qty\": jc[\"total_completed_qty\"],\n                    \"employee_name\": tl[\"employee_name\"],\n                    \"log_completed_qty\": tl[\"completed_qty\"],\n                    \"from_time\": tl[\"from_time\"],\n                    \"to_time\": tl[\"to_time\"],\n                    \"time_in_mins\": tl[\"time_in_mins\"]\n                })\n\n# Veri döndür\ndata = columns, final_data\n\n\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Üretim Raporu Detaylı",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   }
+  ],
+  "timeout": 1
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [
+   {
+    "default": "Today",
+    "fieldname": "start_date",
+    "fieldtype": "Date",
+    "label": "Tarih",
+    "mandatory": 1,
+    "options": null,
+    "parent": "Completed Total MTUL",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   }
+  ],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:52:50.428939",
+  "module": "Uretim Planlama",
+  "name": "Completed Total MTUL",
+  "prepared_report": 0,
+  "query": "SELECT\n    i.custom_serial AS \"Seri:Data:120\",\n    SUM(IFNULL(i.custom_total_main_profiles_mtul, 0)) AS \"Toplam MTUL:Float:120\"\nFROM\n    `tabJob Card Time Log` jctl\nINNER JOIN\n    `tabJob Card` jc ON jc.name = jctl.parent\nINNER JOIN\n    `tabItem` i ON i.name = jc.production_item\nWHERE\n    jc.operation = 'Kalite'\n    AND jctl.completed_qty > 0\n    AND DATE(jctl.to_time) = CURDATE()\nORDER BY\n    i.custom_serial\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Completed Total MTUL",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Completed Total MTUL",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Completed Total MTUL",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Completed Total MTUL",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Stok Hareketi Olan Ürünler\"] = {\r\n  filters: [\r\n    {\r\n      fieldname: \"from_date\",\r\n      label: __(\"Başlangıç Tarihi\"),\r\n      fieldtype: \"Date\",\r\n      default: frappe.datetime.add_months(frappe.datetime.get_today(), -1), // varsayılan: son 1 ay\r\n      reqd: 0\r\n    },\r\n    {\r\n      fieldname: \"to_date\",\r\n      label: __(\"Bitiş Tarihi\"),\r\n      fieldtype: \"Date\",\r\n      default: frappe.datetime.get_today(),\r\n      reqd: 0\r\n    }\r\n  ]\r\n};\r\n",
+  "json": null,
+  "letter_head": "Özerpan Antetli Kağıt",
+  "modified": "2025-12-27 16:50:01.561373",
+  "module": "Uretim Planlama",
+  "name": "Stok Hareketi Olan Ürünler",
+  "prepared_report": 0,
+  "query": "SELECT\r\n    i.name       AS \"item_code:Link/Item:150\",\r\n    i.item_name  AS \"item_name::220\",\r\n    i.item_group AS \"item_group:Link/Item Group:150\",\r\n    i.stock_uom  AS \"stock_uom:Link/UOM:100\"\r\nFROM `tabItem` i\r\nWHERE EXISTS (\r\n    SELECT 1\r\n    FROM `tabStock Ledger Entry` sle\r\n    WHERE sle.item_code = i.name\r\n      AND sle.is_cancelled = 0\r\n      AND ( %(from_date)s IS NULL OR sle.posting_date >= %(from_date)s )\r\n      AND ( %(to_date)s   IS NULL OR sle.posting_date <= %(to_date)s )\r\n)\r\nORDER BY i.item_name;\r\n",
+  "ref_doctype": "Stock Ledger Entry",
+  "reference_report": null,
+  "report_name": "Stok Hareketi Olan Ürünler",
+  "report_script": "",
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Stok Hareketi Olan Ürünler",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts Manager"
+   },
+   {
+    "parent": "Stok Hareketi Olan Ürünler",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Stok Hareketi Olmayan Ürünler\"] = {\r\n  filters: [\r\n    {\r\n      fieldname: \"from_date\",\r\n      label: __(\"Başlangıç Tarihi\"),\r\n      fieldtype: \"Date\",\r\n      default: frappe.datetime.add_months(frappe.datetime.get_today(), -1), // varsayılan: son 1 ay\r\n      reqd: 0\r\n    },\r\n    {\r\n      fieldname: \"to_date\",\r\n      label: __(\"Bitiş Tarihi\"),\r\n      fieldtype: \"Date\",\r\n      default: frappe.datetime.get_today(),\r\n      reqd: 0\r\n    }\r\n  ]\r\n};\r\n",
+  "json": null,
+  "letter_head": "Özerpan Antetli Kağıt",
+  "modified": "2025-12-27 16:50:01.534482",
+  "module": "Uretim Planlama",
+  "name": "Stok Hareketi Olmayan Ürünler",
+  "prepared_report": 0,
+  "query": "SELECT\r\n    i.name       AS \"item_code:Link/Item:150\",\r\n    i.item_name  AS \"item_name::220\",\r\n    i.item_group AS \"item_group:Link/Item Group:150\",\r\n    i.stock_uom  AS \"stock_uom:Link/UOM:100\"\r\nFROM `tabItem` i\r\nLEFT JOIN `tabStock Ledger Entry` sle\r\n       ON sle.item_code = i.name\r\n      AND sle.is_cancelled = 0\r\n      AND ( %(from_date)s IS NULL OR sle.posting_date >= %(from_date)s )\r\n      AND ( %(to_date)s   IS NULL OR sle.posting_date <= %(to_date)s )\r\nWHERE sle.name IS NULL\r\nORDER BY i.item_name;\r\n",
+  "ref_doctype": "Stock Ledger Entry",
+  "reference_report": null,
+  "report_name": "Stok Hareketi Olmayan Ürünler",
+  "report_script": "",
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Stok Hareketi Olmayan Ürünler",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts Manager"
+   },
+   {
+    "parent": "Stok Hareketi Olmayan Ürünler",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"İş İstasyonu Doluluk Oranı\"] = {\r\n    filters: [\r\n        {\r\n            fieldname: \"from_date\",\r\n            label: \"Başlangıç Tarihi\",\r\n            fieldtype: \"Date\",\r\n            default: frappe.datetime.add_days(frappe.datetime.get_today(), -7),\r\n            reqd: 1\r\n        },\r\n        {\r\n            fieldname: \"to_date\",\r\n            label: \"Bitiş Tarihi\",\r\n            fieldtype: \"Date\",\r\n            default: frappe.datetime.get_today(),\r\n            reqd: 1\r\n        }\r\n    ]\r\n}\r\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.946028",
+  "module": "Uretim Planlama",
+  "name": "İş İstasyonu Doluluk Oranı",
+  "prepared_report": 0,
+  "query": "SELECT\r\n    DATE(woo.planned_start_time) AS \"Tarih:Date:100\",\r\n    woo.workstation AS \"İş İstasyonu:Link/Workstation:180\",\r\n    ROUND(SUM(woo.time_in_mins) / 60.0, 2) AS \"Planlanan Süre (saat):Float:130\",\r\n    ROUND(9.0, 2) AS \"Kapasite (saat):Float:100\",\r\n    ROUND(\r\n        (SUM(woo.time_in_mins) / 60.0) / 9.0 * 100.0,\r\n        2\r\n    ) AS \"Doluluk Oranı (%%):Percent:120\"\r\nFROM\r\n    `tabWork Order Operation` woo\r\nWHERE\r\n    woo.planned_start_time IS NOT NULL\r\n    AND DATE(woo.planned_start_time) BETWEEN %(from_date)s AND %(to_date)s\r\nGROUP BY\r\n    woo.workstation, DATE(woo.planned_start_time)\r\nORDER BY\r\n    DATE(woo.planned_start_time) ASC, woo.workstation ASC;",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "İş İstasyonu Doluluk Oranı",
+  "report_script": "",
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "İş İstasyonu Doluluk Oranı",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "İş İstasyonu Doluluk Oranı",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "İş İstasyonu Doluluk Oranı",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Satış Sipariş Raporu Detaylı\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"customer\",\n            \"label\": \"Müşteri\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Customer\",\n            \"reqd\": 0\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_months(frappe.datetime.get_today(), -1)\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today()\n        }\n    ]\n};",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.768868",
+  "module": "Uretim Planlama",
+  "name": "Satış Sipariş Raporu Detaylı",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Satış Sipariş Raporu Detaylı",
+  "report_script": "columns = [\n    {\"label\": _(\"Müşteri\"), \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 180},\n    {\"label\": _(\"Tarih\"), \"fieldname\": \"transaction_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": _(\"Toplam Tutar\"), \"fieldname\": \"total\", \"fieldtype\": \"Currency\", \"width\": 130},\n    {\"label\": _(\"Durum\"), \"fieldname\": \"workflow_state\", \"fieldtype\": \"Data\", \"width\": 180},\n    {\"label\": _(\"PVC Adet\"), \"fieldname\": \"pvc_qty\", \"fieldtype\": \"Float\", \"width\": 120},\n    {\"label\": _(\"Camlar Adet\"), \"fieldname\": \"camlar_qty\", \"fieldtype\": \"Float\", \"width\": 120},\n]\n\nfilters = filters or {}\ncustomer = filters.get(\"customer\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = []\nif customer:\n    conditions.append(f\"so.customer = '{customer}'\")\nif from_date:\n    conditions.append(f\"so.transaction_date >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"so.transaction_date <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\" if conditions else \"\"\n\nquery = f\"\"\"\n    SELECT\n        so.name AS sales_order,\n        so.customer,\n        so.transaction_date,\n        so.total,\n        so.workflow_state\n    FROM `tabSales Order` so\n    {where_clause}\n    ORDER BY so.transaction_date DESC\n\"\"\"\n\nresults = frappe.db.sql(query, as_dict=True)\n\nif not results:\n    results = [{\n        \"customer\": customer or \"Yok\",\n        \"transaction_date\": None,\n        \"total\": 0,\n        \"workflow_state\": \"Yok\",\n        \"pvc_qty\": 0,\n        \"camlar_qty\": 0\n    }]\nelse:\n    for row in results:\n        sales_order = row[\"sales_order\"]\n        item_group_data = frappe.db.sql(\"\"\"\n            SELECT i.item_group, SUM(soi.qty) AS total_qty\n            FROM `tabSales Order Item` soi\n            INNER JOIN `tabItem` i ON soi.item_code = i.name\n            WHERE soi.parent = %s\n            GROUP BY i.item_group\n        \"\"\", (sales_order,), as_dict=True)\n\n        # Varsayılanlar\n        row[\"pvc_qty\"] = 0\n        row[\"camlar_qty\"] = 0\n\n        for d in item_group_data:\n            if d[\"item_group\"] == \"PVC\":\n                row[\"pvc_qty\"] = d[\"total_qty\"]\n            elif d[\"item_group\"] == \"Camlar\":\n                row[\"camlar_qty\"] = d[\"total_qty\"]\n\ndata = columns, results\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Satış Sipariş Raporu Detaylı",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.784812",
+  "module": "Uretim Planlama",
+  "name": "Planned Product by Customer",
+  "prepared_report": 0,
+  "query": "SELECT\n    pps.customer AS \"Müşteri:Link/Customer:200\",\n    CAST(SUM(ppi.planned_qty) AS UNSIGNED) AS \"Toplam Planlanan Miktar:Int:150\"\nFROM\n    `tabProduction Plan` pp\nJOIN\n    `tabProduction Plan Sales Order` pps ON pps.parent = pp.name\nJOIN\n    `tabProduction Plan Item` ppi ON ppi.parent = pp.name\nJOIN\n    `tabItem` i ON i.name = ppi.item_code\nWHERE\n    i.item_group = 'PVC'\nGROUP BY\n    pps.customer\nORDER BY\n    pps.customer;\n",
+  "ref_doctype": "Production Plan",
+  "reference_report": null,
+  "report_name": "Planned Product by Customer",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Planned Product by Customer",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-27 16:50:01.600131",
+  "module": "Uretim Planlama",
+  "name": "Daily Stock Info for Manufacture",
+  "prepared_report": 0,
+  "query": "SELECT \n    DATE(se.posting_date) AS \"Tarih:Date\",\n    sei.item_code AS \"Hammadde Kodu:Link/Item\",\n    i.item_name AS \"Hammadde Adı::200\",\n    SUM(sei.qty) AS \"Toplam Miktar:Float\",\n    SUM(sei.qty * sei.basic_rate) AS \"Toplam Değer:Currency\"\nFROM `tabStock Entry` se\nINNER JOIN `tabStock Entry Detail` sei ON se.name = sei.parent\nINNER JOIN `tabItem` i ON i.name = sei.item_code\nWHERE se.stock_entry_type = 'Manufacture'\n  AND se.docstatus = 1\n  AND DATE(se.posting_date) = CURDATE()\n  AND sei.s_warehouse IS NOT NULL       -- stoktan çıkan ürünler\n  AND (sei.t_warehouse IS NULL OR sei.t_warehouse = '')  -- stoğa girenleri hariç tut\nGROUP BY sei.item_code\nORDER BY i.item_name;\n",
+  "ref_doctype": "Stock Entry",
+  "reference_report": null,
+  "report_name": "Daily Stock Info for Manufacture",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Daily Stock Info for Manufacture",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   },
+   {
+    "parent": "Daily Stock Info for Manufacture",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Daily Stock Info for Manufacture",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Daily Stock Info for Manufacture",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-27 16:50:01.450083",
+  "module": "Uretim Planlama",
+  "name": "Values of Daily Produced Items",
+  "prepared_report": 0,
+  "query": "SELECT\n    jc.production_item AS Urun_Kodu,\n    i.item_name AS Urun_Adi,\n    ROUND(SUM(jctl.completed_qty), 2) AS Tamamlanan_Miktar,\n    ROUND(SUM(ROUND(jctl.completed_qty * COALESCE(ip.price_list_rate, 0), 2)), 2) AS Toplam_Deger\nFROM `tabJob Card` jc\nINNER JOIN `tabJob Card Time Log` jctl ON jctl.parent = jc.name\nINNER JOIN `tabItem` i ON i.name = jc.production_item\nLEFT JOIN (\n    SELECT item_code, MAX(price_list_rate) AS price_list_rate\n    FROM `tabItem Price`\n    WHERE price_list = 'Standard Selling' AND selling = 1\n    GROUP BY item_code\n) ip ON ip.item_code = jc.production_item\nWHERE DATE(jctl.to_time) = CURDATE()\n  AND jc.operation IN ('Kalite', 'Cam')\nGROUP BY jc.production_item, i.item_name\nORDER BY i.item_name;\n",
+  "ref_doctype": "Stock Entry",
+  "reference_report": null,
+  "report_name": "Values of Daily Produced Items",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Values of Daily Produced Items",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   },
+   {
+    "parent": "Values of Daily Produced Items",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Values of Daily Produced Items",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Values of Daily Produced Items",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Planlanan Üretimler Listesi\"] = {\r\n    \"filters\": [\r\n        {\r\n            fieldname: \"from_date\",\r\n            label: \"Başlangıç Tarihi\",\r\n            fieldtype: \"Date\",\r\n            default: frappe.datetime.add_days(frappe.datetime.nowdate(), -7),\r\n            reqd: 0\r\n        },\r\n        {\r\n            fieldname: \"to_date\",\r\n            label: \"Bitiş Tarihi\",\r\n            fieldtype: \"Date\",\r\n            default: frappe.datetime.add_days(frappe.datetime.nowdate(), 7),\r\n            reqd: 0\r\n        }\r\n    ]\r\n}\r\n",
+  "json": "{\"columns\":[{\"fieldtype\":\"Link\",\"options\":\"Sales Order\",\"width\":150,\"label\":\"Satış Siparişi\",\"fieldname\":\"satış_siparişi\",\"id\":\"satış_siparişi\",\"name\":\"Satış Siparişi\",\"editable\":false,\"compareValue\":null},{\"fieldtype\":\"Date\",\"width\":100,\"label\":\"Sipariş Tarihi\",\"fieldname\":\"sipariş_tarihi\",\"id\":\"sipariş_tarihi\",\"name\":\"Sipariş Tarihi\",\"editable\":false},{\"fieldtype\":\"Date\",\"width\":100,\"label\":\"Teslim Tarihi\",\"fieldname\":\"teslim_tarihi\",\"id\":\"teslim_tarihi\",\"name\":\"Teslim Tarihi\",\"editable\":false},{\"fieldtype\":\"Link\",\"options\":\"Item\",\"width\":150,\"label\":\"Ürün\",\"fieldname\":\"ürün\",\"id\":\"ürün\",\"name\":\"Ürün\",\"editable\":false,\"compareValue\":null},{\"fieldtype\":\"Float\",\"width\":80,\"label\":\"Miktar\",\"fieldname\":\"miktar\",\"id\":\"miktar\",\"name\":\"Miktar\",\"editable\":false,\"compareValue\":null},{\"fieldtype\":\"Float\",\"width\":80,\"label\":\"Teslim Edilen\",\"fieldname\":\"teslim_edilen\",\"id\":\"teslim_edilen\",\"name\":\"Teslim Edilen\",\"editable\":false,\"compareValue\":null},{\"fieldtype\":\"Float\",\"width\":80,\"label\":\"Kalan Miktar\",\"fieldname\":\"kalan_miktar\",\"id\":\"kalan_miktar\",\"name\":\"Kalan Miktar\",\"editable\":false,\"compareValue\":null}],\"filters\":{\"from_date\":\"2025-04-30\",\"to_date\":\"2025-05-14\"}}",
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.966144",
+  "module": "Uretim Planlama",
+  "name": "Planlanan Üretimler Listesi",
+  "prepared_report": 0,
+  "query": "SELECT\r\n    so.delivery_date AS \"Teslim Tarihi:Date:120\",\r\n    SUM(soi.qty) AS \"Toplam Miktar:Float:100\",\r\n    SUM(soi.delivered_qty) AS \"Toplam Teslim Edilen:Float:100\",\r\n    SUM(soi.qty - soi.delivered_qty) AS \"Toplam Kalan:Float:100\"\r\nFROM\r\n    `tabSales Order` so\r\nJOIN\r\n    `tabSales Order Item` soi ON soi.parent = so.name\r\nWHERE\r\n    so.docstatus = 1 AND\r\n    so.status != 'Closed' AND\r\n    soi.qty > soi.delivered_qty AND\r\n    ( %(from_date)s IS NULL OR so.delivery_date >= %(from_date)s ) AND\r\n    ( %(to_date)s IS NULL OR so.delivery_date <= %(to_date)s )\r\nGROUP BY\r\n    so.delivery_date\r\nORDER BY\r\n    so.delivery_date ASC\r\nLIMIT 100;\r\n",
+  "ref_doctype": "Sales Order",
+  "reference_report": "",
+  "report_name": "Planlanan Üretimler Listesi",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Planlanan Üretimler Listesi",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Planlanan Üretimler Listesi",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "Planlanan Üretimler Listesi",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Maintenance User"
+   },
+   {
+    "parent": "Planlanan Üretimler Listesi",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts User"
+   },
+   {
+    "parent": "Planlanan Üretimler Listesi",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Üretim Raporu\"] = {\n\n}\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.836813",
+  "module": "Uretim Planlama",
+  "name": "Üretim Raporu",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Stock Entry",
+  "reference_report": null,
+  "report_name": "Üretim Raporu",
+  "report_script": "# Kolon tanımları\ncolumns = [\n    {\"label\": \"Gün\", \"fieldname\": \"gun\", \"fieldtype\": \"Data\", \"width\": 200},\n    {\"label\": \"Tarih\", \"fieldname\": \"tarih\", \"fieldtype\": \"Date\", \"width\": 150},\n    {\"label\": \"Ürün Grubu\", \"fieldname\": \"item_group\", \"fieldtype\": \"Data\", \"width\": 150},\n    {\"label\": \"Toplam Üretim\", \"fieldname\": \"total_qty\", \"fieldtype\": \"Float\", \"width\": 150},\n]\n\n# Bugünkü tarih ve geçen haftanın Pazartesi-Cuma tarihleri\nbugun = frappe.utils.today()\nhaftanin_gunu = frappe.utils.getdate(bugun).weekday()\ngecen_hafta_pazartesi = frappe.utils.add_days(bugun, -(haftanin_gunu + 7))\ngecen_hafta_cuma = frappe.utils.add_days(gecen_hafta_pazartesi, 4)\n\n# İngilizce -> Türkçe gün çevirisi\ngun_cevir = {\n    \"Monday\": \"Pazartesi\",\n    \"Tuesday\": \"Salı\",\n    \"Wednesday\": \"Çarşamba\",\n    \"Thursday\": \"Perşembe\",\n    \"Friday\": \"Cuma\"\n}\n\n# SQL ile geçen haftanın üretim verilerini al\nresults = frappe.db.sql(\"\"\"\n    SELECT \n        DAYNAME(se.posting_date) AS gun,\n        i.item_group,\n        SUM(sed.qty) AS total_qty\n    FROM \n        `tabStock Entry` se\n    INNER JOIN \n        `tabStock Entry Detail` sed ON sed.parent = se.name\n    INNER JOIN \n        `tabItem` i ON sed.item_code = i.name\n    WHERE \n        se.docstatus = 1\n        AND se.stock_entry_type = 'Manufacture'\n        AND sed.t_warehouse IS NOT NULL\n        AND se.posting_date BETWEEN %(start_date)s AND %(end_date)s\n    GROUP BY \n        se.posting_date, i.item_group\n    ORDER BY \n        se.posting_date, i.item_group\n\"\"\", {\n    \"start_date\": gecen_hafta_pazartesi,\n    \"end_date\": gecen_hafta_cuma\n}, as_dict=True)\n\n# Gün adlarını Türkçeye çevir\nfor row in results:\n    row[\"gun\"] = gun_cevir.get(row[\"gun\"], row[\"gun\"])\n\n# Tüm günler ve ürün grupları (sabit)\ntum_gunler = [\"Pazartesi\", \"Salı\", \"Çarşamba\", \"Perşembe\", \"Cuma\"]\ntum_item_gruplar = [\"PVC\", \"Camlar\"]\n\n# Rapor verisini oluştur\ntamamlanmis_data = []\ntoplamlar = {}  # Her item_group için haftalık toplam\n\n# Günlük veriler\nfor i, gun in enumerate(tum_gunler):\n    gunun_tarihi = frappe.utils.add_days(gecen_hafta_pazartesi, i)\n    for item_group in tum_item_gruplar:\n        kayit = None\n        for r in results:\n            if r[\"gun\"] == gun and r[\"item_group\"] == item_group:\n                kayit = r\n                break\n        qty = kayit[\"total_qty\"] if kayit else 0\n        tamamlanmis_data.append({\n            \"gun\": f\"{gun} - {item_group}\",\n            \"tarih\": gunun_tarihi,\n            \"item_group\": item_group,\n            \"total_qty\": qty\n        })\n        toplamlar[item_group] = toplamlar.get(item_group, 0) + qty\n\n# Haftalık toplam\nfor item_group in tum_item_gruplar:\n    tamamlanmis_data.append({\n        \"gun\": f\"Haftalık Toplam - {item_group}\",\n        \"tarih\": \"\",\n        \"item_group\": item_group,\n        \"total_qty\": toplamlar.get(item_group, 0)\n    })\n\n\n\n\n# Bilgilendirici mesaj\nmessage = f\"Geçen haftanın ürün grubu bazlı üretim raporu: {gecen_hafta_pazartesi} - {gecen_hafta_cuma}\"\n\n# Son veri dönüşü\ndata = columns, tamamlanmis_data, message\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Üretim Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Üretim Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "Üretim Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Maintenance User"
+   },
+   {
+    "parent": "Üretim Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts User"
+   },
+   {
+    "parent": "Üretim Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Üretim Raporu Personel\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"employee\",\n            \"label\": \"Çalışan\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Employee\",\n            \"reqd\": 0\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_days(frappe.datetime.get_today(), -1)\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today()\n        }\n    ]\n}\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.580562",
+  "module": "Uretim Planlama",
+  "name": "Üretim Raporu Personel",
+  "prepared_report": 1,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Üretim Raporu Personel",
+  "report_script": "# Kolonlar\ncolumns = [\n    {\"label\": \"Sales Order\", \"fieldname\": \"sales_order\", \"fieldtype\": \"Link\", \"options\": \"Sales Order\", \"width\": 120},\n    {\"label\": \"Müşteri\", \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 150},\n    {\"label\": \"Ürün Kodu\", \"fieldname\": \"item_code\", \"fieldtype\": \"Link\", \"options\": \"Item\", \"width\": 150},\n    {\"label\": \"Job Card\", \"fieldname\": \"job_card\", \"fieldtype\": \"Link\", \"options\": \"Job Card\", \"width\": 150},\n    {\"label\": \"Workstation\", \"fieldname\": \"workstation\", \"fieldtype\": \"Link\", \"options\": \"Workstation\", \"width\": 150},\n    {\"label\": \"Çalışan\", \"fieldname\": \"employee_name\", \"fieldtype\": \"Data\", \"width\": 150},\n    {\"label\": \"Tamamlanan Miktar\", \"fieldname\": \"completed_qty\", \"fieldtype\": \"Float\", \"width\": 120},\n    {\"label\": \"Başlangıç Saati\", \"fieldname\": \"from_time\", \"fieldtype\": \"Datetime\", \"width\": 180},\n    {\"label\": \"Bitiş Saati\", \"fieldname\": \"to_time\", \"fieldtype\": \"Datetime\", \"width\": 180},\n    {\"label\": \"Toplam Dakika\", \"fieldname\": \"time_in_mins\", \"fieldtype\": \"Float\", \"width\": 120},\n]\n\n# Filtreler\nfilters = filters or {}\nemployee = filters.get(\"employee\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = []\nif employee:\n    conditions.append(f\"e.name = '{employee}'\")\nif from_date:\n    conditions.append(f\"DATE(tl.from_time) >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"DATE(tl.to_time) <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\" if conditions else \"\"\n\n# Ana Sorgu\nquery = f\"\"\"\n    SELECT \n        so.name AS sales_order,\n        so.customer,\n        soi.item_code,\n        jc.name AS job_card,\n        jc.workstation,\n        e.employee_name,\n        tl.completed_qty,\n        tl.from_time,\n        tl.to_time,\n        tl.time_in_mins\n    FROM `tabJob Card Time Log` tl\n    LEFT JOIN `tabEmployee` e ON tl.employee = e.name\n    LEFT JOIN `tabJob Card` jc ON tl.parent = jc.name\n    LEFT JOIN `tabWork Order` wo ON jc.work_order = wo.name\n    LEFT JOIN `tabSales Order` so ON wo.sales_order = so.name\n    LEFT JOIN `tabSales Order Item` soi ON soi.parent = so.name AND soi.item_code = wo.production_item\n    {where_clause}\n    ORDER BY e.employee_name, tl.from_time\n\"\"\"\n\nfinal_data = frappe.db.sql(query, as_dict=True)\n\n# 2️⃣ Çalışan bazında toplam dakika sorgusu\nquery_totals = f\"\"\"\n    SELECT \n        e.employee_name,\n        SUM(tl.time_in_mins) AS total_minutes\n    FROM `tabJob Card Time Log` tl\n    LEFT JOIN `tabEmployee` e ON tl.employee = e.name\n    LEFT JOIN `tabJob Card` jc ON tl.parent = jc.name\n    LEFT JOIN `tabWork Order` wo ON jc.work_order = wo.name\n    LEFT JOIN `tabSales Order` so ON wo.sales_order = so.name\n    {where_clause}\n    GROUP BY e.employee_name\n\"\"\"\n\ntotals = frappe.db.sql(query_totals, as_dict=True)\n\n# 3️⃣ Toplam satırları ekleme\nfor t in totals:\n    final_data.append({\n        \"sales_order\": \"\",\n        \"customer\": \"\",\n        \"item_code\": \"\",\n        \"job_card\": \"\",\n        \"workstation\": \"\",\n        \"employee_name\": f\"**TOPLAM ({t['employee_name']})**\",\n        \"completed_qty\": 0,\n        \"from_time\": \"\",\n        \"to_time\": \"\",\n        \"time_in_mins\": t[\"total_minutes\"]\n    })\n\n# Veri döndür\ndata = columns, final_data\n\n\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Üretim Raporu Personel",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   },
+   {
+    "parent": "Üretim Raporu Personel",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Satış Siparişleri Raporu\"] = {\n    filters: [\n        {\n            fieldname: \"start_date\",\n            label: \"Start Date\",\n            fieldtype: \"Date\",\n            default: frappe.datetime.add_days(frappe.datetime.get_today(), -1)\n        },\n        {\n            fieldname: \"end_date\",\n            label: \"End Date\",\n            fieldtype: \"Date\",\n            default: frappe.datetime.get_today()\n        }\n    ]\n}\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.803405",
+  "module": "Uretim Planlama",
+  "name": "Satış Siparişleri Raporu",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Satış Siparişleri Raporu",
+  "report_script": "columns = [\n    {\"label\": \"Satış Siparişi\", \"fieldname\": \"sales_order\", \"fieldtype\": \"Link\", \"options\": \"Sales Order\", \"width\": 150},\n    {\"label\": \"Müşteri\", \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 150},\n    {\"label\": \"Sipariş Tarihi\", \"fieldname\": \"transaction_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": \"Teslim Tarihi\", \"fieldname\": \"delivery_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": \"Toplam Ürün\", \"fieldname\": \"total_qty\", \"fieldtype\": \"Float\", \"width\": 100},\n    {\"label\": \"Toplam Fiyat\", \"fieldname\": \"total\", \"fieldtype\": \"Currency\", \"width\": 120},\n    {\"label\": \"Status\", \"fieldname\": \"status\", \"fieldtype\": \"Data\", \"width\": 100},\n    #{\"label\": \"Company\", \"fieldname\": \"company\", \"fieldtype\": \"Link\", \"options\": \"Company\", \"width\": 150},\n]\n\ncompany = filters.get(\"company\")\ncustomer = filters.get(\"customer\")\nstart_date = filters.get(\"start_date\")\nend_date = filters.get(\"end_date\")\n\nconditions = []\nif company:\n    conditions.append(\"so.company = %(company)s\")\nif customer:\n    conditions.append(\"so.customer = %(customer)s\")\nif start_date and end_date:\n    conditions.append(\"so.transaction_date BETWEEN %(start_date)s AND %(end_date)s\")\n\nconditions.append(\"so.docstatus = 1\")  # only submitted\nconditions_str = \" AND \".join(conditions) if conditions else \"1=1\"\n\nquery = f\"\"\"\n    SELECT \n        so.name AS sales_order,\n        so.customer,\n        so.transaction_date,\n        so.delivery_date,\n        SUM(soi.qty) AS total_qty,\n        so.total,\n        so.status,\n        so.company\n    FROM \n        `tabSales Order` so\n    LEFT JOIN \n        `tabSales Order Item` soi ON so.name = soi.parent\n    WHERE \n        {conditions_str}\n    GROUP BY \n        so.name\n    ORDER BY \n        so.transaction_date DESC\n\"\"\"\n\nresults = frappe.db.sql(query, {\n    \"company\": company,\n    \"customer\": customer,\n    \"start_date\": start_date,\n    \"end_date\": end_date\n}, as_dict=True)\n\ndata = results\nmessage = \"Bir gün önceki tarihin Satış Siparişlerini getirir, Filtreden istediğiniz tarihi seçebilirsiniz\"\n\ndata = columns, data, message\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Satış Siparişleri Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Satış Siparişleri Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "Satış Siparişleri Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Maintenance User"
+   },
+   {
+    "parent": "Satış Siparişleri Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts User"
+   },
+   {
+    "parent": "Satış Siparişleri Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:54:34.685949",
+  "module": "Uretim Planlama",
+  "name": "Employee-Jobcard",
+  "prepared_report": 0,
+  "query": "SELECT\n    Çalışan,\n    SUM(Tamamlanan_Adet) AS \"Toplam Tamamlanan Adet\"\nFROM (\n    -- 1. Barcode tabanlı normalize operasyonlar (sadece bugünkü cb.modified)\n    SELECT\n        emp.employee_name AS Çalışan,\n        CASE\n            WHEN jc.operation = 'Kaynak Köşe Temizleme' AND cb.model IN ('KASA', 'KANAT') THEN 0.5\n            WHEN jc.operation = 'Kanat Hazırlık' AND cb.model = 'KANAT' THEN 0.5\n            WHEN jc.operation = 'Kanat Bağlama' AND cb.model = 'KANAT' THEN 0.5\n            WHEN jc.operation = 'Orta Kayıt' AND cb.model = 'KAYIT' THEN 1\n            ELSE 0\n        END AS Tamamlanan_Adet\n    FROM (\n        SELECT *\n        FROM `tabOzerpan Job Card Items`\n        WHERE status = 'Completed'\n          AND DATE(modified) = CURDATE()\n    ) cb\n    LEFT JOIN `tabJob Card` jc ON cb.parent = jc.name\n    LEFT JOIN (\n        SELECT DISTINCT parent, employee\n        FROM `tabJob Card Time Log`\n    ) jctl ON jc.name = jctl.parent\n    LEFT JOIN `tabEmployee` emp ON jctl.employee = emp.name\n    WHERE jc.operation IN ('Kaynak Köşe Temizleme', 'Kanat Hazırlık', 'Kanat Bağlama', 'Orta Kayıt')\n\n    UNION ALL\n\n    -- 2. Cam operasyonu (her satır 1 sayılır, cg.modified bugüne ait)\n    SELECT\n        emp.employee_name AS Çalışan,\n        COUNT(*) AS Tamamlanan_Adet\n    FROM (\n        SELECT *\n        FROM `tabOzerpan Job Card Glass`\n        WHERE status = 'Completed'\n          AND DATE(modified) = CURDATE()\n    ) cg\n    LEFT JOIN `tabJob Card` jc ON cg.parent = jc.name\n    LEFT JOIN (\n        SELECT DISTINCT parent, employee\n        FROM `tabJob Card Time Log`\n    ) jctl ON jc.name = jctl.parent\n    LEFT JOIN `tabEmployee` emp ON jctl.employee = emp.name\n    GROUP BY emp.employee_name\n\n    UNION ALL\n\n    -- 3. Diğer operasyonlar (Time Log bazlı)\n    SELECT\n        emp.employee_name AS Çalışan,\n        COUNT(jctl.name) AS Tamamlanan_Adet\n    FROM `tabJob Card Time Log` jctl\n    LEFT JOIN `tabJob Card` jc ON jctl.parent = jc.name\n    LEFT JOIN `tabEmployee` emp ON jctl.employee = emp.name\n    WHERE jc.operation NOT IN ('Kaynak Köşe Temizleme', 'Kanat Hazırlık', 'Kanat Bağlama', 'Orta Kayıt', 'Cam')\n      AND DATE(jctl.to_time) = CURDATE()\n    GROUP BY emp.employee_name\n\n) AS birleşik_sorgu\nGROUP BY Çalışan\nORDER BY Çalışan;\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Employee-Jobcard",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Employee-Jobcard",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Employee-Jobcard",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Employee-Jobcard",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:54:54.368090",
+  "module": "Uretim Planlama",
+  "name": "Manufactured Products",
+  "prepared_report": 0,
+  "query": "SELECT\n    so.customer AS \"Customer:Link/Customer:150\",\n    so.custom_end_customer AS \"End Customer:Data:150\",\n    i.custom_serial AS \"Seri:Data:100\",\n    i.custom_color AS \"Renk:Data:100\",\n    jc.production_item AS \"Ürün:Link/Item:150\",\n    CAST(SUM(tl.completed_qty) AS UNSIGNED) AS \"Bugün Üretilen Miktar:Int:150\"\nFROM\n    `tabJob Card Time Log` tl\nJOIN\n    `tabJob Card` jc ON tl.parent = jc.name\nLEFT JOIN\n    `tabWork Order` wo ON jc.work_order = wo.name\nLEFT JOIN\n    `tabSales Order` so ON wo.sales_order = so.name\nLEFT JOIN\n    `tabItem` i ON jc.production_item = i.name\nWHERE\n    jc.operation = 'Kalite'\n    AND tl.completed_qty > 0\n    AND DATE(tl.to_time) = CURDATE()\nGROUP BY\n    so.customer,\n    so.custom_end_customer,\n    i.custom_serial,\n    i.custom_color,\n    jc.production_item;\n\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Manufactured Products",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Manufactured Products",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Manufactured Products",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Manufactured Products",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   }
+  ],
+  "timeout": 500
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:53:11.180547",
+  "module": "Uretim Planlama",
+  "name": "Manufactured Glass",
+  "prepared_report": 0,
+  "query": "SELECT\n    so.customer AS \"Customer:Link/Customer:150\",\n    so.custom_end_customer AS \"End Customer:Data:150\",\n    i.custom_serial AS \"Seri:Data:100\",\n    i.custom_glass_m2 AS \"Miktar:Data:100\",\n    jc.production_item AS \"Ürün:Link/Item:150\",\n    CAST(SUM(tl.completed_qty) AS UNSIGNED) AS \"Bugün Üretilen Miktar:Int:150\",\n    CAST(SUM(tl.completed_qty * i.custom_glass_m2) AS DECIMAL(10,2)) AS \"Toplam m2:Float:150\"FROM\n    `tabJob Card Time Log` tl\nJOIN\n    `tabJob Card` jc ON tl.parent = jc.name\nLEFT JOIN\n    `tabWork Order` wo ON jc.work_order = wo.name\nLEFT JOIN\n    `tabSales Order` so ON wo.sales_order = so.name\nLEFT JOIN\n    `tabItem` i ON jc.production_item = i.name\nWHERE\n    jc.operation = 'Cam'\n    AND tl.completed_qty > 0\n    AND DATE(tl.to_time) = CURDATE()\nGROUP BY\n    i.custom_serial\n   \n\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Manufactured Glass",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Manufactured Glass",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Manufactured Glass",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Manufactured Glass",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:55:17.199156",
+  "module": "Uretim Planlama",
+  "name": "Total Poz with Serial",
+  "prepared_report": 0,
+  "query": "SELECT\n    i.custom_serial AS \"Seri:Data:100\",\n    jc.production_item AS \"Ürün:Link/Item:150\",\n    SUM(tl.completed_qty) AS \"Bugün Üretilen Miktar:Float:150\"\nFROM\n    `tabJob Card Time Log` tl\nJOIN\n    `tabJob Card` jc ON tl.parent = jc.name\nJOIN\n    `tabItem` i ON jc.production_item = i.name\nWHERE\n    jc.operation = 'Kalite'\n    AND DATE(tl.to_time) = CURDATE()\nGROUP BY\n    i.custom_serial\nORDER BY\n    i.custom_serial\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Total Poz with Serial",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Total Poz with Serial",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Total Poz with Serial",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Total Poz with Serial",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   }
+  ],
+  "timeout": 500
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Satış Sipariş Raporu\"] = {\n    \"filters\": [\n        {\n            \"fieldname\": \"customer\",\n            \"label\": \"Müşteri\",\n            \"fieldtype\": \"Link\",\n            \"options\": \"Customer\",\n            \"reqd\": 0\n        },\n        {\n            \"fieldname\": \"from_date\",\n            \"label\": \"Başlangıç Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.add_months(frappe.datetime.get_today(), -1)\n        },\n        {\n            \"fieldname\": \"to_date\",\n            \"label\": \"Bitiş Tarihi\",\n            \"fieldtype\": \"Date\",\n            \"default\": frappe.datetime.get_today()\n        }\n    ]\n};\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.859943",
+  "module": "Uretim Planlama",
+  "name": "Satış Sipariş Raporu",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Satış Sipariş Raporu",
+  "report_script": "columns = [\n    {\"label\": _(\"Müşteri\"), \"fieldname\": \"customer\", \"fieldtype\": \"Link\", \"options\": \"Customer\", \"width\": 180},\n    {\"label\": _(\"Tarih\"), \"fieldname\": \"transaction_date\", \"fieldtype\": \"Date\", \"width\": 120},\n    {\"label\": _(\"Toplam Tutar\"), \"fieldname\": \"total\", \"fieldtype\": \"Currency\", \"width\": 130},\n    {\"label\": _(\"Durum\"), \"fieldname\": \"workflow_state\", \"fieldtype\": \"Data\", \"width\": 150},\n]\n\nfilters = filters or {}\ncustomer = filters.get(\"customer\")\nfrom_date = filters.get(\"from_date\")\nto_date = filters.get(\"to_date\")\n\nconditions = []\nif customer:\n    conditions.append(f\"customer = '{customer}'\")\nif from_date:\n    conditions.append(f\"transaction_date >= '{from_date}'\")\nif to_date:\n    conditions.append(f\"transaction_date <= '{to_date}'\")\n\nwhere_clause = f\"WHERE {' AND '.join(conditions)}\" if conditions else \"\"\n\nquery = f\"\"\"\n    SELECT\n        customer,\n        transaction_date,\n        total,\n        workflow_state\n    FROM `tabSales Order`\n    {where_clause}\n    ORDER BY transaction_date DESC\n\"\"\"\n\nresults = frappe.db.sql(query, as_dict=True)\n\nif not results:\n    results = [{\n        \"customer\": customer or \"Yok\",\n        \"transaction_date\": None,\n        \"total\": 0,\n        \"workflow_state\": \"Yok\"\n    }]\n\ndata = columns, results\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Satış Sipariş Raporu",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Yönetim"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Üretim Raporu PVC ve Camlar\"] = {\n\n}\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.665935",
+  "module": "Uretim Planlama",
+  "name": "Üretim Raporu PVC ve Camlar",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Stock Entry",
+  "reference_report": null,
+  "report_name": "Üretim Raporu PVC ve Camlar",
+  "report_script": "columns = [\n    {\"label\": \"Gün\", \"fieldname\": \"gun\", \"fieldtype\": \"Data\", \"width\": 120},\n    {\"label\": \"Ürün Grubu\", \"fieldname\": \"item_group\", \"fieldtype\": \"Data\", \"width\": 200},\n    {\"label\": \"Toplam Üretim\", \"fieldname\": \"total_qty\", \"fieldtype\": \"Float\", \"width\": 150},\n]\n\nbugun = frappe.utils.today()\nhaftanin_gunu = frappe.utils.getdate(bugun).weekday()\ngecen_hafta_pazartesi = frappe.utils.add_days(bugun, -(haftanin_gunu + 7))\ngecen_hafta_cuma = frappe.utils.add_days(gecen_hafta_pazartesi, 4)\n\ngun_cevir = {\n    \"Monday\": \"Pazartesi\",\n    \"Tuesday\": \"Salı\",\n    \"Wednesday\": \"Çarşamba\",\n    \"Thursday\": \"Perşembe\",\n    \"Friday\": \"Cuma\",\n}\n\ntum_item_gruplar = [\"PVC\", \"Camlar\"]\n\nresults = frappe.db.sql(\"\"\"\n    SELECT \n        DAYNAME(se.posting_date) AS gun,\n        i.item_group,\n        SUM(sed.qty) AS total_qty\n    FROM \n        `tabStock Entry` se\n    INNER JOIN \n        `tabStock Entry Detail` sed ON sed.parent = se.name\n    INNER JOIN \n        `tabItem` i ON sed.item_code = i.name\n    WHERE \n        se.docstatus = 1\n        AND se.stock_entry_type = 'Manufacture'\n        AND sed.t_warehouse IS NOT NULL\n        AND se.posting_date BETWEEN %(start_date)s AND %(end_date)s\n        AND i.item_group IN %(item_groups)s\n    GROUP BY \n        se.posting_date, i.item_group\n\"\"\", {\n    \"start_date\": gecen_hafta_pazartesi,\n    \"end_date\": gecen_hafta_cuma,\n    \"item_groups\": tuple(tum_item_gruplar)\n}, as_dict=True)\n\nhaftalik_toplam = {ig: 0 for ig in tum_item_gruplar}\ntum_gunler = [\"Pazartesi\", \"Salı\", \"Çarşamba\", \"Perşembe\", \"Cuma\"]\ntamamlanmis_data = []\n\nfor gun in tum_gunler:\n    for item_group in tum_item_gruplar:\n        kayit = None\n        for r in results:\n            if gun_cevir.get(r[\"gun\"]) == gun and r[\"item_group\"] == item_group:\n                kayit = r\n                break\n        qty = kayit[\"total_qty\"] if kayit else 0\n        haftalik_toplam[item_group] = haftalik_toplam[item_group] + qty\n        tamamlanmis_data.append({\n            \"gun\": gun,\n            \"item_group\": item_group,\n            \"total_qty\": qty\n        })\n\nfor item_group in tum_item_gruplar:\n    tamamlanmis_data.append({\n        \"gun\": \"Haftalık Toplam\",\n        \"item_group\": item_group,\n        \"total_qty\": haftalik_toplam[item_group]\n    })\n\nmessage = f\"Geçen haftanın ürün grubu bazlı üretim raporu: {gecen_hafta_pazartesi} - {gecen_hafta_cuma}\"\n\ndata = columns, tamamlanmis_data, message\n",
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Üretim Raporu PVC ve Camlar",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Üretim Raporu PVC ve Camlar",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "Üretim Raporu PVC ve Camlar",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Maintenance User"
+   },
+   {
+    "parent": "Üretim Raporu PVC ve Camlar",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts User"
+   },
+   {
+    "parent": "Üretim Raporu PVC ve Camlar",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [
+   {
+    "default": null,
+    "fieldname": "item_code",
+    "fieldtype": "Link",
+    "label": "Ürün Kodu",
+    "mandatory": 0,
+    "options": "Item",
+    "parent": "Profil Boy Stok Ozeti",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": null,
+    "fieldname": "item_group",
+    "fieldtype": "Link",
+    "label": "Ürün Grubu",
+    "mandatory": 0,
+    "options": "Item Group",
+    "parent": "Profil Boy Stok Ozeti",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": null,
+    "fieldname": "length",
+    "fieldtype": "Link",
+    "label": "Boy (m)",
+    "mandatory": 0,
+    "options": "Boy",
+    "parent": "Profil Boy Stok Ozeti",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   }
+  ],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-10-09 13:25:02.249151",
+  "module": "Uretim Planlama",
+  "name": "Profil Boy Stok Ozeti",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Profile Stock Ledger",
+  "reference_report": null,
+  "report_name": "Profil Boy Stok Ozeti",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-27 16:50:01.426317",
+  "module": "Uretim Planlama",
+  "name": "Quality Job Cards Barcode",
+  "prepared_report": 0,
+  "query": "SELECT \n    jc.operation, \n    jc.work_order, \n    jc.status, \n    jc.posting_date,\n    MIN(jci.barcode) AS barcode\nFROM \n    `tabJob Card` AS jc\nJOIN \n    `tabOzerpan Job Card Items` AS jci ON jci.parent = jc.name\nWHERE \n    jc.operation = 'Kalite' \n    AND jc.status != 'Completed'\nGROUP BY \n    jc.name, \n    jc.operation, \n    jc.work_order, \n    jc.status;",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Quality Job Cards Barcode",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Quality Job Cards Barcode",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-10 10:15:52.118819",
+  "module": "Uretim Planlama",
+  "name": "Customer Sales Order Production Details",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Customer Sales Order Production Details",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Customer Sales Order Production Details",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Customer Sales Order Production Details",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Customer Sales Order Production Details",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Customer Sales Order Production Details",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Customer Sales Order Production Details",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "Customer Sales Order Production Details",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Müşteri ( Bayi )"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "Özerpan Antetli Kağıt",
+  "modified": "2025-12-27 16:50:01.397590",
+  "module": "Uretim Planlama",
+  "name": "Monthly Produced PVC and Glass",
+  "prepared_report": 0,
+  "query": "SELECT\n    DATE_FORMAT(tl.to_time, '%%Y-%%m') AS \"Ay\",\n    SUM(CASE WHEN i.item_group = 'PVC' THEN tl.completed_qty ELSE 0 END) AS \"PVC\",\n    SUM(CASE WHEN i.item_group = 'Camlar' THEN tl.completed_qty ELSE 0 END) AS \"Cam\"\nFROM\n    `tabJob Card Time Log` tl\nJOIN\n    `tabJob Card` jc ON tl.parent = jc.name\nLEFT JOIN\n    `tabItem` i ON jc.production_item = i.name\nWHERE\n    tl.completed_qty > 0\n    AND i.item_group IN ('PVC', 'Camlar')\n    AND tl.to_time >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)\nGROUP BY\n    DATE_FORMAT(tl.to_time, '%%Y-%%m')\nORDER BY\n    Ay ASC;\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Monthly Produced PVC and Glass",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Monthly Produced PVC and Glass",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Monthly Produced PVC and Glass",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Monthly Produced PVC and Glass",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-10 09:27:30.600522",
+  "module": "Uretim Planlama",
+  "name": "Customer Sales Order Production Details-2",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Sales Order",
+  "reference_report": null,
+  "report_name": "Customer Sales Order Production Details-2",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales Manager"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Bayi (Müşteri)"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Customer"
+   },
+   {
+    "parent": "Customer Sales Order Production Details-2",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "Özerpan Antetli Kağıt",
+  "modified": "2025-12-27 16:50:01.368398",
+  "module": "Uretim Planlama",
+  "name": "Ürün Stok Miktarları",
+  "prepared_report": 0,
+  "query": "SELECT\n    b.item_code AS \"Ürün Kodu:Link/Item:150\",\n    i.item_name AS \"Ürün Adı:Data:200\",\n    b.warehouse AS \"Depo:Link/Warehouse:180\",\n    ROUND(b.actual_qty, 1) AS \"Stok Adedi:Float:120\"\nFROM\n    `tabBin` b\nINNER JOIN\n    `tabItem` i ON i.name = b.item_code\nWHERE\n    b.actual_qty > 0\n    AND b.item_code NOT LIKE 'S50%%'\nORDER BY\n    b.warehouse, b.item_code;\n",
+  "ref_doctype": "Item",
+  "reference_report": null,
+  "report_name": "Ürün Stok Miktarları",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Maintenance User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Sales User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock Manager"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Desk User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Accounts User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Purchase User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Item Manager"
+   },
+   {
+    "parent": "Ürün Stok Miktarları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Bayi (Müşteri)"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [
+   {
+    "default": null,
+    "fieldname": "from_date",
+    "fieldtype": "Date",
+    "label": "From Date",
+    "mandatory": 1,
+    "options": null,
+    "parent": "Manufactured Products By Date",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": null,
+    "fieldname": "to_date",
+    "fieldtype": "Date",
+    "label": "To Date",
+    "mandatory": 1,
+    "options": null,
+    "parent": "Manufactured Products By Date",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   }
+  ],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "Özerpan Antetli Kağıt",
+  "modified": "2025-12-27 16:50:01.339327",
+  "module": "Uretim Planlama",
+  "name": "Manufactured Products By Date",
+  "prepared_report": 0,
+  "query": "SELECT\n    so.customer AS \"Customer:Link/Customer:150\",\n    so.custom_end_customer AS \"End Customer:Data:150\",\n    i.custom_serial AS \"Seri:Data:100\",\n    i.custom_color AS \"Renk:Data:100\",\n    jc.production_item AS \"Ürün:Link/Item:150\",\n    CAST(SUM(tl.completed_qty) AS UNSIGNED) AS \"Üretilen Miktar:Int:150\"\nFROM\n    `tabJob Card Time Log` tl\nJOIN\n    `tabJob Card` jc ON tl.parent = jc.name\nLEFT JOIN\n    `tabWork Order` wo ON jc.work_order = wo.name\nLEFT JOIN\n    `tabSales Order` so ON wo.sales_order = so.name\nLEFT JOIN\n    `tabItem` i ON jc.production_item = i.name\nWHERE\n    jc.operation = 'Kalite'\n    AND tl.completed_qty > 0\n    AND DATE(tl.to_time) BETWEEN %(from_date)s AND %(to_date)s\nGROUP BY\n    so.customer,\n    so.custom_end_customer,\n    i.custom_serial,\n    i.custom_color,\n    jc.production_item\nORDER BY\n    so.customer,\n    jc.production_item;\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Manufactured Products By Date",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Manufactured Products By Date",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Manufactured Products By Date",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Manufactured Products By Date",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 500
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [
+   {
+    "default": null,
+    "fieldname": "from_date",
+    "fieldtype": "Date",
+    "label": "From Date",
+    "mandatory": 1,
+    "options": null,
+    "parent": "Employee-Jobcard Detail By Date",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": null,
+    "fieldname": "to_date",
+    "fieldtype": "Date",
+    "label": "To Date",
+    "mandatory": 1,
+    "options": null,
+    "parent": "Employee-Jobcard Detail By Date",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": "",
+    "fieldname": "employee",
+    "fieldtype": "Link",
+    "label": "Employee",
+    "mandatory": 1,
+    "options": "Employee",
+    "parent": "Employee-Jobcard Detail By Date",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   }
+  ],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "Özerpan Antetli Kağıt",
+  "modified": "2025-12-27 16:50:01.297642",
+  "module": "Uretim Planlama",
+  "name": "Employee-Jobcard Detail By Date",
+  "prepared_report": 0,
+  "query": "SELECT\n    TIME(birlesik.from_time) AS \"Saat:Time:80\",\n    emp.employee_name AS \"Çalışan Adı:Link/Employee:180\",\n    birlesik.Operasyon AS \"İstasyon:Data:120\",\n    so.customer AS \"Müşteri:Link/Customer:150\",\n    so.custom_end_customer AS \"Nihai Müşteri:Data:180\",\n    jc.production_item AS \"Ürün:Link/Item:150\",\n    i.custom_serial AS \"Seri No:Data:100\",\n    i.custom_color AS \"Renk:Data:100\",\n    birlesik.TamamlananAdet AS \"Tamamlanan Adet:Float:100\"\nFROM (\n\n    /* =======================\n       BARCODE OPERASYONLARI\n       ======================= */\n    SELECT\n        jc.name AS job_card,\n        jc.operation AS Operasyon,\n        jctl.employee,\n        jctl.from_time,\n        SUM(\n            CASE\n                WHEN jc.operation = 'Kaynak Köşe Temizleme'\n                     AND cb.model IN ('KANAT','KASA') THEN 0.5\n                WHEN jc.operation IN ('Kanat Hazırlık','Kanat Bağlama')\n                     AND cb.model = 'KANAT' THEN 0.5\n                WHEN jc.operation = 'Orta Kayıt'\n                     AND cb.model = 'KAYIT' THEN 1\n                ELSE 0\n            END\n        ) AS TamamlananAdet\n    FROM (\n        SELECT DISTINCT parent, model\n        FROM `tabOzerpan Job Card Items`\n        WHERE status = 'Completed'\n    ) cb\n    INNER JOIN `tabJob Card` jc ON jc.name = cb.parent\n    INNER JOIN `tabJob Card Time Log` jctl ON jctl.parent = jc.name\n    WHERE jc.operation IN (\n        'Kaynak Köşe Temizleme',\n        'Kanat Hazırlık',\n        'Kanat Bağlama',\n        'Orta Kayıt'\n    )\n    AND DATE(jctl.to_time) BETWEEN %(from_date)s AND %(to_date)s\n    GROUP BY jc.name, jc.operation, jctl.employee, jctl.from_time\n\n    UNION ALL\n\n    /* =======================\n       CAM OPERASYONU\n       ======================= */\n    SELECT\n        jc.name AS job_card,\n        'Cam' AS Operasyon,\n        jctl.employee,\n        jctl.from_time,\n        COUNT(DISTINCT cg.name) AS TamamlananAdet\n    FROM (\n        SELECT DISTINCT name, parent\n        FROM `tabOzerpan Job Card Glass`\n        WHERE status = 'Completed'\n    ) cg\n    INNER JOIN `tabJob Card` jc ON jc.name = cg.parent\n    INNER JOIN `tabJob Card Time Log` jctl ON jctl.parent = jc.name\n    WHERE DATE(jctl.to_time) BETWEEN %(from_date)s AND %(to_date)s\n    GROUP BY jc.name, jctl.employee, jctl.from_time\n\n    UNION ALL\n\n    /* =======================\n       DİĞER OPERASYONLAR\n       ======================= */\n    SELECT\n        jc.name AS job_card,\n        jc.operation AS Operasyon,\n        jctl.employee,\n        jctl.from_time,\n        COUNT(jctl.name) AS TamamlananAdet\n    FROM `tabJob Card Time Log` jctl\n    INNER JOIN `tabJob Card` jc ON jc.name = jctl.parent\n    WHERE jc.operation NOT IN (\n        'Kaynak Köşe Temizleme',\n        'Kanat Hazırlık',\n        'Kanat Bağlama',\n        'Orta Kayıt',\n        'Cam'\n    )\n    AND DATE(jctl.to_time) BETWEEN %(from_date)s AND %(to_date)s\n    GROUP BY jc.name, jc.operation, jctl.employee, jctl.from_time\n\n) AS birlesik\n\nINNER JOIN `tabJob Card` jc ON jc.name = birlesik.job_card\nLEFT JOIN `tabEmployee` emp ON emp.name = birlesik.employee\nLEFT JOIN `tabItem` i ON i.name = jc.production_item\nLEFT JOIN `tabWork Order` wo ON wo.name = jc.work_order\nLEFT JOIN `tabSales Order` so ON so.name = wo.sales_order\n\nWHERE\n    birlesik.TamamlananAdet > 0\n    AND (%(employee)s = '' OR birlesik.employee = %(employee)s)\n\nORDER BY\n    emp.employee_name,\n    birlesik.Operasyon,\n    birlesik.from_time;\n",
+  "ref_doctype": "Job Card",
+  "reference_report": "",
+  "report_name": "Employee-Jobcard Detail By Date",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Employee-Jobcard Detail By Date",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Employee-Jobcard Detail By Date",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Employee-Jobcard Detail By Date",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [
+   {
+    "default": null,
+    "fieldname": "item_code",
+    "fieldtype": "Link",
+    "label": "Ürün Kodu",
+    "mandatory": 0,
+    "options": "Item",
+    "parent": "Depo Bazında Stok Değeri",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": null,
+    "fieldname": "item_group",
+    "fieldtype": "Link",
+    "label": "Ürün Grubu",
+    "mandatory": 0,
+    "options": "Item Group",
+    "parent": "Depo Bazında Stok Değeri",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": null,
+    "fieldname": "warehouse",
+    "fieldtype": "Link",
+    "label": "Depo",
+    "mandatory": 0,
+    "options": "Warehouse",
+    "parent": "Depo Bazında Stok Değeri",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   }
+  ],
+  "is_standard": "Yes",
+  "javascript": null,
+  "json": null,
+  "letter_head": "",
+  "modified": "2025-12-27 16:31:58.978163",
+  "module": "Uretim Planlama",
+  "name": "Depo Bazında Stok Değeri",
+  "prepared_report": 0,
+  "query": null,
+  "ref_doctype": "Item",
+  "reference_report": null,
+  "report_name": "Depo Bazında Stok Değeri",
+  "report_script": null,
+  "report_type": "Script Report",
+  "roles": [],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.175453",
+  "module": "Uretim Planlama",
+  "name": "Employee-Jobcard Detail",
+  "prepared_report": 0,
+  "query": "SELECT\n    TIME(b.from_time) AS \"Saat:Time:80\",\n    emp.employee_name AS \"Çalışan Adı:Data:180\",\n    b.Operasyon AS \"İstasyon:Data:120\",\n    so.customer AS \"Müşteri:Link/Customer:150\",\n    so.custom_end_customer AS \"Nihai Müşteri:Data:180\",\n    jc.production_item AS \"Ürün:Link/Item:150\",\n    i.custom_serial AS \"Seri No:Data:100\",\n    i.custom_color AS \"Renk:Data:100\",\n    b.Operasyon AS \"Toplama Operasyonu:Data:120\",\n    b.TamamlananAdet AS \"Tamamlanan Adet:Float:100\"\nFROM (\n\n    /* ✅ TÜM Time Log bazlı operasyonlar (Kalite dahil) */\n    SELECT\n        jc.name AS job_card,\n        jc.operation AS Operasyon,\n        jctl.employee,\n        jctl.from_time,\n        SUM(COALESCE(jctl.completed_qty, 0)) AS TamamlananAdet\n    FROM `tabJob Card Time Log` jctl\n    INNER JOIN `tabJob Card` jc ON jc.name = jctl.parent\n    WHERE\n        DATE(jctl.to_time) = CURDATE()\n    GROUP BY\n        jc.name,\n        jc.operation,\n        jctl.employee,\n        jctl.from_time\n\n    UNION ALL\n\n    /* ✅ Barcode / Item bazlı özel hesaplar */\n    SELECT\n        jc.name AS job_card,\n        jc.operation AS Operasyon,\n        jctl.employee,\n        jctl.from_time,\n        SUM(\n            CASE\n                WHEN jc.operation = 'Kaynak Köşe Temizleme'\n                     AND cb.model IN ('KANAT', 'KASA') THEN 0.5\n                WHEN jc.operation IN ('Kanat Hazırlık', 'Kanat Bağlama')\n                     AND cb.model = 'KANAT' THEN 0.5\n                WHEN jc.operation = 'Orta Kayıt'\n                     AND cb.model = 'KAYIT' THEN 1\n                ELSE 0\n            END\n        ) AS TamamlananAdet\n    FROM `tabOzerpan Job Card Items` cb\n    INNER JOIN `tabJob Card` jc ON cb.parent = jc.name\n    INNER JOIN `tabJob Card Time Log` jctl ON jc.name = jctl.parent\n    WHERE\n        cb.status = 'Completed'\n        AND DATE(jctl.to_time) = CURDATE()\n        AND jc.operation IN (\n            'Kaynak Köşe Temizleme',\n            'Kanat Hazırlık',\n            'Kanat Bağlama',\n            'Orta Kayıt'\n        )\n    GROUP BY\n        jc.name,\n        jc.operation,\n        jctl.employee,\n        jctl.from_time\n\n    UNION ALL\n\n    /* ✅ Cam işlemleri */\n    SELECT\n        jc.name AS job_card,\n        'Cam' AS Operasyon,\n        jctl.employee,\n        jctl.from_time,\n        COUNT(DISTINCT cg.name) AS TamamlananAdet\n    FROM `tabOzerpan Job Card Glass` cg\n    INNER JOIN `tabJob Card` jc ON cg.parent = jc.name\n    INNER JOIN `tabJob Card Time Log` jctl ON jc.name = jctl.parent\n    WHERE\n        cg.status = 'Completed'\n        AND DATE(jctl.to_time) = CURDATE()\n    GROUP BY\n        jc.name,\n        jctl.employee,\n        jctl.from_time\n\n) b\nLEFT JOIN `tabJob Card` jc ON jc.name = b.job_card\nLEFT JOIN `tabEmployee` emp ON emp.name = b.employee\nLEFT JOIN `tabItem` i ON jc.production_item = i.name\nLEFT JOIN `tabWork Order` wo ON jc.work_order = wo.name\nLEFT JOIN `tabSales Order` so ON so.name = wo.sales_order\nORDER BY\n    emp.employee_name,\n    b.Operasyon;\n",
+  "ref_doctype": "Job Card",
+  "reference_report": "",
+  "report_name": "Employee-Jobcard Detail",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Employee-Jobcard Detail",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Employee-Jobcard Detail",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   },
+   {
+    "parent": "Employee-Jobcard Detail",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [],
+  "is_standard": "No",
+  "javascript": "frappe.query_reports[\"Müşteri Siparişine Ait Üretim Detayları\"] = {\r\n    filters: [\r\n        {\r\n            fieldname: \"customer\",\r\n            label: \"Customer\",\r\n            fieldtype: \"Link\",\r\n            options: \"Customer\",\r\n            reqd: 1\r\n        }\r\n    ]\r\n};\r\n",
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 16:50:01.491797",
+  "module": "Uretim Planlama",
+  "name": "Müşteri Siparişine Ait Üretim Detayları",
+  "prepared_report": 0,
+  "query": "SELECT\n    IF(so.customer = LAG(so.customer) OVER (ORDER BY wo.planned_start_date DESC), '', CONCAT('<span style=\"color:black;font-weight:bold;\">', so.customer, '</span>')) AS \"Müşteri:HTML:100\",\n\n    -- 🎯 Nihai Müşteri Ekleme:\n    IF(so.custom_end_customer = LAG(so.custom_end_customer) OVER (ORDER BY wo.planned_start_date DESC), '', CONCAT('<span style=\"color:gray;\">', so.custom_end_customer, '</span>')) AS \"Nihai Müşteri:HTML:110\",\n\n    IF(wo.sales_order = LAG(wo.sales_order) OVER (ORDER BY wo.planned_start_date DESC), '', CONCAT('<span style=\\\"color:black;font-weight:bold;\\\">', wo.sales_order, '</span>')) AS \"Satış Siparişi:HTML:120\",\n\n    IF(so.docstatus = LAG(so.docstatus) OVER (ORDER BY wo.planned_start_date DESC), '',\n        CASE\n            WHEN so.docstatus = 0 THEN '<span style=\"color:saddlebrown;font-weight:bold;\">Taslak</span>'\n            WHEN so.docstatus = 1 THEN '<span style=\"color:seagreen;font-weight:bold;\">Onaylandı</span>'\n            WHEN so.docstatus = 2 THEN '<span style=\"color:crimson;font-weight:bold;\">İptal Edildi</span>'\n            ELSE so.docstatus\n        END\n    ) AS \"Sipariş Durumu:HTML:130\",\n\n    CASE\n        WHEN wo.status = 'Completed' THEN '<span style=\"color:green;font-weight:bold;\">Tamamlandı</span>'\n        WHEN wo.status = 'In Process' THEN '<span style=\"color:orange;font-weight:bold;\">Devam Ediyor</span>'\n        WHEN wo.status = 'Not Started' THEN '<span style=\"color:deeppink;font-weight:bold;\">Başlamadı</span>'\n        WHEN wo.status = 'Stopped' THEN '<span style=\"color:red;font-weight:bold;\">Durduruldu</span>'\n        WHEN wo.status = 'Closed' THEN '<span style=\"color:blue;font-weight:bold;\">Kapandı</span>'\n        WHEN wo.status = 'Draft' THEN '<span style=\"color:saddlebrown;font-weight:bold;\">Taslak</span>'\n        ELSE wo.status\n    END AS \"İş Emri Durumu:HTML:120\",\n\n    -- Seri No ve Renk sütunları Ürün'den önce\n    it.custom_serial AS \"Seri No:Data:100\",\n    it.custom_color AS \"Renk:Data:100\",\n    wo.production_item AS \"Ürün:Link/Item:110\",\n\n    wo.qty AS \"Miktar:Float:70\",\n    wo.produced_qty AS \"Üretilen Miktar:Float:90\",\n    DATE(wo.planned_start_date) AS \"Plan. Başlangıç:Date:110\",\n    DATE(wo.planned_end_date) AS \"Plan. Bitiş:Date:110\",\n    DATE(wo.actual_start_date) AS \"Fiili Başlangıç:Date:110\",\n    DATE(wo.actual_end_date) AS \"Fiili Bitiş:Date:110\",\n\n    (\n        SELECT GROUP_CONCAT(CONCAT('<span style=\"background:#d4edda;color:#155724;padding:2px 6px;margin:2px;border-radius:4px;display:inline-block;\">', operation, '</span>') ORDER BY idx SEPARATOR ' ')\n        FROM `tabWork Order Operation`\n        WHERE parent = wo.name AND status = 'Completed'\n    ) AS \"Tamamlanan İşlemler:HTML:400\",\n\n    (\n        SELECT GROUP_CONCAT(CONCAT('<span style=\"background:#f8d7da;color:#721c24;padding:2px 6px;margin:2px;border-radius:4px;display:inline-block;\">', operation, '</span>') ORDER BY idx SEPARATOR ' ')\n        FROM `tabWork Order Operation`\n        WHERE parent = wo.name AND status != 'Completed'\n    ) AS \"Bekleyen İşlemler:HTML:400\"\n\nFROM\n    `tabWork Order` wo\nLEFT JOIN\n    `tabSales Order` so ON so.name = wo.sales_order\nLEFT JOIN\n    `tabItem` it ON it.item_code = wo.production_item\n\nWHERE\n    wo.docstatus < 2\n    AND so.customer = %(customer)s\n\nORDER BY\n    wo.planned_start_date DESC\n",
+  "ref_doctype": "Work Order",
+  "reference_report": null,
+  "report_name": "Müşteri Siparişine Ait Üretim Detayları",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Müşteri Siparişine Ait Üretim Detayları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Müşteri Siparişine Ait Üretim Detayları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Stock User"
+   },
+   {
+    "parent": "Müşteri Siparişine Ait Üretim Detayları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Customer"
+   },
+   {
+    "parent": "Müşteri Siparişine Ait Üretim Detayları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Müşteri Siparişine Ait Üretim Detayları",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Bayi (Müşteri)"
+   }
+  ],
+  "timeout": 0
+ }
 ]
-

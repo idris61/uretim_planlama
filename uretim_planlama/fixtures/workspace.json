@@ -1,354 +1,553 @@
 [
-  {
-    "charts": [
-      {
-        "chart_name": "Seri Bazında Günlük Cam",
-        "label": "Seri Bazında Günlük Üretilen Cam Adedi"
-      },
-      {
-        "chart_name": "Seri Bazında Günlük Üretilen PVC",
-        "label": "Seri Bazında Günlük Üretim"
-      },
-      {
-        "chart_name": "Employee-Poz",
-        "label": "Çalışan Günlük Poz"
-      },
-      {
-        "chart_name": "Operation Status",
-        "label": "Operasyon Durumları"
-      }
-    ],
-    "content": "[{\"id\":\"HJhAlgWXVi\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Üretim Planlama Kısa Yollar</b></span>\",\"col\":12}},{\"id\":\"qR1KPjjCmu\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Satış Siparişi\",\"col\":3}},{\"id\":\"CAoOnwL3ey\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Üretim Planı\",\"col\":3}},{\"id\":\"xn2r1nMLwo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"İş Emri\",\"col\":3}},{\"id\":\"5nJFvG7IKb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"İş Kartı\",\"col\":3}},{\"id\":\"u236S2o-pP\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"nzj9akdSPO\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Raporlar</b></span>\",\"col\":6}},{\"id\":\"M-s9NOMSNG\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Sayfalar</b></span>\",\"col\":6}},{\"id\":\"q9l3-CfnoU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Müşteri Siparişine Ait Üretim Detayları\",\"col\":6}},{\"id\":\"TMMhTgeAOE\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ÜRETİM PLANLAMA TAKİP PANELİ\",\"col\":6}},{\"id\":\"J-7CJpYCrN\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"biMFbvPKf9\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tamamlanan Poz Bilgileri</span>\",\"col\":12}},{\"id\":\"ANyv1Cgaig\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Üretilen Doğrama\",\"col\":4}},{\"id\":\"WFYi1qH7it\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Üretilen Cam\",\"col\":4}},{\"id\":\"aS5H83_v1o\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"GÜNLÜK İŞLENEN ANA PROFİL(MTÜL)\",\"col\":4}},{\"id\":\"nUWZxcflSe\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Tüketilen Stok Değeri \",\"col\":4}},{\"id\":\"3nttl6C8-D\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Üretilen Ürünlerin Değerleri\",\"col\":4}},{\"id\":\"AlJYbvxNQl\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük İşlenen Cam (m2)\",\"col\":4}},{\"id\":\"44AT9cfkbh\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretim\",\"col\":6}},{\"id\":\"9lVBk5_Pzl\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretilen Cam Adedi\",\"col\":6}},{\"id\":\"iLBOGUnSuQ\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>İstasyonlarda Yapılan İşlem Bilgileri</b></span>\",\"col\":12}},{\"id\":\"6elY1pXRWx\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Operasyon Durumları\",\"col\":12}},{\"id\":\"cOQXKlCF0i\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Çalışan Günlük İşlem Durumu</b></span>\",\"col\":12}},{\"id\":\"n1PtK9mrZQ\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Çalışan Günlük Poz\",\"col\":12}},{\"id\":\"MEGx-we18t\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Personel Günlük İşlem Detayı\",\"col\":3}},{\"id\":\"dYpbnDzQoo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gün Bazında Personel İşlem\",\"col\":3}},{\"id\":\"5S6LE6idmS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Iod91J2eqL\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Günlük Kesim İstasyonu\",\"col\":12}}]",
-    "creation": "2025-10-06 22:07:17.141760",
-    "custom_blocks": [
-      {
-        "custom_block_name": "Günlük Kesim İstasyonu",
-        "label": "Günlük Kesim İstasyonu"
-      }
-    ],
-    "docstatus": 0,
-    "doctype": "Workspace",
-    "for_user": "",
-    "hide_custom": 0,
-    "icon": "color-energy-points",
-    "idx": 0,
-    "indicator_color": "orange",
-    "is_hidden": 0,
-    "label": "Üretim İzleme",
-    "links": [],
-    "modified": "2025-12-18 08:16:05.163815",
-    "modified_by": "mustafa@gmail.com",
-    "module": "Uretim Planlama",
-    "name": "Üretim İzleme",
-    "number_cards": [
-      {
-        "label": "Günlük Üretilen Cam",
-        "number_card_name": "Günlük Üretilen Cam"
-      },
-      {
-        "label": "Günlük Üretilen Ürünlerin Değerleri",
-        "number_card_name": "Values of Daily Produced Items"
-      },
-      {
-        "label": "Günlük İşlenen Cam (m2)",
-        "number_card_name": "Günlük İşlenen Cam (m2)"
-      },
-      {
-        "label": "Günlük Tüketilen Stok Değeri ",
-        "number_card_name": "Daily Stock Summary by Manufacture"
-      },
-      {
-        "label": "Günlük Üretilen Doğrama",
-        "number_card_name": "Günlük Üretilen Doğrama"
-      },
-      {
-        "label": "GÜNLÜK İŞLENEN ANA PROFİL(MTÜL)",
-        "number_card_name": "Daily Total Mtül"
-      }
-    ],
-    "owner": "Administrator",
-    "parent_page": "",
-    "public": 1,
-    "quick_lists": [],
-    "restrict_to_domain": "",
-    "roles": [
-      {
-        "role": "Manufacturing Manager"
-      }
-    ],
-    "sequence_id": 2.0,
-    "shortcuts": [
-      {
-        "color": "Grey",
-        "doc_view": "List",
-        "label": "Gün Bazında Personel İşlem",
-        "link_to": "Employee-Jobcard Detail By Date",
-        "report_ref_doctype": "Job Card",
-        "type": "Report"
-      },
-      {
-        "color": "Grey",
-        "doc_view": "List",
-        "label": "ÜRETİM PLANLAMA TAKİP PANELİ",
-        "link_to": "uretim_planlama_paneli",
-        "type": "Page"
-      },
-      {
-        "color": "Grey",
-        "doc_view": "List",
-        "label": "Müşteri Siparişine Ait Üretim Detayları",
-        "link_to": "Customer Sales Order Production Details",
-        "report_ref_doctype": "Sales Order",
-        "type": "Report"
-      },
-      {
-        "color": "Grey",
-        "doc_view": "List",
-        "label": "Personel Günlük İşlem Detayı",
-        "link_to": "Employee-Jobcard Detail",
-        "report_ref_doctype": "Job Card",
-        "type": "Report"
-      },
-      {
-        "color": "Yellow",
-        "doc_view": "List",
-        "format": "{}  To Deliver",
-        "label": "Satış Siparişi",
-        "link_to": "Sales Order",
-        "stats_filter": "[[\"Sales Order\",\"workflow_state\",\"=\",\"Onaylandı\",false]]",
-        "type": "DocType"
-      },
-      {
-        "color": "Green",
-        "doc_view": "List",
-        "label": "Üretim Planı",
-        "link_to": "Production Plan",
-        "stats_filter": "[[\"Production Plan\",\"status\",\"not in\",[\"Closed\",\"Cancelled\",\"Completed\"],false]]",
-        "type": "DocType"
-      },
-      {
-        "color": "Red",
-        "doc_view": "List",
-        "label": "İş Emri",
-        "link_to": "Work Order",
-        "stats_filter": "[[\"Work Order\",\"status\",\"not in\",[\"Closed\",\"Cancelled\",\"Completed\"],false]]",
-        "type": "DocType"
-      },
-      {
-        "color": "Orange",
-        "doc_view": "List",
-        "label": "İş Kartı",
-        "link_to": "Job Card",
-        "stats_filter": "[[\"Job Card\",\"name\",\"not in\",[\"Cancelled\",\"Completed\",null],false]]",
-        "type": "DocType"
-      }
-    ],
-    "title": "Üretim İzleme"
-  },
-  {
-    "charts": [],
-    "content": "[{\"id\":\"CIq-v5f5KC\",\"type\":\"card\",\"data\":{\"card_name\":\"Raporlar\",\"col\":4}}]",
-    "creation": "2025-10-06 22:07:17.090862",
-    "custom_blocks": [],
-    "docstatus": 0,
-    "doctype": "Workspace",
-    "for_user": "",
-    "hide_custom": 0,
-    "icon": "color-monthly-rank",
-    "idx": 2,
-    "indicator_color": "",
-    "is_hidden": 0,
-    "label": "Bayi",
-    "links": [
-      {
-        "dependencies": "Item, BOM",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Work Order",
-        "link_count": 0,
-        "link_to": "Work Order",
-        "link_type": "DocType",
-        "onboard": 1,
-        "type": "Link"
-      },
-      {
-        "dependencies": "Item, BOM",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Production Plan",
-        "link_count": 0,
-        "link_to": "Production Plan",
-        "link_type": "DocType",
-        "onboard": 1,
-        "type": "Link"
-      },
-      {
-        "dependencies": "Item",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Stock Entry",
-        "link_count": 0,
-        "link_to": "Stock Entry",
-        "link_type": "DocType",
-        "onboard": 1,
-        "type": "Link"
-      },
-      {
-        "dependencies": "",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Job Card",
-        "link_count": 0,
-        "link_to": "Job Card",
-        "link_type": "DocType",
-        "onboard": 0,
-        "type": "Link"
-      },
-      {
-        "dependencies": "",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Downtime Entry",
-        "link_count": 0,
-        "link_to": "Downtime Entry",
-        "link_type": "DocType",
-        "onboard": 0,
-        "type": "Link"
-      },
-      {
-        "dependencies": "",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "BOM Update Tool",
-        "link_count": 0,
-        "link_to": "BOM Update Tool",
-        "link_type": "DocType",
-        "onboard": 0,
-        "type": "Link"
-      },
-      {
-        "dependencies": "",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "BOM Comparison Tool",
-        "link_count": 0,
-        "link_to": "bom-comparison-tool",
-        "link_type": "Page",
-        "onboard": 0,
-        "type": "Link"
-      },
-      {
-        "dependencies": "",
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Manufacturing Settings",
-        "link_count": 0,
-        "link_to": "Manufacturing Settings",
-        "link_type": "DocType",
-        "onboard": 0,
-        "type": "Link"
-      },
-      {
-        "hidden": 0,
-        "is_query_report": 0,
-        "label": "Raporlar",
-        "link_count": 2,
-        "link_type": "DocType",
-        "onboard": 0,
-        "type": "Card Break"
-      },
-      {
-        "hidden": 0,
-        "is_query_report": 1,
-        "label": "Müşteri Sipariş Takip Raporu",
-        "link_count": 0,
-        "link_to": "Customer Sales Order Production Details",
-        "link_type": "Report",
-        "onboard": 0,
-        "type": "Link"
-      },
-      {
-        "hidden": 0,
-        "is_query_report": 1,
-        "label": "Fiyat Listesi",
-        "link_count": 0,
-        "link_to": "Bayi Fiyat Listesi",
-        "link_type": "Report",
-        "onboard": 0,
-        "type": "Link"
-      }
-    ],
-    "modified": "2025-12-26 15:26:22.887058",
-    "modified_by": "idris.gemici61@gmail.com",
-    "module": "Uretim Planlama",
-    "name": "Bayi",
-    "number_cards": [],
-    "owner": "Administrator",
-    "parent_page": "",
-    "public": 1,
-    "quick_lists": [],
-    "restrict_to_domain": "",
-    "roles": [
-      {
-        "role": "Bayi (Müşteri)"
-      }
-    ],
-    "sequence_id": 3.0,
-    "shortcuts": [],
-    "title": "Bayi"
-  },
-  {
-    "charts": [
-      {
-        "chart_name": "Seri Bazında Günlük Üretilen PVC",
-        "label": "Seri Bazında Günlük Üretim (PVC)"
-      },
-      {
-        "chart_name": "Operation Status",
-        "label": "Operasyon Durumları"
-      },
-      {
-        "chart_name": "Monthly Produced Items",
-        "label": "Aylık Üretim"
-      },
-      {
-        "chart_name": "Seri Bazında Günlük Cam",
-        "label": "Seri Bazında Günlük Üretilen Cam Adedi"
-      },
-      {
-        "chart_name": "Employee-Poz",
-        "label": "Çalışan Günlük Poz"
-      }
-    ],
-    "content": "[{\"id\":\"N4QAVMW_P0\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Yönetim</span>\",\"col\":12}},{\"id\":\"Lx1JiLUXLy\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretim (PVC)\",\"col\":6}},{\"id\":\"HdQbXrkglh\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretilen Cam Adedi\",\"col\":6}},{\"id\":\"rcnYuakIoM\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"vYDN9mHYSd\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Operasyon Durumları\",\"col\":12}},{\"id\":\"BHS0soaSfp\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Aylık Üretim\",\"col\":12}},{\"id\":\"R8WJJoP94f\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Çalışan Günlük Poz\",\"col\":12}}]",
-    "creation": "2025-10-06 22:07:16.904659",
-    "custom_blocks": [],
-    "docstatus": 0,
-    "doctype": "Workspace",
-    "for_user": "",
-    "hide_custom": 0,
-    "icon": "color-review-points",
-    "idx": 0,
-    "indicator_color": "green",
-    "is_hidden": 0,
-    "label": "Yönetim",
-    "links": [],
-    "modified": "2025-12-26 15:26:40.703939",
-    "modified_by": "idris.gemici61@gmail.com",
-    "module": "Uretim Planlama",
-    "name": "Yönetim",
-    "number_cards": [],
-    "owner": "Administrator",
-    "parent_page": "",
-    "public": 1,
-    "quick_lists": [],
-    "roles": [
-      {
-        "role": "Yönetim"
-      }
-    ],
-    "sequence_id": 2.0,
-    "shortcuts": [],
-    "title": "Yönetim"
-  }
+ {
+  "charts": [
+   {
+    "chart_name": "Seri Bazında Günlük Üretilen PVC",
+    "label": "Seri Bazında Günlük Üretim (PVC)",
+    "parent": "Yönetim",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Operation Status",
+    "label": "Operasyon Durumları",
+    "parent": "Yönetim",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Monthly Produced Items",
+    "label": "Aylık Üretim",
+    "parent": "Yönetim",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Seri Bazında Günlük Cam",
+    "label": "Seri Bazında Günlük Üretilen Cam Adedi",
+    "parent": "Yönetim",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Employee-Poz",
+    "label": "Çalışan Günlük Poz",
+    "parent": "Yönetim",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   }
+  ],
+  "content": "[{\"id\":\"N4QAVMW_P0\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Yönetim</span>\",\"col\":12}},{\"id\":\"Lx1JiLUXLy\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretim (PVC)\",\"col\":6}},{\"id\":\"HdQbXrkglh\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretilen Cam Adedi\",\"col\":6}},{\"id\":\"rcnYuakIoM\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"vYDN9mHYSd\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Operasyon Durumları\",\"col\":12}},{\"id\":\"BHS0soaSfp\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Aylık Üretim\",\"col\":12}},{\"id\":\"R8WJJoP94f\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Çalışan Günlük Poz\",\"col\":12}}]",
+  "custom_blocks": [],
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "color-review-points",
+  "indicator_color": "green",
+  "is_hidden": 0,
+  "label": "Yönetim",
+  "links": [],
+  "modified": "2025-12-26 15:26:40.703939",
+  "module": "Uretim Planlama",
+  "name": "Yönetim",
+  "number_cards": [],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "restrict_to_domain": null,
+  "roles": [
+   {
+    "parent": "Yönetim",
+    "parentfield": "roles",
+    "parenttype": "Workspace",
+    "role": "Yönetim"
+   }
+  ],
+  "sequence_id": 2.0,
+  "shortcuts": [],
+  "title": "Yönetim"
+ },
+ {
+  "charts": [
+   {
+    "chart_name": "Seri Bazında Günlük Cam",
+    "label": "Seri Bazında Günlük Üretilen Cam Adedi",
+    "parent": "Üretim İzleme",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Seri Bazında Günlük Üretilen PVC",
+    "label": "Seri Bazında Günlük Üretim",
+    "parent": "Üretim İzleme",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Employee-Poz",
+    "label": "Çalışan Günlük Poz",
+    "parent": "Üretim İzleme",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   },
+   {
+    "chart_name": "Operation Status",
+    "label": "Operasyon Durumları",
+    "parent": "Üretim İzleme",
+    "parentfield": "charts",
+    "parenttype": "Workspace"
+   }
+  ],
+  "content": "[{\"id\":\"HJhAlgWXVi\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Üretim Planlama Kısa Yollar</b></span>\",\"col\":12}},{\"id\":\"qR1KPjjCmu\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Satış Siparişi\",\"col\":3}},{\"id\":\"CAoOnwL3ey\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Üretim Planı\",\"col\":3}},{\"id\":\"xn2r1nMLwo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"İş Emri\",\"col\":3}},{\"id\":\"5nJFvG7IKb\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"İş Kartı\",\"col\":3}},{\"id\":\"u236S2o-pP\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"nzj9akdSPO\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Raporlar</b></span>\",\"col\":6}},{\"id\":\"M-s9NOMSNG\",\"type\":\"paragraph\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Sayfalar</b></span>\",\"col\":6}},{\"id\":\"q9l3-CfnoU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Müşteri Siparişine Ait Üretim Detayları\",\"col\":6}},{\"id\":\"TMMhTgeAOE\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"ÜRETİM PLANLAMA TAKİP PANELİ\",\"col\":6}},{\"id\":\"J-7CJpYCrN\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"biMFbvPKf9\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tamamlanan Poz Bilgileri</span>\",\"col\":12}},{\"id\":\"ANyv1Cgaig\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Üretilen Doğrama\",\"col\":4}},{\"id\":\"WFYi1qH7it\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Üretilen Cam\",\"col\":4}},{\"id\":\"aS5H83_v1o\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"GÜNLÜK İŞLENEN ANA PROFİL(MTÜL)\",\"col\":4}},{\"id\":\"nUWZxcflSe\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Tüketilen Stok Değeri \",\"col\":4}},{\"id\":\"3nttl6C8-D\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük Üretilen Ürünlerin Değerleri\",\"col\":4}},{\"id\":\"AlJYbvxNQl\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Günlük İşlenen Cam (m2)\",\"col\":4}},{\"id\":\"44AT9cfkbh\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretim\",\"col\":6}},{\"id\":\"9lVBk5_Pzl\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Seri Bazında Günlük Üretilen Cam Adedi\",\"col\":6}},{\"id\":\"iLBOGUnSuQ\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>İstasyonlarda Yapılan İşlem Bilgileri</b></span>\",\"col\":12}},{\"id\":\"6elY1pXRWx\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Operasyon Durumları\",\"col\":12}},{\"id\":\"cOQXKlCF0i\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Çalışan Günlük İşlem Durumu</b></span>\",\"col\":12}},{\"id\":\"n1PtK9mrZQ\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Çalışan Günlük Poz\",\"col\":12}},{\"id\":\"MEGx-we18t\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Personel Günlük İşlem Detayı\",\"col\":3}},{\"id\":\"dYpbnDzQoo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gün Bazında Personel İşlem\",\"col\":3}},{\"id\":\"5S6LE6idmS\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Iod91J2eqL\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"Günlük Kesim İstasyonu\",\"col\":12}}]",
+  "custom_blocks": [
+   {
+    "custom_block_name": "Günlük Kesim İstasyonu",
+    "label": "Günlük Kesim İstasyonu",
+    "parent": "Üretim İzleme",
+    "parentfield": "custom_blocks",
+    "parenttype": "Workspace"
+   }
+  ],
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "color-energy-points",
+  "indicator_color": "orange",
+  "is_hidden": 0,
+  "label": "Üretim İzleme",
+  "links": [],
+  "modified": "2025-12-18 08:16:05.163815",
+  "module": "Uretim Planlama",
+  "name": "Üretim İzleme",
+  "number_cards": [
+   {
+    "label": "Günlük Üretilen Cam",
+    "number_card_name": "Günlük Üretilen Cam",
+    "parent": "Üretim İzleme",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Günlük Üretilen Ürünlerin Değerleri",
+    "number_card_name": "Values of Daily Produced Items",
+    "parent": "Üretim İzleme",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Günlük İşlenen Cam (m2)",
+    "number_card_name": "Günlük İşlenen Cam (m2)",
+    "parent": "Üretim İzleme",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Günlük Tüketilen Stok Değeri ",
+    "number_card_name": "Daily Stock Summary by Manufacture",
+    "parent": "Üretim İzleme",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "Günlük Üretilen Doğrama",
+    "number_card_name": "Günlük Üretilen Doğrama",
+    "parent": "Üretim İzleme",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   },
+   {
+    "label": "GÜNLÜK İŞLENEN ANA PROFİL(MTÜL)",
+    "number_card_name": "Daily Total Mtül",
+    "parent": "Üretim İzleme",
+    "parentfield": "number_cards",
+    "parenttype": "Workspace"
+   }
+  ],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "restrict_to_domain": "",
+  "roles": [
+   {
+    "parent": "Üretim İzleme",
+    "parentfield": "roles",
+    "parenttype": "Workspace",
+    "role": "Manufacturing Manager"
+   }
+  ],
+  "sequence_id": 2.0,
+  "shortcuts": [
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Gün Bazında Personel İşlem",
+    "link_to": "Employee-Jobcard Detail By Date",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": "Job Card",
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "Report",
+    "url": null
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "ÜRETİM PLANLAMA TAKİP PANELİ",
+    "link_to": "uretim_planlama_paneli",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "Page",
+    "url": null
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Müşteri Siparişine Ait Üretim Detayları",
+    "link_to": "Customer Sales Order Production Details",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": "Sales Order",
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "Report",
+    "url": null
+   },
+   {
+    "color": "Grey",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Personel Günlük İşlem Detayı",
+    "link_to": "Employee-Jobcard Detail",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": "Job Card",
+    "restrict_to_domain": null,
+    "stats_filter": null,
+    "type": "Report",
+    "url": null
+   },
+   {
+    "color": "Yellow",
+    "doc_view": "List",
+    "format": "{}  To Deliver",
+    "icon": null,
+    "kanban_board": null,
+    "label": "Satış Siparişi",
+    "link_to": "Sales Order",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": "[[\"Sales Order\",\"workflow_state\",\"=\",\"Onaylandı\",false]]",
+    "type": "DocType",
+    "url": null
+   },
+   {
+    "color": "Green",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "Üretim Planı",
+    "link_to": "Production Plan",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": "[[\"Production Plan\",\"status\",\"not in\",[\"Closed\",\"Cancelled\",\"Completed\"],false]]",
+    "type": "DocType",
+    "url": null
+   },
+   {
+    "color": "Red",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "İş Emri",
+    "link_to": "Work Order",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": "[[\"Work Order\",\"status\",\"not in\",[\"Closed\",\"Cancelled\",\"Completed\"],false]]",
+    "type": "DocType",
+    "url": null
+   },
+   {
+    "color": "Orange",
+    "doc_view": "List",
+    "format": null,
+    "icon": null,
+    "kanban_board": null,
+    "label": "İş Kartı",
+    "link_to": "Job Card",
+    "parent": "Üretim İzleme",
+    "parentfield": "shortcuts",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "restrict_to_domain": null,
+    "stats_filter": "[[\"Job Card\",\"name\",\"not in\",[\"Cancelled\",\"Completed\",null],false]]",
+    "type": "DocType",
+    "url": null
+   }
+  ],
+  "title": "Üretim İzleme"
+ },
+ {
+  "charts": [],
+  "content": "[{\"id\":\"CIq-v5f5KC\",\"type\":\"card\",\"data\":{\"card_name\":\"Raporlar\",\"col\":4}}]",
+  "custom_blocks": [],
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "color-monthly-rank",
+  "indicator_color": "",
+  "is_hidden": 0,
+  "label": "Bayi",
+  "links": [
+   {
+    "dependencies": "Item, BOM",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Work Order",
+    "link_count": 0,
+    "link_to": "Work Order",
+    "link_type": "DocType",
+    "onboard": 1,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "Item, BOM",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Production Plan",
+    "link_count": 0,
+    "link_to": "Production Plan",
+    "link_type": "DocType",
+    "onboard": 1,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "Item",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Stock Entry",
+    "link_count": 0,
+    "link_to": "Stock Entry",
+    "link_type": "DocType",
+    "onboard": 1,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Job Card",
+    "link_count": 0,
+    "link_to": "Job Card",
+    "link_type": "DocType",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Downtime Entry",
+    "link_count": 0,
+    "link_to": "Downtime Entry",
+    "link_type": "DocType",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "BOM Update Tool",
+    "link_count": 0,
+    "link_to": "BOM Update Tool",
+    "link_type": "DocType",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "BOM Comparison Tool",
+    "link_count": 0,
+    "link_to": "bom-comparison-tool",
+    "link_type": "Page",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": "",
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Manufacturing Settings",
+    "link_count": 0,
+    "link_to": "Manufacturing Settings",
+    "link_type": "DocType",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": null,
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 0,
+    "label": "Raporlar",
+    "link_count": 2,
+    "link_to": null,
+    "link_type": "DocType",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Card Break"
+   },
+   {
+    "dependencies": null,
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 1,
+    "label": "Müşteri Sipariş Takip Raporu",
+    "link_count": 0,
+    "link_to": "Customer Sales Order Production Details",
+    "link_type": "Report",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   },
+   {
+    "dependencies": null,
+    "description": null,
+    "hidden": 0,
+    "icon": null,
+    "is_query_report": 1,
+    "label": "Fiyat Listesi",
+    "link_count": 0,
+    "link_to": "Bayi Fiyat Listesi",
+    "link_type": "Report",
+    "onboard": 0,
+    "only_for": null,
+    "parent": "Bayi",
+    "parentfield": "links",
+    "parenttype": "Workspace",
+    "report_ref_doctype": null,
+    "type": "Link"
+   }
+  ],
+  "modified": "2025-12-26 15:26:22.887058",
+  "module": "Uretim Planlama",
+  "name": "Bayi",
+  "number_cards": [],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "restrict_to_domain": "",
+  "roles": [
+   {
+    "parent": "Bayi",
+    "parentfield": "roles",
+    "parenttype": "Workspace",
+    "role": "Bayi (Müşteri)"
+   }
+  ],
+  "sequence_id": 3.0,
+  "shortcuts": [],
+  "title": "Bayi"
+ }
 ]
