@@ -1697,5 +1697,74 @@
    }
   ],
   "timeout": 0
+ },
+ {
+  "add_total_row": 1,
+  "add_translate_data": 0,
+  "columns": [],
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "filters": [
+   {
+    "default": "Today",
+    "fieldname": "from_date",
+    "fieldtype": "Date",
+    "label": "From Date",
+    "mandatory": 0,
+    "options": null,
+    "parent": "Operation Status",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   },
+   {
+    "default": "Today",
+    "fieldname": "to_date",
+    "fieldtype": "Date",
+    "label": "To Date",
+    "mandatory": 0,
+    "options": null,
+    "parent": "Operation Status",
+    "parentfield": "filters",
+    "parenttype": "Report",
+    "wildcard_filter": 0
+   }
+  ],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": null,
+  "modified": "2025-12-27 18:50:50.000000",
+  "module": "Uretim Planlama",
+  "name": "Operation Status",
+  "prepared_report": 0,
+  "query": "SELECT\n    b.Operasyon AS \"operasyon:Data:200\",\n    SUM(b.TamamlananAdet) AS \"tamamlanan_adet:Float:150\"\nFROM (\n    /* ✅ TÜM Time Log bazlı operasyonlar (Kalite dahil) */\n    SELECT\n        jc.operation AS Operasyon,\n        SUM(COALESCE(jctl.completed_qty, 0)) AS TamamlananAdet\n    FROM `tabJob Card Time Log` jctl\n    INNER JOIN `tabJob Card` jc ON jc.name = jctl.parent\n    WHERE\n        DATE(jctl.to_time) BETWEEN %(from_date)s AND %(to_date)s\n    GROUP BY\n        jc.operation\n\n    UNION ALL\n\n    /* ✅ Barcode / Item bazlı özel hesaplar */\n    SELECT\n        jc.operation AS Operasyon,\n        SUM(\n            CASE\n                WHEN jc.operation = 'Kaynak Köşe Temizleme'\n                     AND cb.model IN ('KANAT', 'KASA') THEN 0.5\n                WHEN jc.operation IN ('Kanat Hazırlık', 'Kanat Bağlama')\n                     AND cb.model = 'KANAT' THEN 0.5\n                WHEN jc.operation = 'Orta Kayıt'\n                     AND cb.model = 'KAYIT' THEN 1\n                ELSE 0\n            END\n        ) AS TamamlananAdet\n    FROM `tabOzerpan Job Card Items` cb\n    INNER JOIN `tabJob Card` jc ON cb.parent = jc.name\n    INNER JOIN `tabJob Card Time Log` jctl ON jc.name = jctl.parent\n    WHERE\n        cb.status = 'Completed'\n        AND DATE(jctl.to_time) BETWEEN %(from_date)s AND %(to_date)s\n        AND jc.operation IN (\n            'Kaynak Köşe Temizleme',\n            'Kanat Hazırlık',\n            'Kanat Bağlama',\n            'Orta Kayıt'\n        )\n    GROUP BY\n        jc.operation\n\n    UNION ALL\n\n    /* ✅ Cam işlemleri */\n    SELECT\n        'Cam' AS Operasyon,\n        COUNT(DISTINCT cg.name) AS TamamlananAdet\n    FROM `tabOzerpan Job Card Glass` cg\n    INNER JOIN `tabJob Card` jc ON cg.parent = jc.name\n    INNER JOIN `tabJob Card Time Log` jctl ON jc.name = jctl.parent\n    WHERE\n        cg.status = 'Completed'\n        AND DATE(jctl.to_time) BETWEEN %(from_date)s AND %(to_date)s\n    GROUP BY\n        'Cam'\n\n) b\nGROUP BY\n    b.Operasyon\nORDER BY\n    b.Operasyon;\n",
+  "ref_doctype": "Job Card",
+  "reference_report": null,
+  "report_name": "Operation Status",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "parent": "Operation Status",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing User"
+   },
+   {
+    "parent": "Operation Status",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "Manufacturing Manager"
+   },
+   {
+    "parent": "Operation Status",
+    "parentfield": "roles",
+    "parenttype": "Report",
+    "role": "System Manager"
+   }
+  ],
+  "timeout": 0
  }
 ]
