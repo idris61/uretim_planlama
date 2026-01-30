@@ -34,8 +34,8 @@
  "is_hidden": 0,
  "label": "Y\u00f6netim",
  "links": [],
- "modified": "2025-12-26 15:26:40.703939",
- "modified_by": "idris.gemici61@gmail.com",
+ "modified": "2025-12-27 13:28:04.734476",
+ "modified_by": "Administrator",
  "module": "Uretim Planlama",
  "name": "Y\u00f6netim",
  "number_cards": [],
@@ -48,7 +48,7 @@
    "role": "Y\u00f6netim"
   }
  ],
- "sequence_id": 2.0,
+ "sequence_id": 1.0,
  "shortcuts": [],
  "title": "Y\u00f6netim"
 }
