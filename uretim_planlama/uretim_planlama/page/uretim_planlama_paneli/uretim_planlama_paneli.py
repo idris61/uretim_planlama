@@ -218,7 +218,7 @@ def get_production_planning_data(filters: Optional[Union[str, Dict]] = None) -> 
         frappe.log_error(f"Üretim Paneli Hatası: {str(e)}")
         return {"error": str(e), "planned": [], "unplanned": []}
 
-def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
+def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]: # planlanmış ve planlanmamış siaprişleri dönüyor Liste kısmı için
     """
     V2: Daha da optimize edilmiş veri çekme - Subquery'ler JOIN'e çevrildi
     """
@@ -403,7 +403,19 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]:
         unplanned_query += " ORDER BY so.delivery_date ASC"
         
         unplanned_data = frappe.db.sql(unplanned_query, unplanned_params, as_dict=True)
+        #print("\n\n\n\n", unplanned_data[0], "\n\n\n\n")
+
+
         
+        # bu fonksiyon aralığı ile girilen siparişe göre o siaprişin liste liste eleman yapısını gördük 
+        liste= [i for i in unplanned_data if i.sales_order=="5120004"]
+        
+        print("\n\n\n\n")
+        for i in liste:
+            print(i)
+        print("\n\n\n\n")
+        
+
         # Veri sayısını log'la
         frappe.logger().info(f"Unplanned data count: {len(unplanned_data)}")
         
@@ -654,7 +666,7 @@ def format_planned_data_optimized(planned_data: List[Dict]) -> List[Dict]:
                     'toplam_mtul_m2': 0,
                     'item_count': 0
                 }
-            
+           # print(item)
             # Miktarları topla
             group = grouped_data[combination_key]
             planlanan_miktar = float(item.get('planlanan_miktar', 0) or 0)
@@ -1130,121 +1142,184 @@ def get_opti_details(opti_no=None) -> Dict[str, Any]:
         frappe.log_error(f"get_opti_details hatası: {str(e)}")
         return {"error": str(e)}
 
+
 @frappe.whitelist()
-def get_sales_order_details_v2(sales_order=None) -> Dict[str, Any]:
+def get_sales_order_details_v2(sales_order=None) -> Dict[str, Any]: # liste yapısının detaylarını göstermek için kullanılan yapı
     """
-    Sales Order için detaylı bilgileri getirir.
-    Modern ve optimize edilmiş - N+1 Query problemi çözüldü.
+    Sales Order detay (UNPLANNED) - Liste ile aynı mantık
+    - qty = Sales Order qty değil, (qty - planned_qty) yani unplanned_qty kullanılır
+    - PVC MTÜL: sadece PVC satırlarının total_mtul toplamı
+    - CAM M2: sadece CAM satırlarının total_mtul toplamı (sende UI'da M2 olarak bu geliyor)
+    - Cache: versiyonlu key
     """
     try:
-        
-        # Cache kontrolü
-        cache_key = f"upp:so:{sales_order}"
-        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS['CACHE_DURATION'] / 1000))
+        # 1) Parametre kontrolü
+        if not sales_order:
+            return {"error": "sales_order parametresi zorunlu"}
+
+        # 2) Cache (versiyonlu)
+        cache_key = f"upp:so:details:v3:{sales_order}"
+        cached = _cache_get(cache_key, ttl_seconds=int(CONSTANTS["CACHE_DURATION"] / 1000))
         if cached:
             return cached
 
-        # Sales Order'ı getir
-        so_data = frappe.get_doc("Sales Order", sales_order)
-        if not so_data:
+        # 3) Header
+        so = frappe.get_doc("Sales Order", sales_order)
+        if not so:
             return {"error": "Sales Order bulunamadı"}
-        
-        # Sales Order Item'ları getir
-        so_items = frappe.get_all(
-            "Sales Order Item",
-            filters={"parent": sales_order},
-            fields=[
-                "item_code", "qty", "rate", "amount"
-            ]
+
+        # 4) SQL: Liste endpoint'indeki unplanned mantığının aynısı (tek sipariş filtreli)
+        rows = frappe.db.sql(
+            """
+            SELECT 
+                so.name as sales_order,
+                so.customer as bayi,
+                so.custom_end_customer as musteri,
+
+                soi.name as sales_order_item,
+                soi.item_code,
+                soi.description as aciklama,
+
+                -- unplanned qty
+                (soi.qty - COALESCE(planned_qty.planned_qty, 0)) as unplanned_qty,
+
+                -- tip = listeyle aynı
+                COALESCE(i.custom_stok_türü, i.item_group) as tip,
+
+                i.custom_serial as seri,
+                i.custom_color as renk,
+
+                -- PVC/CAM adet (unplanned)
+                CASE 
+                    WHEN (i.item_group = 'PVC' OR i.custom_stok_türü = 'PVC')
+                    THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                    ELSE 0 
+                END as pvc_qty,
+                CASE 
+                    WHEN (i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar')
+                    THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                    ELSE 0 
+                END as cam_qty,
+
+                -- total_mtul (liste sorgundakiyle aynı)
+                CASE 
+                    WHEN i.custom_amount_per_piece IS NOT NULL AND i.custom_amount_per_piece > 0 
+                    THEN (soi.qty - COALESCE(planned_qty.planned_qty, 0)) * i.custom_amount_per_piece
+                    ELSE (soi.qty - COALESCE(planned_qty.planned_qty, 0))
+                END as total_mtul
+
+            FROM `tabSales Order` so
+            INNER JOIN `tabSales Order Item` soi ON so.name = soi.parent
+            INNER JOIN `tabItem` i ON soi.item_code = i.name
+            LEFT JOIN (
+                SELECT 
+                    ppi.sales_order_item,
+                    SUM(ppi.planned_qty) as planned_qty
+                FROM `tabProduction Plan Item` ppi
+                INNER JOIN `tabProduction Plan` pp ON ppi.parent = pp.name
+                WHERE pp.docstatus = 1 AND pp.status != 'Closed'
+                GROUP BY ppi.sales_order_item
+            ) planned_qty ON soi.name = planned_qty.sales_order_item
+
+            WHERE 
+                so.docstatus = 1
+                AND so.name = %(sales_order)s
+                AND (soi.qty - COALESCE(planned_qty.planned_qty, 0)) > 0
+                AND (i.item_group IN ('PVC', 'Camlar') OR i.custom_stok_türü IN ('PVC', 'Camlar'))
+
+            ORDER BY soi.idx ASC
+            """,
+            {"sales_order": sales_order},
+            as_dict=True,
         )
-        
-        # Item kodlarını topla
-        item_codes = list(set(item.item_code for item in so_items))
-        
-        # Item'ları toplu çek - N+1 Query çözümü
-        items_data = {}
-        if item_codes:
-            items = frappe.get_all(
-                "Item",
-                filters={"name": ["in", item_codes]},
-                fields=[
-                    "name", "item_group", "custom_serial", "custom_color", 
-                    "custom_total_main_profiles_mtul"
-                ]
-            )
-            items_data = {item.name: item for item in items}
-        
-        # Her item için detaylı bilgileri topla
+
+        # 5) Toplamlar (listeyle aynı kaynak)
+        total_pvc = 0.0
+        total_cam = 0.0
+
+        pvc_mtul_total = 0.0   # popup PVC MTÜL
+        cam_m2_total = 0.0     # popup CAM M2 (sende total_mtul buraya denk)
+
         items_detail = []
-        total_mtul = 0
-        total_pvc = 0
-        total_cam = 0
-        
-        for item in so_items:
-            item_data = items_data.get(item.item_code, {})
-            
-            # MTÜL hesaplama
-            mtul_value = 0
-            item_group = item_data.get('item_group', '')
-            
-            if item_group == 'PVC':
-                mtul_value = item_data.get('custom_total_main_profiles_mtul', CONSTANTS['DEFAULT_MTUL_PVC'])
-                total_pvc += item.qty
-            elif item_group == 'Camlar':
-                mtul_value = CONSTANTS['DEFAULT_MTUL_CAM']
-                total_cam += item.qty
-            else:
-                # Diğer ürün grupları için
-                mtul_value = 0
-                if item_group == 'PVC AKSESUAR':
-                    total_pvc += item.qty
-                elif item_group == 'CAM AKSESUAR':
-                    total_cam += item.qty
-            
-            total_mtul += mtul_value * item.qty
-            
-            items_detail.append({
-                'item_code': item.item_code,
-                'qty': item.qty,
-                'rate': item.rate,
-                'amount': item.amount,
-                'serial': item_data.get('custom_serial', ''),
-                'color': item_data.get('custom_color', ''),
-                'mtul_per_piece': mtul_value,
-                'item_group': item_group,
-                'total_mtul': mtul_value * item.qty
-            })
-        
-        # CAM M2 hesaplama (ortalama 0.95 m2/adet)
-        total_cam_m2 = total_cam * 0.95
-        
+
+        for r in rows:
+            tip = (r.get("tip") or "").strip()
+
+            pvc_qty = float(r.get("pvc_qty") or 0)
+            cam_qty = float(r.get("cam_qty") or 0)
+            line_mtul = float(r.get("total_mtul") or 0)
+
+            total_pvc += pvc_qty
+            total_cam += cam_qty
+
+            if tip == "PVC":
+                pvc_mtul_total += line_mtul
+            elif tip == "Camlar":
+                cam_m2_total += line_mtul
+
+            # item_code sadeleştirme: S500018-10-xxxx -> S500018-10
+            raw_code = r.get("item_code") or ""
+            parts = raw_code.split("-")
+            display_code = raw_code
+            if len(parts) >= 2:
+                display_code = f"{parts[0]}-{parts[1]}"
+
+            items_detail.append(
+                {
+                    "sales_order": r.get("sales_order"),
+                    "item_code": display_code,
+                    "raw_item_code": raw_code,
+
+                    "tip": tip,
+                    "seri": r.get("seri") or "",
+                    "renk": r.get("renk") or "",
+                    "aciklama": r.get("aciklama") or "",
+
+                    # unplanned detay
+                    "unplanned_qty": float(r.get("unplanned_qty") or 0),
+                    "pvc_qty": pvc_qty,
+                    "cam_qty": cam_qty,
+
+                    # satır metriği
+                    "total_mtul": line_mtul,
+                }
+            )
+
+        # 6) Response (UI ile birebir)
         result = {
-            'sales_order': sales_order,
-            'customer': so_data.customer,
-            'customer_name': so_data.customer_name,
-            'end_customer': so_data.custom_end_customer,
-            'transaction_date': so_data.transaction_date,
-            'delivery_date': so_data.delivery_date,
-            'status': so_data.status,
-            'workflow_state': so_data.workflow_state,
-            'remarks': so_data.custom_remarks,
-            'acil_durum': so_data.custom_acil_durum,
-            'items': items_detail,
-            'total_mtul': total_mtul,
-            'total_pvc': total_pvc,
-            'total_cam': total_cam,
-            'total_cam_m2': total_cam_m2,
-            'total_items': len(items_detail)
+            "sales_order": sales_order,
+            "customer": so.customer,
+            "customer_name": so.customer_name,
+            "end_customer": so.custom_end_customer,
+            "transaction_date": so.transaction_date,
+            "delivery_date": so.delivery_date,
+            "status": so.status,
+            "workflow_state": so.workflow_state,
+            "remarks": so.custom_remarks,
+            "acil_durum": so.custom_acil_durum,
+
+            "items": items_detail,
+
+            # adetler (UNPLANNED)
+            "total_pvc": total_pvc,
+            "total_cam": total_cam,
+
+            # ✅ PVC MTÜL
+            "total_mtul": round(pvc_mtul_total, 2),
+
+            # ✅ CAM M2 (senin ekranda gördüğün)
+            "total_cam_m2": round(cam_m2_total, 2),
+
+            "total_items": len(items_detail),
         }
-        
-        # Cache'e kaydet
+
         _cache_set(cache_key, result)
-        
         return result
-        
+
     except Exception as e:
         frappe.log_error(f"get_sales_order_details_v2 hatası: {str(e)}")
         return {"error": str(e)}
+
 
 def get_status_badge_for_takip(status: str) -> Dict[str, str]:
     """Status badge bilgilerini döndürür - Takip sayfasından kopyalandı"""
@@ -1517,3 +1592,4 @@ def get_unplanned_summary_report(filters=None) -> Dict[str, Any]:
     except Exception as e:
         frappe.log_error(f"get_unplanned_summary_report hatası: {str(e)}")
         return {"error": str(e)}
+

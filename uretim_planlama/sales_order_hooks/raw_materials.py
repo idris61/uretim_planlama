@@ -355,7 +355,8 @@ def get_sales_order_raw_materials(sales_order):
 				"total_long_term_reserve_qty": toplam_uzun_vadeli_rezerv,
 				"total_reserved_details": total_reserved_details,
 			}
-		# Miktarları topla (BOM miktarı * satış siparişi miktarı) → her hammadde için gerçek toplam ihtiyaç
+		# Miktarları topla (SADECE BOM miktarı) → her hammadde için toplam ihtiyaç
+		# NOT: Satış siparişi satır miktarı ile ÇARPILMAZ.
 		# ÖNEMLİ: BOM Item'da qty UOM cinsinden, stock_qty stok birimi cinsinden. Stok hesaplamaları için stock_qty kullanılmalı
 		for item, rm in item_pairs:
 			# item.qty: satış siparişi kalemi miktarı (UOM cinsinden)
@@ -364,9 +365,15 @@ def get_sales_order_raw_materials(sales_order):
 			# rm.stock_qty: BOM'da tanımlı hammadde miktarı (stok birimi cinsinden, 1 adet ürün için)
 			# Stok hesaplamaları stok birimi cinsinden yapıldığı için stock_qty kullanılmalı
 			# stock_qty yoksa veya 0 ise qty kullan (fallback)
-			rm_stock_qty = get_real_qty(rm.stock_qty if hasattr(rm, 'stock_qty') and rm.stock_qty and rm.stock_qty > 0 else rm.qty)
-			item_stock_qty = get_real_qty(item.stock_qty if hasattr(item, 'stock_qty') and item.stock_qty and item.stock_qty > 0 else item.qty)
-			ihtiyac_miktar = get_real_qty(rm_stock_qty * item_stock_qty, precision=5)
+			rm_stock_qty = get_real_qty(
+				rm.stock_qty
+				if hasattr(rm, "stock_qty") and rm.stock_qty and rm.stock_qty > 0
+				else rm.qty
+			)
+			# İSTENEN DEĞİŞİKLİK:
+			# Satış siparişi satır miktarı (item.qty / item.stock_qty) ile ÇARPILMAYACAK.
+			# Rezerv ihtiyacı doğrudan BOM satır miktarı (rm_stock_qty) kadar alınır.
+			ihtiyac_miktar = get_real_qty(rm_stock_qty, precision=5)
 			raw_materials[item_code]["qty"] += ihtiyac_miktar
 			raw_materials[item_code]["so_items"].add(item.item_code)
 
