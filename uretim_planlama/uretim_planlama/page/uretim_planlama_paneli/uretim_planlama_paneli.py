@@ -252,7 +252,16 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]: # pla
                 ppi.planned_end_date as planned_end_date,
                 CASE
                     WHEN i.item_group = 'Camlar' OR i.custom_stok_türü = 'Camlar'
-                    THEN ppi.planned_qty * COALESCE(ppi.custom_mtul_per_piece, %s)
+                    THEN
+                        CASE
+                            -- `custom_mtul_per_piece` pratikte "sipariş kalemi toplam TM2" tutuluyor (adet dahil).
+                            -- Plan satırları bölününce (6+5 gibi) bu alan tekrar tekrar aynı geldiği için
+                            -- doğrudan planned_qty ile çarpmak TM2'yi katlıyor.
+                            -- Bu yüzden önce "parça başı"na çeviriyoruz: (toplam_tm2 / siparis_item_qty) * planned_qty
+                            WHEN COALESCE(ppi.custom_mtul_per_piece, 0) > 0 AND COALESCE(soi.qty, 0) > 0
+                            THEN ppi.planned_qty * (ppi.custom_mtul_per_piece / NULLIF(soi.qty, 0))
+                            ELSE ppi.planned_qty * %s
+                        END
                     ELSE ppi.planned_qty * COALESCE(i.custom_total_main_profiles_mtul, 0)
                 END as toplam_mtul_m2,
                 ppi.planned_qty as planlanan_miktar,
@@ -410,17 +419,8 @@ def get_optimized_data_v2(filters: Dict) -> tuple[List[Dict], List[Dict]]: # pla
 
 
 
-        # bu fonksiyon aralığı ile girilen siparişe göre o siaprişin liste liste eleman yapısını gördük
-        liste= [i for i in unplanned_data if i.sales_order=="S500012"]
-
-        print("\n\n\n\n")
-        for i in liste:
-            print(i)
-        print("\n\n\n\n")
-
-
-        # Veri sayısını log'la
-        frappe.logger().info(f"Unplanned data count: {len(unplanned_data)}")
+        # Debug hard-code / print bloklarını kaldırdık.
+        frappe.logger().debug(f"Unplanned data count: {len(unplanned_data)}")
 
         # Verileri formatla - Optimize edilmiş
         planned_formatted = format_planned_data_optimized(planned_data)

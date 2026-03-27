@@ -10,6 +10,7 @@ Sadece gerçekten kullanılan fonksiyonları içerir.
 
 from calendar import monthrange
 from datetime import timedelta
+from typing import Any, Dict, List
 
 import frappe
 from frappe import _
@@ -37,27 +38,27 @@ status_map = {
 
 @frappe.whitelist()
 def get_daily_cutting_matrix(from_date, to_date):
-	"""
-	Belirtilen tarih aralığındaki kesim planlarını getirir.
-	Önce Cutting Machine Plan tablosundan, yoksa Production Plan'dan veri çeker.
-	"""
-	try:
-		# API çağrısı başladı
-		# Tarihleri kontrol et ve formatla
-		if not from_date or not to_date:
-			frappe.logger().error("[API] Tarih parametreleri eksik")
-			return []
-		# Tarihleri YYYY-MM-DD formatına çevir
-		try:
-			from_date = frappe.utils.getdate(from_date).strftime("%Y-%m-%d")
-			to_date = frappe.utils.getdate(to_date).strftime("%Y-%m-%d")
-		except Exception as e:
-			frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
-			return []
+    """
+    Belirtilen tarih aralığındaki kesim planlarını getirir.
+    Önce Cutting Machine Plan tablosundan, yoksa Production Plan'dan veri çeker.
+    """
+    try:
+        # API çağrısı başladı
+        # Tarihleri kontrol et ve formatla
+        if not from_date or not to_date:
+            frappe.logger().error("[API] Tarih parametreleri eksik")
+            return []
+        # Tarihleri YYYY-MM-DD formatına çevir
+        try:
+            from_date = frappe.utils.getdate(from_date).strftime("%Y-%m-%d")
+            to_date = frappe.utils.getdate(to_date).strftime("%Y-%m-%d")
+        except Exception as e:
+            frappe.logger().error(f"[API] Tarih formatı hatası: {e!s}")
+            return []
 
-		# Önce Cutting Machine Plan tablosundan veri çek
-		result = frappe.db.sql(
-			"""
+        # Önce Cutting Machine Plan tablosundan veri çek
+        result = frappe.db.sql(
+            """
             SELECT
                 DATE(planning_date) AS date,
                 workstation,
@@ -68,19 +69,19 @@ def get_daily_cutting_matrix(from_date, to_date):
             GROUP BY DATE(planning_date), workstation
             ORDER BY DATE(planning_date), workstation
         """,
-			(from_date, to_date),
-			as_dict=True,
-		)
+            (from_date, to_date),
+            as_dict=True,
+        )
 
-		# Cutting Machine Plan'da veri varsa döndür
-		if result:
-			frappe.logger().info(f"[API] Cutting Machine Plan'dan {len(result)} kayıt getirildi")
-			return result
+        # Cutting Machine Plan'da veri varsa döndür
+        if result:
+            frappe.logger().info(f"[API] Cutting Machine Plan'dan {len(result)} kayıt getirildi")
+            return result
 
-		# Cutting Machine Plan'da veri yoksa Production Plan'dan çek
-		frappe.logger().info("[API] Cutting Machine Plan boş, Production Plan'dan veri çekiliyor")
-		result = frappe.db.sql(
-			"""
+        # Cutting Machine Plan'da veri yoksa Production Plan'dan çek
+        frappe.logger().info("[API] Cutting Machine Plan boş, Production Plan'dan veri çekiliyor")
+        result = frappe.db.sql(
+            """
             SELECT
                 DATE(ppi.planned_start_date) AS date,
                 ppi.custom_workstation AS workstation,
@@ -95,26 +96,26 @@ def get_daily_cutting_matrix(from_date, to_date):
             GROUP BY DATE(ppi.planned_start_date), ppi.custom_workstation
             ORDER BY DATE(ppi.planned_start_date), ppi.custom_workstation
         """,
-			(from_date, to_date),
-			as_dict=True,
-		)
+            (from_date, to_date),
+            as_dict=True,
+        )
 
-		frappe.logger().info(f"[API] Production Plan'dan {len(result)} kayıt getirildi")
-		return result if result else []
+        frappe.logger().info(f"[API] Production Plan'dan {len(result)} kayıt getirildi")
+        return result if result else []
 
-	except Exception as e:
-		frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
-		frappe.logger().error(frappe.get_traceback())
-		return []
+    except Exception as e:
+        frappe.logger().error(f"[API] get_daily_cutting_matrix hatası: {e!s}")
+        frappe.logger().error(frappe.get_traceback())
+        return []
 
 
 @frappe.whitelist()
 def get_daily_cutting_table(from_date, to_date):
-	"""
-	Günlük kesim istasyonu tablosu için veri getirir.
-	get_daily_cutting_matrix ile aynı veriyi döndürür (duplicate kodu önlemek için).
-	"""
-	return get_daily_cutting_matrix(from_date, to_date)
+    """
+    Günlük kesim istasyonu tablosu için veri getirir.
+    get_daily_cutting_matrix ile aynı veriyi döndürür (duplicate kodu önlemek için).
+    """
+    return get_daily_cutting_matrix(from_date, to_date)
 
 
 @frappe.whitelist()
@@ -619,6 +620,193 @@ def debug_ops_summary(week_start=None, week_end=None):
 
 
 @frappe.whitelist()
+def debug_cam_liste_totals_for_order(order_no: str, operation: str = "Cam"):
+    """
+    ozerpan_ercom_sync tarafındaki `debug_cam_liste_totals_for_order` çıktısıyla birebir aynı mantık:
+    - Planned/Unplanned ayrımı: `tabCamListe Job Card` join var/yok
+    - BM2/TM2/Adet kırılımı: `tabCamListe` satırlarından (cl.bm2/cl.tm2/cl.sanal_adet) türetilir
+    """
+    try:
+        if not order_no:
+            return {"error": "order_no zorunlu"}
+
+        def _to_int(value: Any, default: int = 0) -> int:
+            if value is None:
+                return default
+            try:
+                return int(float(value))
+            except (TypeError, ValueError):
+                return default
+
+        def _to_float(value: Any, default: float = 0.0) -> float:
+            if value is None:
+                return default
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+
+        def normalize_stock_code(value: Any) -> str:
+            if value is None:
+                return ""
+            return str(value).replace("#", "").strip().upper()
+
+        def normalize_sanal_adet(value: Any) -> int:
+            # CamListe.sanal_adet bazen "3/10" gibi gelebiliyor; ilk kısmı alıyoruz.
+            if value is None:
+                return 0
+            s = str(value).strip()
+            if not s:
+                return 0
+            try:
+                return int(s.split("/")[0])
+            except ValueError:
+                return 0
+
+        def round_dims(value: Any, default: float = 0.0) -> float:
+            return round(_to_float(value, default=default), 3)
+
+        # 1) CamListe satırlarını çek (her satır 1 cam parçasını temsil eder)
+        rows = frappe.db.sql(
+            """
+            SELECT
+                cl.name,
+                cl.order_no,
+                cl.stok_kodu,
+                cl.poz_no,
+                cl.sanal_adet,
+                cl.genislik,
+                cl.yukseklik,
+                cl.bm2,
+                cl.tm2,
+                MAX(CASE WHEN jc.name IS NOT NULL THEN 1 ELSE 0 END) AS is_planned,
+                GROUP_CONCAT(DISTINCT jc.status ORDER BY jc.status SEPARATOR ',') AS planned_statuses,
+                GROUP_CONCAT(DISTINCT jc.job_card_ref ORDER BY jc.job_card_ref SEPARATOR ',') AS planned_job_cards
+            FROM `tabCamListe` cl
+            LEFT JOIN `tabCamListe Job Card` jc
+                ON jc.parent = cl.name
+                AND jc.operation = %s
+            WHERE cl.order_no = %s
+            GROUP BY
+                cl.name,
+                cl.order_no,
+                cl.stok_kodu,
+                cl.poz_no,
+                cl.sanal_adet,
+                cl.genislik,
+                cl.yukseklik,
+                cl.bm2,
+                cl.tm2
+            """,
+            (operation, order_no),
+            as_dict=True,
+        )
+
+        # 2) Total/planned sayıları key-level'da tut.
+        # Key aynı olan cam parçaları (sanal_adet + dims + bm2/tm2) için planlı mı değil mi ayrılır.
+        total_counts: Dict[tuple, int] = {}
+        planned_counts: Dict[tuple, int] = {}
+
+        planned_rows_sample: List[Dict[str, Any]] = []
+        unplanned_rows_sample: List[Dict[str, Any]] = []
+
+        for r in rows:
+            poz_no = _to_int(r.get("poz_no"), default=0)
+            stok_kodu = normalize_stock_code(r.get("stok_kodu"))
+            sanal_adet = normalize_sanal_adet(r.get("sanal_adet"))
+
+            genislik = round_dims(r.get("genislik"))
+            yukseklik = round_dims(r.get("yukseklik"))
+            bm2 = round_dims(r.get("bm2"))
+            tm2 = round_dims(r.get("tm2"))
+
+            if not stok_kodu or poz_no == 0 or sanal_adet == 0:
+                continue
+
+            key = (poz_no, stok_kodu, sanal_adet, genislik, yukseklik, bm2, tm2)
+            total_counts[key] = total_counts.get(key, 0) + 1
+
+            is_planned = bool(r.get("is_planned"))
+            if is_planned:
+                planned_counts[key] = planned_counts.get(key, 0) + 1
+                if len(planned_rows_sample) < 50:
+                    planned_rows_sample.append(
+                        {
+                            "cam_name": r.get("name"),
+                            "poz_no": poz_no,
+                            "stok_kodu": stok_kodu,
+                            "sanal_adet": sanal_adet,
+                            "status_samples": r.get("planned_statuses"),
+                            "job_cards_samples": r.get("planned_job_cards"),
+                        }
+                    )
+            else:
+                if len(unplanned_rows_sample) < 50:
+                    unplanned_rows_sample.append(
+                        {
+                            "cam_name": r.get("name"),
+                            "poz_no": poz_no,
+                            "stok_kodu": stok_kodu,
+                            "sanal_adet": sanal_adet,
+                        }
+                    )
+
+        actual_total = sum(total_counts.values())
+        actual_planned_total = sum(planned_counts.values())
+        actual_unplanned_total = actual_total - actual_planned_total
+
+        # 3) Unplanned_counts key-level (total - planned)
+        unplanned_counts: Dict[tuple, int] = {}
+        for key, total_cnt in total_counts.items():
+            planned_cnt = planned_counts.get(key, 0)
+            unplanned_cnt = total_cnt - planned_cnt
+            if unplanned_cnt > 0:
+                unplanned_counts[key] = unplanned_cnt
+
+        # 4) Combo kırılımı: (poz_no, stok_kodu, bm2, tm2)
+        def _agg_by_bm2_tm2(counts: Dict[tuple, int]) -> List[Dict[str, Any]]:
+            combo: Dict[tuple, int] = {}
+            for key, cnt in counts.items():
+                poz_no, stok_kodu, sanal_adet, genislik, yukseklik, bm2, tm2 = key
+                combo_key = (poz_no, stok_kodu, bm2, tm2)
+                combo[combo_key] = combo.get(combo_key, 0) + cnt
+
+            # ercom ile aynı sıralama (adet desc, poz/stok/bm2/tm2 asc)
+            sorted_items = sorted(
+                combo.items(),
+                key=lambda x: (-x[1], x[0][0], x[0][1], x[0][2], x[0][3]),
+            )
+            return [
+                {
+                    "poz_no": poz_no,
+                    "stok_kodu": stok_kodu,
+                    "bm2": bm2,
+                    "tm2": tm2,
+                    "adet": cnt,
+                }
+                for (poz_no, stok_kodu, bm2, tm2), cnt in sorted_items
+            ]
+
+        planned_combo_counts = _agg_by_bm2_tm2(planned_counts)
+        unplanned_combo_counts = _agg_by_bm2_tm2(unplanned_counts)
+
+        return {
+            "order_no": order_no,
+            "actual_total": actual_total,
+            "actual_planned_total": actual_planned_total,
+            "actual_unplanned_total": actual_unplanned_total,
+            "planned_combo_counts": planned_combo_counts,
+            "unplanned_combo_counts": unplanned_combo_counts,
+            "planned_rows_sample": planned_rows_sample,
+            "unplanned_rows_sample": unplanned_rows_sample,
+        }
+
+    except Exception as e:
+        frappe.log_error(f"debug_cam_liste_totals_for_order hatası: {str(e)}")
+        return {"error": str(e)}
+
+
+@frappe.whitelist()
 def get_production_planning_data(filters=None):
     """Üretim planlama paneli için veri getirir"""
     try:
@@ -935,200 +1123,200 @@ def calculate_summary_data(planned_data, unplanned_data):
 
 @frappe.whitelist()
 def generate_cutting_plan(docname):
-	"""
-	Production Plan submit edildiğinde Cutting Machine Plan kayıtları oluşturur
-	"""
-	try:
-		if not docname:
-			return {"success": False, "message": "Production Plan adı gerekli"}
+    """
+    Production Plan submit edildiğinde Cutting Machine Plan kayıtları oluşturur
+    """
+    try:
+        if not docname:
+            return {"success": False, "message": "Production Plan adı gerekli"}
 
-		pp_doc = frappe.get_doc("Production Plan", docname)
+        pp_doc = frappe.get_doc("Production Plan", docname)
 
-		if pp_doc.docstatus != 1:
-			return {"success": False, "message": "Production Plan submit edilmemiş"}
+        if pp_doc.docstatus != 1:
+            return {"success": False, "message": "Production Plan submit edilmemiş"}
 
-		# Production Plan Item'ları grupla (planning_date ve workstation'a göre)
-		grouped_items = {}
+        # Production Plan Item'ları grupla (planning_date ve workstation'a göre)
+        grouped_items = {}
 
-		for item in pp_doc.po_items:
-			if not item.planned_start_date or not item.custom_workstation:
-				continue
+        for item in pp_doc.po_items:
+            if not item.planned_start_date or not item.custom_workstation:
+                continue
 
-			planning_date = frappe.utils.getdate(item.planned_start_date).strftime("%Y-%m-%d")
-			workstation = item.custom_workstation
-			key = f"{planning_date}_{workstation}"
+            planning_date = frappe.utils.getdate(item.planned_start_date).strftime("%Y-%m-%d")
+            workstation = item.custom_workstation
+            key = f"{planning_date}_{workstation}"
 
-			if key not in grouped_items:
-				grouped_items[key] = {
-					"planning_date": planning_date,
-					"workstation": workstation,
-					"items": [],
-					"total_mtul": 0,
-					"total_quantity": 0
-				}
+            if key not in grouped_items:
+                grouped_items[key] = {
+                    "planning_date": planning_date,
+                    "workstation": workstation,
+                    "items": [],
+                    "total_mtul": 0,
+                    "total_quantity": 0
+                }
 
-			mtul_per_piece = item.custom_mtul_per_piece or 0
-			quantity = item.planned_qty or 0
-			total_mtul = mtul_per_piece * quantity
+            mtul_per_piece = item.custom_mtul_per_piece or 0
+            quantity = item.planned_qty or 0
+            total_mtul = mtul_per_piece * quantity
 
-			grouped_items[key]["items"].append({
-				"item_code": item.item_code,
-				"item_name": item.item_name,
-				"item_group": item.item_group,
-				"mtul_per_piece": mtul_per_piece,
-				"quantity": quantity,
-				"total_mtul": total_mtul,
-				"production_plan": docname,
-				"production_plan_item": item.name
-			})
+            grouped_items[key]["items"].append({
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "item_group": item.item_group,
+                "mtul_per_piece": mtul_per_piece,
+                "quantity": quantity,
+                "total_mtul": total_mtul,
+                "production_plan": docname,
+                "production_plan_item": item.name
+            })
 
-			grouped_items[key]["total_mtul"] += total_mtul
-			grouped_items[key]["total_quantity"] += quantity
+            grouped_items[key]["total_mtul"] += total_mtul
+            grouped_items[key]["total_quantity"] += quantity
 
-		# Her grup için Cutting Machine Plan oluştur
-		created_count = 0
+        # Her grup için Cutting Machine Plan oluştur
+        created_count = 0
 
-		for key, group_data in grouped_items.items():
-			# Aynı tarih ve workstation için mevcut plan var mı kontrol et
-			existing_plans = frappe.get_all(
-				"Cutting Machine Plan",
-				filters={
-					"planning_date": group_data["planning_date"],
-					"workstation": group_data["workstation"]
-				},
-				fields=["name"],
-				limit=1
-			)
-			existing_plan = existing_plans[0].name if existing_plans else None
+        for key, group_data in grouped_items.items():
+            # Aynı tarih ve workstation için mevcut plan var mı kontrol et
+            existing_plans = frappe.get_all(
+                "Cutting Machine Plan",
+                filters={
+                    "planning_date": group_data["planning_date"],
+                    "workstation": group_data["workstation"]
+                },
+                fields=["name"],
+                limit=1
+            )
+            existing_plan = existing_plans[0].name if existing_plans else None
 
-			if existing_plan:
-				# Mevcut planı güncelle
-				cutting_plan = frappe.get_doc("Cutting Machine Plan", existing_plan)
-				cutting_plan.total_mtul = group_data["total_mtul"]
-				cutting_plan.total_quantity = group_data["total_quantity"]
+            if existing_plan:
+                # Mevcut planı güncelle
+                cutting_plan = frappe.get_doc("Cutting Machine Plan", existing_plan)
+                cutting_plan.total_mtul = group_data["total_mtul"]
+                cutting_plan.total_quantity = group_data["total_quantity"]
 
-				# Plan detaylarını temizle ve yeniden ekle
-				cutting_plan.plan_details = []
+                # Plan detaylarını temizle ve yeniden ekle
+                cutting_plan.plan_details = []
 
-				for item_data in group_data["items"]:
-					cutting_plan.append("plan_details", {
-						"item_code": item_data["item_code"],
-						"item_name": item_data["item_name"],
-						"item_group": item_data["item_group"],
-						"mtul_per_piece": item_data["mtul_per_piece"],
-						"quantity": item_data["quantity"],
-						"total_mtul": item_data["total_mtul"],
-						"production_plan": item_data["production_plan"],
-						"production_plan_item": item_data["production_plan_item"]
-					})
+                for item_data in group_data["items"]:
+                    cutting_plan.append("plan_details", {
+                        "item_code": item_data["item_code"],
+                        "item_name": item_data["item_name"],
+                        "item_group": item_data["item_group"],
+                        "mtul_per_piece": item_data["mtul_per_piece"],
+                        "quantity": item_data["quantity"],
+                        "total_mtul": item_data["total_mtul"],
+                        "production_plan": item_data["production_plan"],
+                        "production_plan_item": item_data["production_plan_item"]
+                    })
 
-				cutting_plan.save(ignore_permissions=True)
-				created_count += 1
-			else:
-				# Yeni plan oluştur
-				cutting_plan = frappe.get_doc({
-					"doctype": "Cutting Machine Plan",
-					"planning_date": group_data["planning_date"],
-					"workstation": group_data["workstation"],
-					"total_mtul": group_data["total_mtul"],
-					"total_quantity": group_data["total_quantity"]
-				})
+                cutting_plan.save(ignore_permissions=True)
+                created_count += 1
+            else:
+                # Yeni plan oluştur
+                cutting_plan = frappe.get_doc({
+                    "doctype": "Cutting Machine Plan",
+                    "planning_date": group_data["planning_date"],
+                    "workstation": group_data["workstation"],
+                    "total_mtul": group_data["total_mtul"],
+                    "total_quantity": group_data["total_quantity"]
+                })
 
-				for item_data in group_data["items"]:
-					cutting_plan.append("plan_details", {
-						"item_code": item_data["item_code"],
-						"item_name": item_data["item_name"],
-						"item_group": item_data["item_group"],
-						"mtul_per_piece": item_data["mtul_per_piece"],
-						"quantity": item_data["quantity"],
-						"total_mtul": item_data["total_mtul"],
-						"production_plan": item_data["production_plan"],
-						"production_plan_item": item_data["production_plan_item"]
-					})
+                for item_data in group_data["items"]:
+                    cutting_plan.append("plan_details", {
+                        "item_code": item_data["item_code"],
+                        "item_name": item_data["item_name"],
+                        "item_group": item_data["item_group"],
+                        "mtul_per_piece": item_data["mtul_per_piece"],
+                        "quantity": item_data["quantity"],
+                        "total_mtul": item_data["total_mtul"],
+                        "production_plan": item_data["production_plan"],
+                        "production_plan_item": item_data["production_plan_item"]
+                    })
 
-				cutting_plan.insert(ignore_permissions=True)
-				created_count += 1
+                cutting_plan.insert(ignore_permissions=True)
+                created_count += 1
 
-		frappe.db.commit()
+        frappe.db.commit()
 
-		return {
-			"success": True,
-			"message": f"{created_count} kesim planı oluşturuldu/güncellendi"
-		}
+        return {
+            "success": True,
+            "message": f"{created_count} kesim planı oluşturuldu/güncellendi"
+        }
 
-	except Exception as e:
-		frappe.log_error(
-			title="Cutting Plan Oluşturma Hatası",
-			message=f"Production Plan: {docname}\nHata: {str(e)}\nTraceback: {frappe.get_traceback()}"
-		)
-		frappe.db.rollback()
-		return {"success": False, "message": f"Hata: {str(e)}"}
+    except Exception as e:
+        frappe.log_error(
+            title="Cutting Plan Oluşturma Hatası",
+            message=f"Production Plan: {docname}\nHata: {str(e)}\nTraceback: {frappe.get_traceback()}"
+        )
+        frappe.db.rollback()
+        return {"success": False, "message": f"Hata: {str(e)}"}
 
 
 @frappe.whitelist()
 def delete_cutting_plans(docname):
-	"""
-	Production Plan cancel edildiğinde ilgili Cutting Machine Plan kayıtlarını siler
-	"""
-	try:
-		if not docname:
-			return {"success": False, "message": "Production Plan adı gerekli"}
+    """
+    Production Plan cancel edildiğinde ilgili Cutting Machine Plan kayıtlarını siler
+    """
+    try:
+        if not docname:
+            return {"success": False, "message": "Production Plan adı gerekli"}
 
-		# Bu Production Plan'a ait Cutting Plan Row'ları bul
-		cutting_plan_rows = frappe.get_all(
-			"Cutting Plan Row",
-			filters={"production_plan": docname},
-			fields=["parent"]
-		)
+        # Bu Production Plan'a ait Cutting Plan Row'ları bul
+        cutting_plan_rows = frappe.get_all(
+            "Cutting Plan Row",
+            filters={"production_plan": docname},
+            fields=["parent"]
+        )
 
-		if not cutting_plan_rows:
-			return {"success": True, "message": "Silinecek kesim planı bulunamadı"}
+        if not cutting_plan_rows:
+            return {"success": True, "message": "Silinecek kesim planı bulunamadı"}
 
-		# Parent Cutting Machine Plan'ları topla
-		parent_plans = list(set([row.parent for row in cutting_plan_rows]))
+        # Parent Cutting Machine Plan'ları topla
+        parent_plans = list(set([row.parent for row in cutting_plan_rows]))
 
-		deleted_count = 0
+        deleted_count = 0
 
-		for plan_name in parent_plans:
-			try:
-				# Cutting Plan Row'ları sil
-				frappe.db.delete("Cutting Plan Row", {"parent": plan_name, "production_plan": docname})
+        for plan_name in parent_plans:
+            try:
+                # Cutting Plan Row'ları sil
+                frappe.db.delete("Cutting Plan Row", {"parent": plan_name, "production_plan": docname})
 
-				# Eğer plan'da başka row yoksa, plan'ı da sil
-				remaining_rows = frappe.db.count("Cutting Plan Row", {"parent": plan_name})
+                # Eğer plan'da başka row yoksa, plan'ı da sil
+                remaining_rows = frappe.db.count("Cutting Plan Row", {"parent": plan_name})
 
-				if remaining_rows == 0:
-					frappe.delete_doc("Cutting Machine Plan", plan_name, ignore_permissions=True, force=True)
-					deleted_count += 1
-				else:
-					# Plan'ı güncelle (total_mtul ve total_quantity'yi yeniden hesapla)
-					cutting_plan = frappe.get_doc("Cutting Machine Plan", plan_name)
+                if remaining_rows == 0:
+                    frappe.delete_doc("Cutting Machine Plan", plan_name, ignore_permissions=True, force=True)
+                    deleted_count += 1
+                else:
+                    # Plan'ı güncelle (total_mtul ve total_quantity'yi yeniden hesapla)
+                    cutting_plan = frappe.get_doc("Cutting Machine Plan", plan_name)
 
-					total_mtul = sum([row.total_mtul or 0 for row in cutting_plan.plan_details])
-					total_quantity = sum([row.quantity or 0 for row in cutting_plan.plan_details])
+                    total_mtul = sum([row.total_mtul or 0 for row in cutting_plan.plan_details])
+                    total_quantity = sum([row.quantity or 0 for row in cutting_plan.plan_details])
 
-					cutting_plan.total_mtul = total_mtul
-					cutting_plan.total_quantity = total_quantity
-					cutting_plan.save(ignore_permissions=True)
+                    cutting_plan.total_mtul = total_mtul
+                    cutting_plan.total_quantity = total_quantity
+                    cutting_plan.save(ignore_permissions=True)
 
-			except Exception as e:
-				frappe.log_error(
-					title="Cutting Plan Silme Hatası",
-					message=f"Plan: {plan_name}\nHata: {str(e)}"
-				)
-				continue
+            except Exception as e:
+                frappe.log_error(
+                    title="Cutting Plan Silme Hatası",
+                    message=f"Plan: {plan_name}\nHata: {str(e)}"
+                )
+                continue
 
-		frappe.db.commit()
+        frappe.db.commit()
 
-		return {
-			"success": True,
-			"message": f"{deleted_count} kesim planı silindi/güncellendi"
-		}
+        return {
+            "success": True,
+            "message": f"{deleted_count} kesim planı silindi/güncellendi"
+        }
 
-	except Exception as e:
-		frappe.log_error(
-			title="Cutting Plan Silme Hatası",
-			message=f"Production Plan: {docname}\nHata: {str(e)}\nTraceback: {frappe.get_traceback()}"
-		)
-		frappe.db.rollback()
-		return {"success": False, "message": f"Hata: {str(e)}"}
+    except Exception as e:
+        frappe.log_error(
+            title="Cutting Plan Silme Hatası",
+            message=f"Production Plan: {docname}\nHata: {str(e)}\nTraceback: {frappe.get_traceback()}"
+        )
+        frappe.db.rollback()
+        return {"success": False, "message": f"Hata: {str(e)}"}
