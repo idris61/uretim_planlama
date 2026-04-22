@@ -1,5 +1,9 @@
 import frappe
-from uretim_planlama.uretim_planlama.utils import normalize_profile_length, normalize_profile_quantity, get_or_create_boy_record
+from uretim_planlama.uretim_planlama.utils import (
+    normalize_profile_length,
+    normalize_profile_quantity,
+    get_or_create_boy_record,
+)
 
 def validate(doc, method=None):
     """
@@ -16,8 +20,14 @@ def on_submit(doc, method=None):
     frappe.db.after_commit.add(lambda: update_material_request_statuses(doc))
     
     for item in doc.items:
-        # Profil ürünü kontrolü
-        if not getattr(item, "custom_is_profile", 0):
+        # Profil satırı tespiti:
+        # - Bazı akışlarda (PO -> PR map / item merge) custom_is_profile flag'i taşınmayabiliyor.
+        # - Boy+adet doluysa, profil kabul edip stok defterine yansıtalım.
+        has_profile_fields = bool(
+            getattr(item, "custom_profile_length_m", None)
+            and getattr(item, "custom_profile_length_qty", None)
+        )
+        if not (getattr(item, "custom_is_profile", 0) or has_profile_fields):
             continue
             
         # Boy ve adet kontrolü
@@ -62,6 +72,8 @@ def on_submit(doc, method=None):
 
             # PR kaynaklı olduğu için grup kontrolünü atla
             profile_entry.flags.bypass_group_check = True
+            # Otomasyon: PR submit eden kullanıcıda permission olmayabilir
+            profile_entry.flags.ignore_permissions = True
             
             profile_entry.insert()
             profile_entry.submit()

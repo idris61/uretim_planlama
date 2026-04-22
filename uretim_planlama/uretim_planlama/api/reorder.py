@@ -65,6 +65,43 @@ def _check_draft_purchase_mr(profile_type: str, warehouse: str | None) -> bool:
 		return False
 
 
+def _has_open_purchase_request(profile_type: str, length_boy: str | None) -> bool:
+	"""
+	Duplicate önleme:
+	- Sadece Draft (docstatus=0) değil, Submit edilmiş ama hâlâ açık/pipeline'da olan MR'leri de dikkate al.
+	- Boy bazında kontrol et (custom_profile_length_m = Boy link).
+	"""
+	try:
+		conditions = [
+			"mr.docstatus in (0, 1)",
+			"mr.material_request_type = 'Purchase'",
+			"mri.item_code = %(item_code)s",
+		]
+		values = {"item_code": profile_type}
+		if length_boy:
+			conditions.append("COALESCE(mri.custom_profile_length_m, '') = %(length_boy)s")
+			values["length_boy"] = length_boy
+
+		# Stopped / Cancelled gibi kapanmış statüleri hariç tut
+		conditions.append("COALESCE(mr.status, '') NOT IN ('Stopped', 'Cancelled')")
+
+		row = frappe.db.sql(
+			f"""
+			SELECT mr.name
+			FROM `tabMaterial Request` mr
+			INNER JOIN `tabMaterial Request Item` mri ON mri.parent = mr.name
+			WHERE {' AND '.join(conditions)}
+			LIMIT 1
+			""",
+			values,
+			as_dict=True,
+		)
+		return bool(row)
+	except Exception as e:
+		frappe.log_error(f"_has_open_purchase_request error: {str(e)}", "Reorder Open MR Check Error")
+		return False
+
+
 def _create_material_request(profile_type: str, qty: float, warehouse: str | None, supplier: str | None, length: float = None, profile_qty: int = None):
 	mr = frappe.new_doc("Material Request")
 	mr.material_request_type = "Purchase"
@@ -118,13 +155,8 @@ def _create_material_request(profile_type: str, qty: float, warehouse: str | Non
 	if hasattr(row, 'custom_is_profile'):
 		row.custom_is_profile = 1
 	
+	# Draft bırak: duplicate önleme (_has_open_purchase_request / draft kontrolü) daha sağlıklı çalışır.
 	mr.insert(ignore_permissions=True)
-	# Otomatik submit et
-	try:
-		mr.submit()
-	except Exception as e:
-		# Submit başarısız olursa taslak bırak, logla
-		frappe.log_error(f"Auto-submit MR failed: {mr.name} -> {str(e)}", "Profile Reorder MR Submit Error")
 	return mr.name
 
 
@@ -161,6 +193,9 @@ def ensure_reorder_for_profile(profile_type: str, length: float, current_qty: fl
 		if not rule:
 			frappe.logger().info(f"No reorder rule for {profile_type} {length}m")
 			return None
+
+		# Boy bazında (Link) değer: duplicate kontrolünde bunu kullanacağız
+		length_boy = rule.get("length")
 		
 		# Minimum stok kontrolü
 		min_qty = float(rule.get("min_qty", 0))
@@ -168,9 +203,9 @@ def ensure_reorder_for_profile(profile_type: str, length: float, current_qty: fl
 			frappe.logger().info(f"Stock sufficient: {current_qty} >= {min_qty}")
 			return None
 		
-		# Zaten draft MR var mı kontrol et
-		if _check_draft_purchase_mr(profile_type, None):
-			frappe.logger().info(f"Draft MR already exists for {profile_type}")
+		# Zaten açık (draft veya submitted) MR var mı kontrol et (boy bazında)
+		if _has_open_purchase_request(profile_type, length_boy):
+			frappe.logger().info(f"Open MR already exists for {profile_type} length={length_boy}")
 			return None
 		
 		# Malzeme talebi oluştur
